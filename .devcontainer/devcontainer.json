@@ -1,0 +1,19 @@
+{
+  "name": "The Daily Grind (Cloudflare Edge + AI)",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "editor.formatOnSave": true
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "cloudflare.cloudflare-workers-preview"
+      ]
+    }
+  },
+  "postCreateCommand": "npm install && npm run build",
+  "forwardPorts": [8787, 5173, 5174]
+}
