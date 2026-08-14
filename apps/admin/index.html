@@ -916,22 +916,22 @@
               </thead>
               <tbody id="batch-table-body">
                 <tr>
-                  <td><strong>BATCH-8821</strong></td>
-                  <td>Chikmagalur Attikan Honey</td>
-                  <td>12.0 kg</td>
-                  <td>10.2 kg</td>
-                  <td><strong style="color: var(--emerald);">15.0%</strong></td>
-                  <td>₹179.41 / 250g</td>
-                  <td><span class="status-badge paid">✓ Calibrated</span></td>
+                  <td data-label="Batch ID"><strong>BATCH-8821</strong></td>
+                  <td data-label="Lot Name">Chikmagalur Attikan Honey</td>
+                  <td data-label="Green In">12.0 kg</td>
+                  <td data-label="Roasted Out">10.2 kg</td>
+                  <td data-label="Roast Loss %"><strong style="color: var(--emerald);">15.0%</strong></td>
+                  <td data-label="Green Cost / Bag">₹179.41 / 250g</td>
+                  <td data-label="Status"><span class="status-badge paid">✓ Calibrated</span></td>
                 </tr>
                 <tr>
-                  <td><strong>BATCH-8820</strong></td>
-                  <td>Midnight Runner Dark Espresso</td>
-                  <td>15.0 kg</td>
-                  <td>12.3 kg</td>
-                  <td><strong style="color: var(--amber);">18.0%</strong></td>
-                  <td>₹185.97 / 250g</td>
-                  <td><span class="status-badge paid">✓ Calibrated</span></td>
+                  <td data-label="Batch ID"><strong>BATCH-8820</strong></td>
+                  <td data-label="Lot Name">Midnight Runner Dark Espresso</td>
+                  <td data-label="Green In">15.0 kg</td>
+                  <td data-label="Roasted Out">12.3 kg</td>
+                  <td data-label="Roast Loss %"><strong style="color: var(--amber);">18.0%</strong></td>
+                  <td data-label="Green Cost / Bag">₹185.97 / 250g</td>
+                  <td data-label="Status"><span class="status-badge paid">✓ Calibrated</span></td>
                 </tr>
               </tbody>
             </table>
@@ -960,20 +960,20 @@
             </thead>
             <tbody id="coupons-table-body">
               <tr>
-                <td><strong>WELCOME10</strong></td>
-                <td>10% Off Entire Order</td>
-                <td>142 uses</td>
-                <td>500 max</td>
-                <td><span class="status-badge paid">Active</span></td>
-                <td><button class="btn-table-action" onclick="alert('Coupon WELCOME10 is active on Storefront')">Active</button></td>
+                <td data-label="Coupon Code"><strong>WELCOME10</strong></td>
+                <td data-label="Discount">10% Off Entire Order</td>
+                <td data-label="Redemptions">142 uses</td>
+                <td data-label="Max Uses">500 max</td>
+                <td data-label="Status"><span class="status-badge paid">Active</span></td>
+                <td data-label="Action"><button class="btn-table-action" onclick="alert('Coupon WELCOME10 is active on Storefront')">Active</button></td>
               </tr>
               <tr>
-                <td><strong>BANGALORE15</strong></td>
-                <td>15% Off (Bangalore Launch)</td>
-                <td>88 uses</td>
-                <td>200 max</td>
-                <td><span class="status-badge paid">Active</span></td>
-                <td><button class="btn-table-action" onclick="alert('Coupon BANGALORE15 is active')">Active</button></td>
+                <td data-label="Coupon Code"><strong>BANGALORE15</strong></td>
+                <td data-label="Discount">15% Off (Bangalore Launch)</td>
+                <td data-label="Redemptions">88 uses</td>
+                <td data-label="Max Uses">200 max</td>
+                <td data-label="Status"><span class="status-badge paid">Active</span></td>
+                <td data-label="Action"><button class="btn-table-action" onclick="alert('Coupon BANGALORE15 is active')">Active</button></td>
               </tr>
             </tbody>
           </table>
@@ -1006,44 +1006,44 @@
           </thead>
           <tbody id="orders-table-body">
             <tr data-order-id="TDG-102938">
-              <td><strong>TDG-102938</strong></td>
-              <td>Rohan Sharma (Indiranagar)</td>
-              <td>Chikmagalur Attikan (250g · South Indian Filter)</td>
-              <td><strong>₹450</strong></td>
-              <td><span class="status-badge roasting">🔥 Roasting</span></td>
-              <td>
-                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                  <button class="btn-table-action btn-order-invoice" data-order="TDG-102938" data-customer="Rohan Sharma" data-loc="Indiranagar, Bangalore" data-item="Chikmagalur Attikan Estate Honey (250g · South Indian Filter)" data-total="450">🧾 GST Invoice</button>
-                  <button class="btn-table-action btn-order-label" data-lot="chikmagalur_attikan" data-grind="South Indian Filter" data-size="250g" data-batch="BATCH-8821">🏷️ Label</button>
-                  <button class="btn-table-action" onclick="alert('Batch TDG-102938 advanced to: Degassing & Nitrogen Packed')">Advance ➔</button>
+              <td data-label="Order ID"><strong>TDG-102938</strong></td>
+              <td data-label="Customer">Rohan Sharma (Indiranagar)</td>
+              <td data-label="Coffee & Grind">Chikmagalur Attikan (250g · South Indian Filter)</td>
+              <td data-label="Total"><strong style="color: var(--emerald);">₹450</strong></td>
+              <td data-label="Status"><span class="status-badge roasting">🔥 Roasting</span></td>
+              <td data-label="Actions">
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; width: 100%;">
+                  <button class="btn-table-action btn-order-invoice" data-order="TDG-102938" data-customer="Rohan Sharma" data-loc="Indiranagar, Bangalore" data-item="Chikmagalur Attikan Estate Honey (250g · South Indian Filter)" data-total="450" style="flex:1; min-height:42px;">🧾 GST Invoice</button>
+                  <button class="btn-table-action btn-order-label" data-lot="chikmagalur_attikan" data-grind="South Indian Filter" data-size="250g" data-batch="BATCH-8821" style="flex:1; min-height:42px;">🏷️ Label</button>
+                  <button class="btn-table-action" onclick="alert('Batch TDG-102938 advanced to: Degassing & Nitrogen Packed')" style="width:100%; min-height:42px;">Advance ➔</button>
                 </div>
               </td>
             </tr>
             <tr data-order-id="TDG-102939">
-              <td><strong>TDG-102939</strong></td>
-              <td>Priya Nair (Koramangala)</td>
-              <td>Midnight Runner Espresso (500g · Whole Bean)</td>
-              <td><strong>₹820</strong></td>
-              <td><span class="status-badge paid">✓ Paid & Queued</span></td>
-              <td>
-                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                  <button class="btn-table-action btn-order-invoice" data-order="TDG-102939" data-customer="Priya Nair" data-loc="Koramangala, Bangalore" data-item="Midnight Runner Dark Espresso (500g · Whole Bean)" data-total="820">🧾 GST Invoice</button>
-                  <button class="btn-table-action btn-order-label" data-lot="midnight_runner" data-grind="Whole Bean" data-size="500g" data-batch="BATCH-8820">🏷️ Label</button>
-                  <button class="btn-table-action" onclick="alert('Batch TDG-102939 queued for next convection cycle')">Advance ➔</button>
+              <td data-label="Order ID"><strong>TDG-102939</strong></td>
+              <td data-label="Customer">Priya Nair (Koramangala)</td>
+              <td data-label="Coffee & Grind">Midnight Runner Espresso (500g · Whole Bean)</td>
+              <td data-label="Total"><strong style="color: var(--emerald);">₹820</strong></td>
+              <td data-label="Status"><span class="status-badge paid">✓ Paid & Queued</span></td>
+              <td data-label="Actions">
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; width: 100%;">
+                  <button class="btn-table-action btn-order-invoice" data-order="TDG-102939" data-customer="Priya Nair" data-loc="Koramangala, Bangalore" data-item="Midnight Runner Dark Espresso (500g · Whole Bean)" data-total="820" style="flex:1; min-height:42px;">🧾 GST Invoice</button>
+                  <button class="btn-table-action btn-order-label" data-lot="midnight_runner" data-grind="Whole Bean" data-size="500g" data-batch="BATCH-8820" style="flex:1; min-height:42px;">🏷️ Label</button>
+                  <button class="btn-table-action" onclick="alert('Batch TDG-102939 queued for next convection cycle')" style="width:100%; min-height:42px;">Advance ➔</button>
                 </div>
               </td>
             </tr>
             <tr data-order-id="TDG-102940">
-              <td><strong>TDG-102940</strong></td>
-              <td>David Miller (Whitefield)</td>
-              <td>Dawn Patrol Bangalore Blend (1kg · Espresso)</td>
-              <td><strong>₹1,490</strong></td>
-              <td><span class="status-badge shipped">📦 Shipped</span></td>
-              <td>
-                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                  <button class="btn-table-action btn-order-invoice" data-order="TDG-102940" data-customer="David Miller" data-loc="Whitefield, Bangalore" data-item="Dawn Patrol Bangalore Roastery Blend (1kg · Espresso)" data-total="1490">🧾 GST Invoice</button>
-                  <button class="btn-table-action btn-order-label" data-lot="dawn_patrol" data-grind="Espresso (9-Bar)" data-size="1kg" data-batch="BATCH-8819">🏷️ Label</button>
-                  <button class="btn-table-action" onclick="alert('Tracking ID: BLR-EXPRESS-99281 (Shipped via Express Roastery Courier)')">View Tracking</button>
+              <td data-label="Order ID"><strong>TDG-102940</strong></td>
+              <td data-label="Customer">David Miller (Whitefield)</td>
+              <td data-label="Coffee & Grind">Dawn Patrol Bangalore Blend (1kg · Espresso)</td>
+              <td data-label="Total"><strong style="color: var(--emerald);">₹1,490</strong></td>
+              <td data-label="Status"><span class="status-badge shipped">📦 Shipped</span></td>
+              <td data-label="Actions">
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; width: 100%;">
+                  <button class="btn-table-action btn-order-invoice" data-order="TDG-102940" data-customer="David Miller" data-loc="Whitefield, Bangalore" data-item="Dawn Patrol Bangalore Roastery Blend (1kg · Espresso)" data-total="1490" style="flex:1; min-height:42px;">🧾 GST Invoice</button>
+                  <button class="btn-table-action btn-order-label" data-lot="dawn_patrol" data-grind="Espresso (9-Bar)" data-size="1kg" data-batch="BATCH-8819" style="flex:1; min-height:42px;">🏷️ Label</button>
+                  <button class="btn-table-action" onclick="alert('Tracking ID: BLR-EXPRESS-99281 (Shipped via Express Roastery Courier)')" style="width:100%; min-height:42px;">View Tracking</button>
                 </div>
               </td>
             </tr>

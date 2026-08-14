@@ -521,29 +521,25 @@ input[type="range"]::-webkit-slider-thumb {
     height: 24px;
   }
 
-  /* Horizontal Snap Carousel for KPI Cards on Mobile */
+  /* 2x2 Responsive KPI Grid on Mobile (No Horizontal Scrolling) */
   .kpi-grid {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    gap: 0.85rem;
-    padding-bottom: 0.6rem;
-    scrollbar-width: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
     width: 100%;
     max-width: 100%;
     min-width: 0;
   }
 
-  .kpi-grid::-webkit-scrollbar {
-    display: none;
+  .kpi-card {
+    min-width: 0;
+    max-width: 100%;
+    padding: 1rem 0.9rem;
+    box-sizing: border-box;
   }
 
-  .kpi-card {
-    scroll-snap-align: start;
-    min-width: 78vw;
-    max-width: 82vw;
-    flex-shrink: 0;
+  .kpi-value {
+    font-size: clamp(1.25rem, 4vw, 1.6rem);
   }
 
   /* Economics Simulator Stack */
@@ -626,47 +622,132 @@ input[type="range"]::-webkit-slider-thumb {
     padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Horizontal Snap Carousels on Mobile */
+  /* 3x2 Grid for Roaster Batch Size Selector on Mobile (No Horizontal Scrolling) */
   .capacity-batch-carousel {
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 0.5rem;
-    flex-wrap: nowrap;
-    scrollbar-width: none;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
     width: 100%;
     min-width: 0;
-  }
-  .capacity-batch-carousel::-webkit-scrollbar {
-    display: none;
-  }
-  .batch-tier-pill {
-    scroll-snap-align: start;
-    flex-shrink: 0;
-    min-width: 140px;
+    overflow-x: visible;
   }
 
+  .batch-tier-pill {
+    min-width: 0;
+    width: 100%;
+    padding: 0.65rem 0.35rem;
+    box-sizing: border-box;
+  }
+
+  .pill-size {
+    font-size: 1.05rem;
+  }
+
+  .pill-role {
+    font-size: 0.65rem;
+  }
+
+  /* Stacked Vertical CapEx Machine Cards on Mobile */
   .capex-cards-carousel {
     display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 0.6rem;
-    scrollbar-width: none;
+    flex-direction: column;
+    gap: 0.9rem;
     width: 100%;
     min-width: 0;
+    overflow-x: visible;
   }
-  .capex-cards-carousel::-webkit-scrollbar {
-    display: none;
-  }
+
   .capex-machine-card {
-    scroll-snap-align: start;
-    min-width: 270px;
-    flex-shrink: 0;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .capex-sim-right {
     grid-template-columns: 1fr;
+  }
+
+  /* ==========================================================================
+     MOBILE DATA TABLE -> CARD VIEW CONVERSION (ZERO HORIZONTAL SCROLLING)
+     ========================================================================== */
+  .table-responsive {
+    overflow-x: visible !important;
+    width: 100% !important;
+  }
+
+  .data-table {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .data-table thead {
+    display: none !important;
+  }
+
+  .data-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.9rem !important;
+    width: 100% !important;
+  }
+
+  .data-table tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--admin-card) !important;
+    border: 1px solid var(--admin-border) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 1rem 1.1rem !important;
+    gap: 0.65rem !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .data-table td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0.35rem 0 !important;
+    border-bottom: 1px dashed rgba(56, 47, 42, 0.5) !important;
+    font-size: 0.9rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .data-table td:last-child {
+    border-bottom: none !important;
+    padding-top: 0.6rem !important;
+    margin-top: 0.2rem !important;
+    justify-content: stretch !important;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 0.6rem;
+    flex-shrink: 0;
+  }
+
+  .data-table td input[type="number"],
+  .data-table td input[type="text"],
+  .data-table td select {
+    width: auto !important;
+    max-width: 55% !important;
+    text-align: right;
+  }
+
+  .data-table td .btn-table-action,
+  .data-table td button {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 44px !important;
   }
 }
 
@@ -696,8 +777,8 @@ input[type="range"]::-webkit-slider-thumb {
     text-align: center;
   }
 
-  .kpi-card {
-    min-width: 82vw;
+  .capacity-batch-carousel {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .capacity-live-kpis {

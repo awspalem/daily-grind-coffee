@@ -162,22 +162,22 @@ class AdminPortal {
 
       return `
         <tr>
-          <td><strong>${item.product_name}</strong></td>
-          <td><span class="status-badge paid">${item.weight_grams >= 1000 ? `${item.weight_grams / 1000}kg` : `${item.weight_grams}g`}</span></td>
-          <td>
-            <input type="number" id="inr-${idx}" value="${item.price_inr}" step="10" style="width: 90px; padding: 0.35rem 0.5rem; background: var(--admin-surface); color: #fff; border: 1px solid var(--admin-border); border-radius: var(--radius-sm);">
+          <td data-label="Coffee Lot"><strong>${item.product_name}</strong></td>
+          <td data-label="Bag Size"><span class="status-badge paid">${item.weight_grams >= 1000 ? `${item.weight_grams / 1000}kg` : `${item.weight_grams}g`}</span></td>
+          <td data-label="Price (₹ INR)">
+            <input type="number" id="inr-${idx}" value="${item.price_inr}" step="10" style="width: 100px; padding: 0.45rem 0.6rem; background: var(--admin-surface); color: #fff; border: 1px solid var(--admin-border); border-radius: var(--radius-sm);">
           </td>
-          <td>
-            <input type="number" id="usd-${idx}" value="${(item.price_usd_cents / 100).toFixed(2)}" step="0.5" style="width: 80px; padding: 0.35rem 0.5rem; background: var(--admin-surface); color: #fff; border: 1px solid var(--admin-border); border-radius: var(--radius-sm);">
+          <td data-label="Price ($ USD)">
+            <input type="number" id="usd-${idx}" value="${(item.price_usd_cents / 100).toFixed(2)}" step="0.5" style="width: 90px; padding: 0.45rem 0.6rem; background: var(--admin-surface); color: #fff; border: 1px solid var(--admin-border); border-radius: var(--radius-sm);">
           </td>
-          <td>
-            <input type="number" id="disc-${idx}" value="${item.discount_percent}" min="0" max="90" step="5" style="width: 70px; padding: 0.35rem 0.5rem; background: var(--admin-surface); color: var(--gold); border: 1px solid var(--admin-border); border-radius: var(--radius-sm); font-weight:700;"> %
+          <td data-label="Discount %">
+            <input type="number" id="disc-${idx}" value="${item.discount_percent}" min="0" max="90" step="5" style="width: 80px; padding: 0.45rem 0.6rem; background: var(--admin-surface); color: var(--gold); border: 1px solid var(--admin-border); border-radius: var(--radius-sm); font-weight:700;"> %
           </td>
-          <td id="preview-${idx}">
-            <strong>₹${netInr}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">($${netUsd})</span>
+          <td data-label="Net Preview" id="preview-${idx}">
+            <strong>₹${netInr}</strong> <span style="color:var(--text-muted); font-size:0.85rem;">($${netUsd})</span>
           </td>
-          <td>
-            <button class="btn-table-action" data-idx="${idx}">Save</button>
+          <td data-label="Action">
+            <button class="btn-table-action" data-idx="${idx}" style="min-height: 42px;">Save Pricing</button>
           </td>
         </tr>
       `;
@@ -409,19 +409,19 @@ class AdminPortal {
           }
 
           return `
-            <tr style="${isSelected ? 'background: rgba(212, 167, 84, 0.08); font-weight: 600;' : ''}">
-              <td><strong style="color: ${isSelected ? 'var(--gold)' : 'var(--text-main)'};">${tier.batchSizeKg.toFixed(1)} kg</strong></td>
-              <td>${tier.category}</td>
-              <td>${batchesPerDay.toFixed(1)}</td>
-              <td>${tierDaily.toFixed(1)} kg</td>
-              <td>${tierMonthly.toFixed(1)} kg</td>
-              <td><strong>${Math.round(tierAnnual).toLocaleString('en-IN')} kg</strong></td>
-              <td>${tierBags.toLocaleString('en-IN')}</td>
-              <td><strong style="color: var(--emerald);">₹${tierRev.toLocaleString('en-IN')}</strong></td>
-              <td>${fitBadge}</td>
-              <td>
-                <button type="button" class="btn-table-action btn-select-batch" data-batch="${tier.batchSizeKg}" style="${isSelected ? 'background: var(--gold); color: #000; font-weight: 700;' : ''}">
-                  ${isSelected ? '✓ Active' : 'Select'}
+            <tr style="${isSelected ? 'background: rgba(212, 167, 84, 0.08); font-weight: 600; border-left: 3px solid var(--gold);' : ''}">
+              <td data-label="Batch Size"><strong style="color: ${isSelected ? 'var(--gold)' : 'var(--text-main)'}; font-size: 1rem;">${tier.batchSizeKg.toFixed(1)} kg</strong></td>
+              <td data-label="Machine Class">${tier.category}</td>
+              <td data-label="Batches / Day">${batchesPerDay.toFixed(1)}</td>
+              <td data-label="Daily Output">${tierDaily.toFixed(1)} kg/day</td>
+              <td data-label="Monthly Output">${tierMonthly.toFixed(1)} kg/mo</td>
+              <td data-label="Annual Output"><strong>${Math.round(tierAnnual).toLocaleString('en-IN')} kg</strong></td>
+              <td data-label="250g Bags / Yr">${tierBags.toLocaleString('en-IN')}</td>
+              <td data-label="Revenue (@ ₹450)"><strong style="color: var(--emerald); font-size:0.95rem;">₹${tierRev.toLocaleString('en-IN')}</strong></td>
+              <td data-label="Milestone Fit">${fitBadge}</td>
+              <td data-label="Action">
+                <button type="button" class="btn-table-action btn-select-batch" data-batch="${tier.batchSizeKg}" style="width:100%; min-height:42px; ${isSelected ? 'background: var(--gold); color: #000; font-weight: 700;' : ''}">
+                  ${isSelected ? '✓ Active in Simulator' : 'Select Batch Size'}
                 </button>
               </td>
             </tr>
@@ -669,13 +669,13 @@ class AdminPortal {
       if (tbody) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td><strong>BATCH-${Math.floor(1000 + Math.random() * 9000)}</strong></td>
-          <td>${lot}</td>
-          <td>${greenKg} kg</td>
-          <td>${roastedKg} kg</td>
-          <td><strong style="color: var(--emerald);">${lossPct}%</strong></td>
-          <td>₹${greenCostPerBag} / 250g</td>
-          <td><span class="status-badge paid">✓ Calibrated</span></td>
+          <td data-label="Batch ID"><strong>BATCH-${Math.floor(1000 + Math.random() * 9000)}</strong></td>
+          <td data-label="Lot Name">${lot}</td>
+          <td data-label="Green In">${greenKg} kg</td>
+          <td data-label="Roasted Out">${roastedKg} kg</td>
+          <td data-label="Roast Loss %"><strong style="color: var(--emerald);">${lossPct}%</strong></td>
+          <td data-label="Green Cost / Bag">₹${greenCostPerBag} / 250g</td>
+          <td data-label="Status"><span class="status-badge paid">✓ Calibrated</span></td>
         `;
         tbody.prepend(tr);
       }
@@ -695,12 +695,12 @@ class AdminPortal {
         if (tbody) {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td><strong>${code.toUpperCase()}</strong></td>
-            <td>${discount}% Off Entire Order</td>
-            <td>0 uses</td>
-            <td>250 max</td>
-            <td><span class="status-badge paid">Active</span></td>
-            <td><button class="btn-table-action" onclick="alert('Coupon is active')">Active</button></td>
+            <td data-label="Coupon Code"><strong>${code.toUpperCase()}</strong></td>
+            <td data-label="Discount">${discount}% Off Entire Order</td>
+            <td data-label="Redemptions">0 uses</td>
+            <td data-label="Max Uses">250 max</td>
+            <td data-label="Status"><span class="status-badge paid">Active</span></td>
+            <td data-label="Action"><button class="btn-table-action" onclick="alert('Coupon is active')">Active</button></td>
           `;
           tbody.prepend(tr);
         }

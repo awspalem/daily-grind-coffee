@@ -1596,6 +1596,62 @@
     scroll-snap-align: start;
     white-space: nowrap;
   }
+
+  /* Diligence Table -> Mobile Cards */
+  .diligence-table {
+    display: block !important;
+    width: 100% !important;
+    border: none !important;
+  }
+
+  .diligence-table thead {
+    display: none !important;
+  }
+
+  .diligence-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+  }
+
+  .diligence-table tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background: rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid var(--inv-border) !important;
+    border-radius: 10px !important;
+    padding: 0.85rem !important;
+    gap: 0.45rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .diligence-table td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0.2rem 0 !important;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08) !important;
+    font-size: 0.85rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .diligence-table td:last-child {
+    border-bottom: none !important;
+  }
+
+  .diligence-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--inv-text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
 }
 
 @media (max-width: 480px) {
