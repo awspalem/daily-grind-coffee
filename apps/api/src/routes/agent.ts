@@ -115,16 +115,19 @@ const AGENT_TOOLS: GroqToolDefinition[] = [
 agentApp.post('/chat', turnstileValidator, async (c) => {
   const sessionToken = c.req.header('X-Session-Token');
   const body = await c.req.json<{
-    messages: { role: 'user' | 'assistant' | 'system'; content: string }[];
-  }>();
+    message?: string;
+    messages?: { role: 'user' | 'assistant' | 'system'; content: string }[];
+  }>().catch(() => ({} as any));
 
   const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL);
   const db = new CoffeeDatabase(c.env.DB);
   const ai = new WorkersAIService(c.env.AI);
 
+  const incomingMessages = body.messages || (body.message ? [{ role: 'user' as const, content: body.message }] : []);
+
   const fullMessages: GroqChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
-    ...(body.messages || []),
+    ...incomingMessages,
   ];
 
   const responseMessage = await groq.chatCompletion(fullMessages, AGENT_TOOLS);
@@ -255,6 +258,7 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     const finalAnswer = await groq.chatCompletion(secondPassMessages);
     return c.json({
       success: true,
+      reply: finalAnswer.content || 'Here are the matching coffees from our roastery!',
       message: finalAnswer,
       proposed_actions: proposedActions,
     });
@@ -262,6 +266,7 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
 
   return c.json({
     success: true,
+    reply: responseMessage.content || 'How can I assist your coffee journey today?',
     message: responseMessage,
   });
 });

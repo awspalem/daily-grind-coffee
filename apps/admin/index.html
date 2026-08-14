@@ -1,246 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Daily Grind — Roastery Command & Admin Operations</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roastery Operations Command — The Daily Grind</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/src/styles/admin.css" />
+  <link rel="stylesheet" href="/src/styles/admin.css">
 </head>
 <body>
-  <div id="admin-app">
-    <!-- Admin Top Bar with Zero Trust Badge -->
-    <header class="admin-header">
-      <div class="admin-header-inner container">
-        <div class="admin-brand">
-          <span class="brand-icon">☕</span>
-          <div>
-            <strong>THE DAILY GRIND</strong>
-            <span class="portal-badge">Master Roaster Command</span>
-          </div>
-        </div>
-
-        <div class="zero-trust-indicator">
-          <span class="zt-status-dot"></span>
-          <span>Guarded by <strong>Cloudflare Zero Trust Access</strong> (Identity: <code>roaster@dailygrind.coffee</code>)</span>
-        </div>
-
-        <div class="admin-user-nav">
-          <button class="btn btn-outline btn-sm" id="btn-trigger-backup">💾 Run D1 R2 Backup</button>
-          <a href="http://localhost:5173" target="_blank" class="btn-storefront-link">View Public Storefront ↗</a>
+  <div class="admin-layout">
+    <!-- Roastery Navigation Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="roastery-brand">
+        <div class="brand-icon">☕</div>
+        <div class="brand-meta">
+          <h2>THE DAILY GRIND</h2>
+          <span>Roaster Command</span>
         </div>
       </div>
-    </header>
 
-    <!-- Navigation Tabs -->
-    <div class="admin-nav-bar">
-      <div class="container admin-tabs">
-        <button class="admin-tab active" data-tab="dashboard">📊 Operations Dashboard</button>
-        <button class="admin-tab" data-tab="inventory">📦 Stock & Inventory</button>
-        <button class="admin-tab" data-tab="movements">📜 Movement Ledger</button>
-        <button class="admin-tab" data-tab="orders">🚚 Order Fulfillment</button>
-        <button class="admin-tab" data-tab="funnel">📈 Funnel Analytics</button>
-        <button class="admin-tab" data-tab="quotas">🛡️ Quota Telemetry</button>
+      <nav>
+        <ul class="sidebar-nav">
+          <li><button class="nav-item-btn active" data-tab="overview">📊 Daily Operations</button></li>
+          <li><button class="nav-item-btn" data-tab="roasts">🔥 Roasting Batches</button></li>
+          <li><button class="nav-item-btn" data-tab="inventory">📦 Bean Stock & Lots</button></li>
+          <li><button class="nav-item-btn" data-tab="orders">🚚 Order Fulfillment</button></li>
+          <li><button class="nav-item-btn" data-tab="cupping">☕ Cupping & Notes</button></li>
+        </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span>Roaster Shift: Active</span>
+        <span style="color: var(--emerald);">● Online</span>
       </div>
-    </div>
+    </aside>
 
-    <!-- Main Container -->
-    <main class="container admin-content">
-      <!-- 1. Dashboard View -->
-      <section class="tab-panel active" id="tab-dashboard">
-        <!-- AI Morning Operational Briefing -->
-        <div class="ai-briefing-card" id="ai-ops-card">
-          <div class="briefing-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 1.2rem;">✨</span>
-              <strong>AI Master Roaster Morning Briefing (Groq Reasoning)</strong>
-            </div>
-            <button class="btn btn-outline btn-sm" id="btn-refresh-ai-summary">Regenerate</button>
-          </div>
-          <div class="briefing-body" id="ai-ops-text">
-            Generating real-time operational briefing from D1 inventory & order movements...
-          </div>
+    <!-- Main Operational Workspace -->
+    <main class="admin-main">
+      <div class="top-bar">
+        <div class="page-headline">
+          <h1>Roastery Operations & Batches</h1>
+          <p>Real-time orders, green coffee lot levels, and daily roast schedule.</p>
         </div>
-
-        <div class="kpi-grid" id="kpi-cards">
-          <!-- Populated dynamically -->
+        <div class="top-actions">
+          <button class="btn-admin-action" id="btn-quick-restock">+ Restock Green Lots</button>
+          <a href="https://daily-grind-storefront.pages.dev" target="_blank" class="btn-table-action" style="padding: 0.65rem 1.2rem; text-decoration:none; display:flex; align-items:center;">
+            View Public Storefront ↗
+          </a>
         </div>
+      </div>
 
-        <div class="dashboard-split">
-          <div class="panel-card">
-            <h3>Recent Store Orders</h3>
-            <div id="recent-orders-list"></div>
-          </div>
-
-          <div class="panel-card">
-            <h3>Inventory Velocity & Status</h3>
-            <div id="quick-stock-alerts"></div>
-          </div>
+      <!-- AI Morning Roaster Briefing -->
+      <section class="roaster-briefing-card">
+        <div class="briefing-header">
+          <span class="briefing-tag">✨ Morning Roaster AI Briefing</span>
+          <span style="font-size: 0.8rem; color: var(--gold);" id="briefing-timestamp">Today at Dawn</span>
+        </div>
+        <div class="briefing-content" id="ai-briefing-text">
+          Good morning Roasters! Today we have <strong>18 customer orders</strong> queued for convection roasting. Priority batches: <strong>14kg Ethiopia Yirgacheffe Gedeb</strong> (Light floral roast curve) and <strong>9kg Colombia Pink Bourbon</strong>. Green bean reserves for Ethiopia lot are approaching 35kg—schedule an ethical cooperative restock soon.
         </div>
       </section>
 
-      <!-- 2. Inventory View -->
-      <section class="tab-panel" id="tab-inventory">
-        <div class="panel-header">
-          <div>
-            <h2>Roastery Inventory Grid</h2>
-            <p class="panel-subtitle">Manage batch stocks, review reserved amounts, and perform ledger-audited restocks.</p>
-          </div>
-          <button class="btn btn-primary btn-sm" id="btn-open-restock-modal">+ Quick Restock Batch</button>
+      <!-- Key Roastery Metrics -->
+      <section class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-title">Today's Roastery Revenue</span>
+          <div class="kpi-value" id="kpi-revenue">$2,480.00</div>
+          <span class="kpi-sub">↑ 18.4% vs last week</span>
         </div>
-
-        <div class="table-container">
-          <table class="admin-table" id="inventory-table">
-            <thead>
-              <tr>
-                <th>Coffee & Bag Size</th>
-                <th>SKU</th>
-                <th>Available</th>
-                <th>Reserved</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="inventory-table-body">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
+        <div class="kpi-card">
+          <span class="kpi-title">Active Batches to Roast</span>
+          <div class="kpi-value" id="kpi-orders">18 Orders</div>
+          <span class="kpi-sub">Estimated time: 2h 45m</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Green Coffee in Silos</span>
+          <div class="kpi-value" id="kpi-stock">420 kg</div>
+          <span class="kpi-sub">5 Micro-Lots on hand</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Average Cupping Score</span>
+          <div class="kpi-value">88.4 PTS</div>
+          <span class="kpi-sub">Specialty Grade Standard</span>
         </div>
       </section>
 
-      <!-- 3. Movement Ledger View -->
-      <section class="tab-panel" id="tab-movements">
+      <!-- Active Fulfillment Table -->
+      <section class="section-panel">
         <div class="panel-header">
-          <div>
-            <h2>Immutable Inventory Movements Ledger</h2>
-            <p class="panel-subtitle">Every reservation, fulfillment, restock, and cycle adjustment recorded permanently in Cloudflare D1.</p>
-          </div>
+          <h2 class="panel-title">Active Customer Orders & Roasting State</h2>
+          <span style="font-size: 0.85rem; color: var(--text-muted);">Real-time dispatch status</span>
         </div>
 
-        <div class="table-container">
-          <table class="admin-table" id="movements-table">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Item & SKU</th>
-                <th>Movement Type</th>
-                <th>Delta</th>
-                <th>Stock After</th>
-                <th>Actor / Reference</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody id="movements-table-body">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
-        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Selected Coffee & Grind</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="orders-table-body">
+            <tr>
+              <td><strong>TDG-102938</strong></td>
+              <td>Marcus Vance</td>
+              <td>Ethiopia Yirgacheffe (250g · Pour Over)</td>
+              <td>$19.50</td>
+              <td><span class="status-badge roasting">🔥 Roasting</span></td>
+              <td><button class="btn-table-action" onclick="alert('Batch advanced to: Degassing & Nitrogen Packed')">Advance ➔</button></td>
+            </tr>
+            <tr>
+              <td><strong>TDG-102939</strong></td>
+              <td>Elena Rostova</td>
+              <td>Midnight Runner Espresso (500g · Whole Bean)</td>
+              <td>$34.00</td>
+              <td><span class="status-badge paid">✓ Paid & Queued</span></td>
+              <td><button class="btn-table-action" onclick="alert('Batch queued for next convection cycle')">Advance ➔</button></td>
+            </tr>
+            <tr>
+              <td><strong>TDG-102940</strong></td>
+              <td>Liam Gallagher</td>
+              <td>Dawn Patrol Blend (1kg · Espresso Grind)</td>
+              <td>$59.00</td>
+              <td><span class="status-badge shipped">📦 Shipped</span></td>
+              <td><button class="btn-table-action" onclick="alert('Tracking ID: USPS-9400111899562')">View Tracking</button></td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
-      <!-- 4. Orders View -->
-      <section class="tab-panel" id="tab-orders">
+      <!-- Bean Inventory & Micro-Lot Reserves -->
+      <section class="section-panel">
         <div class="panel-header">
-          <div>
-            <h2>Order Fulfillment Queue</h2>
-            <p class="panel-subtitle">Track payments, advance roasting batches, attach tracking codes, or process refunds.</p>
-          </div>
+          <h2 class="panel-title">Micro-Lot Reserves & Green Stock Ledger</h2>
+          <span style="font-size: 0.85rem; color: var(--text-muted);">Silo capacity & thresholds</span>
         </div>
 
-        <div class="table-container">
-          <table class="admin-table" id="orders-table">
-            <thead>
-              <tr>
-                <th>Order Number</th>
-                <th>Customer</th>
-                <th>Status</th>
-                <th>Total</th>
-                <th>Date</th>
-                <th>Fulfillment Action</th>
-                <th>Refund</th>
-              </tr>
-            </thead>
-            <tbody id="orders-table-body">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- 5. Funnel Analytics View -->
-      <section class="tab-panel" id="tab-funnel">
-        <div class="panel-header">
-          <div>
-            <h2>Storefront Funnel & Conversion Telemetry</h2>
-            <p class="panel-subtitle">Tracking customer drop-off across edge-stored events in Cloudflare D1.</p>
-          </div>
-        </div>
-
-        <div class="kpi-grid" id="funnel-kpi-grid">
-          <!-- Rendered via JS -->
-        </div>
-
-        <div class="panel-card">
-          <h3>Conversion Rate Breakdown</h3>
-          <div id="funnel-rates-display" style="font-size: 0.95rem; line-height: 1.8;"></div>
-        </div>
-      </section>
-
-      <!-- 6. Free-Tier Quota Telemetry View -->
-      <section class="tab-panel" id="tab-quotas">
-        <div class="panel-header">
-          <div>
-            <h2>Cloudflare Free-Tier Quota & Guardrails</h2>
-            <p class="panel-subtitle">Live daily budget monitoring ensuring operations remain strictly at $0/month.</p>
-          </div>
-        </div>
-
-        <div class="quota-grid" id="quota-cards-container">
-          <!-- Rendered via JS -->
-        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Lot / Varietal</th>
+              <th>Origin & Farm</th>
+              <th>Process Method</th>
+              <th>Available Stock</th>
+              <th>Roasting Hold</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-table-body">
+            <tr>
+              <td><strong>Ethiopia Yirgacheffe Gedeb</strong></td>
+              <td>Gedeb District, 2,100m</td>
+              <td>Natural Sun-Dried</td>
+              <td>45 kg</td>
+              <td>6 kg</td>
+              <td><span class="status-badge paid">Healthy Stock</span></td>
+            </tr>
+            <tr>
+              <td><strong>Colombia Pink Bourbon</strong></td>
+              <td>San Adolfo, Huila, 1,850m</td>
+              <td>Anaerobic Washed</td>
+              <td>28 kg</td>
+              <td>4 kg</td>
+              <td><span class="status-badge paid">Healthy Stock</span></td>
+            </tr>
+            <tr>
+              <td><strong>Guatemala Antigua Los Volcanes</strong></td>
+              <td>Antigua Valley, 1,700m</td>
+              <td>Washed Bourbon</td>
+              <td>8 kg</td>
+              <td>2 kg</td>
+              <td><span class="status-badge low-stock">Low Stock (Re-order)</span></td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </main>
-
-    <!-- Restock / Adjust Stock Modal -->
-    <div class="modal-backdrop hidden" id="adjust-modal">
-      <div class="admin-modal-card">
-        <div class="modal-header">
-          <h3>Record Inventory Movement</h3>
-          <button class="close-modal-btn" id="btn-close-adjust">&times;</button>
-        </div>
-        <form id="adjust-stock-form">
-          <div class="form-group">
-            <label for="adjust-variant">Coffee Variant</label>
-            <select id="adjust-variant" required class="admin-input"></select>
-          </div>
-
-          <div class="form-group">
-            <label for="adjust-type">Movement Type</label>
-            <select id="adjust-type" required class="admin-input">
-              <option value="RESTOCK">RESTOCK (Batch Roast Addition)</option>
-              <option value="DAMAGE_ADJUSTMENT">DAMAGE_ADJUSTMENT (Spill / Quality Reject)</option>
-              <option value="INITIAL_STOCK">INITIAL_STOCK</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="adjust-qty">Quantity Delta (Units)</label>
-            <input type="number" id="adjust-qty" required value="25" class="admin-input" />
-          </div>
-
-          <div class="form-group">
-            <label for="adjust-reason">Reason / Batch Code</label>
-            <input type="text" id="adjust-reason" placeholder="e.g. Batch #2026-08A fresh roast" required class="admin-input" />
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn btn-outline" id="btn-cancel-adjust">Cancel</button>
-            <button type="submit" class="btn btn-primary" id="btn-save-adjust">Commit to D1 Ledger</button>
-          </div>
-        </form>
-      </div>
-    </div>
   </div>
 
   <script type="module" src="/src/main.ts"></script>

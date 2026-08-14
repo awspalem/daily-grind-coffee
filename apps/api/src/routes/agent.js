@@ -108,13 +108,14 @@ const AGENT_TOOLS = [
 // POST /api/agent/chat
 agentApp.post('/chat', turnstileValidator, async (c) => {
     const sessionToken = c.req.header('X-Session-Token');
-    const body = await c.req.json();
+    const body = await c.req.json().catch(() => ({}));
     const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL);
     const db = new CoffeeDatabase(c.env.DB);
     const ai = new WorkersAIService(c.env.AI);
+    const incomingMessages = body.messages || (body.message ? [{ role: 'user', content: body.message }] : []);
     const fullMessages = [
         { role: 'system', content: SYSTEM_PROMPT },
-        ...(body.messages || []),
+        ...incomingMessages,
     ];
     const responseMessage = await groq.chatCompletion(fullMessages, AGENT_TOOLS);
     // If tool calls were generated
@@ -233,12 +234,14 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
         const finalAnswer = await groq.chatCompletion(secondPassMessages);
         return c.json({
             success: true,
+            reply: finalAnswer.content || 'Here are the matching coffees from our roastery!',
             message: finalAnswer,
             proposed_actions: proposedActions,
         });
     }
     return c.json({
         success: true,
+        reply: responseMessage.content || 'How can I assist your coffee journey today?',
         message: responseMessage,
     });
 });

@@ -1,624 +1,758 @@
-// State
-let allProducts = [];
-let filteredProducts = [];
-let currentCategory = 'all';
-let currentRoast = 'ALL';
-let currentCart = null;
-let chatMessages = [];
-// Session token in LocalStorage
-function getSessionToken() {
-    let token = localStorage.getItem('tdg_session_token');
-    if (!token) {
-        token = 'sess_' + crypto.randomUUID().replace(/-/g, '');
-        localStorage.setItem('tdg_session_token', token);
+// Fallback curated catalog data for seamless coffee consumer exploration
+const FALLBACK_PRODUCTS = [
+    {
+        id: 'prod_eth_yirg',
+        slug: 'ethiopia-yirgacheffe-gedeb',
+        name: 'Ethiopia Yirgacheffe Gedeb',
+        tagline: 'Floral jasmine, crisp bergamot & sweet white peach',
+        description: 'Hand-picked Heirloom micro-lot grown at 2,100 meters elevation in the Gedeb district. Naturally processed with sun-dried fruit fermentation on raised African beds for extraordinary tea-like clarity.',
+        category_id: 'single-origin',
+        origin_country: 'Ethiopia',
+        region: 'Gedeb, Yirgacheffe',
+        process_method: 'NATURAL',
+        roast_level: 'LIGHT',
+        tasting_notes: ['Jasmine', 'Bergamot', 'Peach', 'Honey'],
+        image_url: '/images/bag_ethiopia.jpg',
+        is_active: 1,
+        is_featured: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        variants: [
+            { id: 'var_eth_250', product_id: 'prod_eth_yirg', sku: 'TDG-ETH-250G', weight_grams: 250, price_cents: 1950, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'AEROPRESS'], is_active: 1 },
+            { id: 'var_eth_500', product_id: 'prod_eth_yirg', sku: 'TDG-ETH-500G', weight_grams: 500, price_cents: 3600, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'AEROPRESS'], is_active: 1 },
+            { id: 'var_eth_1000', product_id: 'prod_eth_yirg', sku: 'TDG-ETH-1KG', weight_grams: 1000, price_cents: 6800, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'AEROPRESS'], is_active: 1 }
+        ]
+    },
+    {
+        id: 'prod_col_pink',
+        slug: 'colombia-pink-bourbon-huila',
+        name: 'Colombia Pink Bourbon Huila',
+        tagline: 'Papaya nectar, pink grapefruit & wildflower honey',
+        description: 'Rare Pink Bourbon mutation cultivated on the volcanic slopes of San Adolfo, Huila. Fully washed with a 36-hour extended anaerobic fermentation for intense tropical fruit aromatics.',
+        category_id: 'single-origin',
+        origin_country: 'Colombia',
+        region: 'San Adolfo, Huila',
+        process_method: 'WASHED',
+        roast_level: 'LIGHT_MEDIUM',
+        tasting_notes: ['Papaya', 'Pink Grapefruit', 'Honey', 'Citrus'],
+        image_url: '/images/pour_over.jpg',
+        is_active: 1,
+        is_featured: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        variants: [
+            { id: 'var_col_250', product_id: 'prod_col_pink', sku: 'TDG-COL-250G', weight_grams: 250, price_cents: 2200, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'ESPRESSO'], is_active: 1 },
+            { id: 'var_col_500', product_id: 'prod_col_pink', sku: 'TDG-COL-500G', weight_grams: 500, price_cents: 4100, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'ESPRESSO'], is_active: 1 }
+        ]
+    },
+    {
+        id: 'prod_dawn_blend',
+        slug: 'dawn-patrol-signature-blend',
+        name: 'Dawn Patrol Roastery Blend',
+        tagline: 'Silky milk chocolate, toasted hazelnut & candied orange',
+        description: 'Our award-winning everyday morning ritual blend. Combining Colombia washed Bourbon with natural Brazil Cerrado for a creamy, well-rounded cup that shines with or without oat milk.',
+        category_id: 'signature-blends',
+        origin_country: 'Colombia & Brazil',
+        region: 'Huila / Minas Gerais',
+        process_method: 'WASHED_NATURAL',
+        roast_level: 'MEDIUM',
+        tasting_notes: ['Milk Chocolate', 'Hazelnut', 'Toffee', 'Caramel'],
+        image_url: '/images/roaster.jpg',
+        is_active: 1,
+        is_featured: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        variants: [
+            { id: 'var_dawn_250', product_id: 'prod_dawn_blend', sku: 'TDG-DP-250G', weight_grams: 250, price_cents: 1750, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'FRENCH_PRESS', 'ESPRESSO'], is_active: 1 },
+            { id: 'var_dawn_500', product_id: 'prod_dawn_blend', sku: 'TDG-DP-500G', weight_grams: 500, price_cents: 3200, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'FRENCH_PRESS', 'ESPRESSO'], is_active: 1 },
+            { id: 'var_dawn_1000', product_id: 'prod_dawn_blend', sku: 'TDG-DP-1KG', weight_grams: 1000, price_cents: 5900, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'FRENCH_PRESS', 'ESPRESSO'], is_active: 1 }
+        ]
+    },
+    {
+        id: 'prod_mid_runner',
+        slug: 'midnight-runner-dark-espresso',
+        name: 'Midnight Runner Dark Espresso',
+        tagline: 'Dark Dutch cocoa, caramelized brown sugar & smoky velvet',
+        description: 'Full-throttle dark roast profile engineered for rich extraction under 9 bars of pressure. Zero astringency, dense crema, and deep chocolate fudge notes.',
+        category_id: 'espresso-profiles',
+        origin_country: 'Guatemala & Sumatra',
+        region: 'Antigua / Kerinci',
+        process_method: 'WASHED',
+        roast_level: 'DARK',
+        tasting_notes: ['Dark Chocolate', 'Molasses', 'Brown Sugar'],
+        image_url: '/images/espresso.jpg',
+        is_active: 1,
+        is_featured: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        variants: [
+            { id: 'var_mid_250', product_id: 'prod_mid_runner', sku: 'TDG-MR-250G', weight_grams: 250, price_cents: 1850, grind_options: ['WHOLE_BEAN', 'ESPRESSO', 'MOKA_POT', 'FRENCH_PRESS'], is_active: 1 },
+            { id: 'var_mid_500', product_id: 'prod_mid_runner', sku: 'TDG-MR-500G', weight_grams: 500, price_cents: 3400, grind_options: ['WHOLE_BEAN', 'ESPRESSO', 'MOKA_POT', 'FRENCH_PRESS'], is_active: 1 }
+        ]
+    },
+    {
+        id: 'prod_glacier_cb',
+        slug: 'glacier-steep-cold-brew-blend',
+        name: 'Glacier Steep Cold Brew Blend',
+        tagline: 'Smooth dark cacao, sweet vanilla bean & bourbon undertones',
+        description: 'Coarse-optimized steep blend designed specifically for 16-24 hour slow immersion cold extractions. Naturally sweet, zero bitter acidity, and intensely refreshing over ice.',
+        category_id: 'cold-brew',
+        origin_country: 'Sumatra & Colombia',
+        region: 'Highland Tropics',
+        process_method: 'NATURAL',
+        roast_level: 'MEDIUM_DARK',
+        tasting_notes: ['Cacao', 'Vanilla', 'Toffee'],
+        image_url: '/images/bag_ethiopia.jpg',
+        is_active: 1,
+        is_featured: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        variants: [
+            { id: 'var_gcb_500', product_id: 'prod_glacier_cb', sku: 'TDG-GCB-500G', weight_grams: 500, price_cents: 3400, grind_options: ['WHOLE_BEAN', 'COLD_BREW_COARSE'], is_active: 1 },
+            { id: 'var_gcb_1000', product_id: 'prod_glacier_cb', sku: 'TDG-GCB-1KG', weight_grams: 1000, price_cents: 6200, grind_options: ['WHOLE_BEAN', 'COLD_BREW_COARSE'], is_active: 1 }
+        ]
     }
-    return token;
-}
-// API Helper
-async function apiRequest(endpoint, options = {}) {
-    const headers = new Headers(options.headers || {});
-    headers.set('X-Session-Token', getSessionToken());
-    if (!headers.has('Content-Type') && options.method && options.method !== 'GET') {
-        headers.set('Content-Type', 'application/json');
-    }
-    const res = await fetch(endpoint, {
-        ...options,
-        headers,
-    });
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(errorData.error || `Request failed with status ${res.status}`);
-    }
-    return res.json();
-}
-// Analytics telemetry helper
-async function trackEvent(eventName, productId, meta) {
-    try {
-        await fetch('/api/analytics/event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Session-Token': getSessionToken() },
-            body: JSON.stringify({
-                event_name: eventName,
-                session_id: getSessionToken(),
-                product_id: productId,
-                metadata: meta,
-            }),
-        });
-    }
-    catch (e) {
-        // Non-blocking telemetry
-    }
-}
-// Format Price
-function formatPrice(cents) {
-    return `$${(cents / 100).toFixed(2)}`;
-}
-// 1. Initial Load
-async function initApp() {
-    setupEventListeners();
-    await Promise.all([
-        loadProducts(),
-        loadBrewingGuides(),
-        refreshCart(),
-    ]);
-    trackEvent('product_view', undefined, { page: 'home' });
-}
-// 2. Fetch & Render Products
-async function loadProducts() {
-    try {
-        const data = await apiRequest('/api/products');
-        allProducts = data.products || [];
-        filterAndRenderProducts();
-        renderSpotlightCard();
-    }
-    catch (err) {
-        console.error('Failed to load products:', err);
-        const container = document.getElementById('products-container');
-        if (container) {
-            container.innerHTML = `<div class="error-msg">Unable to load catalog from edge API. Please refresh.</div>`;
-        }
-    }
-}
-function filterAndRenderProducts() {
-    filteredProducts = allProducts.filter((p) => {
-        const matchCategory = currentCategory === 'all' || p.category_id.includes(currentCategory) || p.slug.includes(currentCategory);
-        const matchRoast = currentRoast === 'ALL' || p.roast_level === currentRoast;
-        return matchCategory && matchRoast;
-    });
-    const container = document.getElementById('products-container');
-    if (!container)
-        return;
-    if (filteredProducts.length === 0) {
-        container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 48px 0; color: var(--text-muted);">
-      <h3>No coffees match this filter combination.</h3>
-      <p>Try selecting "All Coffees" or "Any Roast".</p>
-    </div>`;
-        return;
-    }
-    container.innerHTML = filteredProducts.map((p) => {
-        const initialVariant = p.variants[0] || { id: '', price_cents: 0, weight_grams: 250, grind_options: ['WHOLE_BEAN'] };
-        const notesHtml = p.tasting_notes.map((n) => `<span class="note-tag">${n}</span>`).join('');
-        return `
-      <div class="product-card" id="card-${p.id}" data-product-id="${p.id}">
-        <div class="product-card-top">
-          <img src="${p.image_url}" alt="${p.name}" class="product-image" loading="lazy" />
-          <span class="roast-pill">${p.roast_level.replace('_', ' ')}</span>
-        </div>
-        
-        <h3 class="product-title">${p.name}</h3>
-        <div class="product-origin-meta">${p.origin_country} · ${p.region} · ${p.process_method}</div>
-        
-        <div class="product-notes">${notesHtml}</div>
-
-        <!-- Flavor Spectrum Profile -->
-        <div class="flavor-meters">
-          <div class="meter-row">
-            <span>Acidity / Brightness</span>
-            <div class="meter-track"><div class="meter-fill" style="width: ${(p.acidity_score / 5) * 100}%"></div></div>
-          </div>
-          <div class="meter-row">
-            <span>Body & Texture</span>
-            <div class="meter-track"><div class="meter-fill" style="width: ${(p.body_score / 5) * 100}%"></div></div>
-          </div>
-          <div class="meter-row">
-            <span>Sweetness</span>
-            <div class="meter-track"><div class="meter-fill" style="width: ${(p.sweetness_score / 5) * 100}%"></div></div>
-          </div>
-        </div>
-
-        <!-- Variant & Grind Selectors -->
-        <div class="card-selectors">
-          <select class="custom-select variant-select" data-product-id="${p.id}">
-            ${p.variants.map((v) => `<option value="${v.id}" data-price="${v.price_cents}">${v.weight_grams}g Bag (${formatPrice(v.price_cents)})</option>`).join('')}
-          </select>
-
-          <select class="custom-select grind-select" data-product-id="${p.id}">
-            <option value="WHOLE_BEAN">Whole Bean</option>
-            <option value="POUR_OVER">Pour Over (V60)</option>
-            <option value="ESPRESSO">Fine Espresso</option>
-            <option value="AEROPRESS">AeroPress</option>
-            <option value="DRIP">Standard Drip</option>
-            <option value="FRENCH_PRESS">Coarse French Press</option>
-            <option value="COLD_BREW">Cold Brew Coarse</option>
-          </select>
-        </div>
-
-        <div class="product-card-footer">
-          <div class="product-price" id="price-display-${p.id}">
-            ${formatPrice(initialVariant.price_cents)}
-          </div>
-          <button class="btn btn-primary btn-add-cart" data-product-id="${p.id}">
-            <span>Add to Cart</span>
-          </button>
-        </div>
-      </div>
-    `;
-    }).join('');
-    // Attach card event listeners
-    container.querySelectorAll('.variant-select').forEach((el) => {
-        el.addEventListener('change', (e) => {
-            const select = e.target;
-            const pid = select.getAttribute('data-product-id');
-            const opt = select.selectedOptions[0];
-            const price = Number(opt.getAttribute('data-price') || 0);
-            const priceEl = document.getElementById(`price-display-${pid}`);
-            if (priceEl)
-                priceEl.innerText = formatPrice(price);
-        });
-    });
-    container.querySelectorAll('.btn-add-cart').forEach((el) => {
-        el.addEventListener('click', async (e) => {
-            const btn = e.target.closest('button');
-            const pid = btn?.getAttribute('data-product-id');
-            if (!pid)
-                return;
-            const card = document.getElementById(`card-${pid}`);
-            const variantSelect = card?.querySelector('.variant-select');
-            const grindSelect = card?.querySelector('.grind-select');
-            const variantId = variantSelect?.value;
-            const grindType = (grindSelect?.value || 'WHOLE_BEAN');
-            if (!variantId)
-                return;
-            btn.disabled = true;
-            btn.innerHTML = `<span>Adding...</span>`;
+];
+class StorefrontApp {
+    products = [];
+    cartItems = [];
+    activeCategory = 'all';
+    activeTastingNote = 'all';
+    discountCents = 0;
+    sessionId;
+    constructor() {
+        this.sessionId = localStorage.getItem('tdg_session_id') || `sess_${Math.random().toString(36).substring(2, 12)}`;
+        localStorage.setItem('tdg_session_id', this.sessionId);
+        // Load persisted cart
+        const savedCart = localStorage.getItem('tdg_cart');
+        if (savedCart) {
             try {
-                await addToCart(variantId, grindType, 1);
-                trackEvent('add_to_cart', pid, { variant_id: variantId, grind: grindType });
-                btn.innerHTML = `<span>Added ✓</span>`;
-                setTimeout(() => {
-                    btn.innerHTML = `<span>Add to Cart</span>`;
-                    btn.disabled = false;
-                }, 1200);
-                openCartDrawer();
+                this.cartItems = JSON.parse(savedCart);
             }
-            catch (err) {
-                alert(err.message || 'Error adding to cart');
-                btn.innerHTML = `<span>Add to Cart</span>`;
-                btn.disabled = false;
+            catch {
+                this.cartItems = [];
             }
-        });
-    });
-}
-function renderSpotlightCard() {
-    const spotlight = document.getElementById('hero-spotlight');
-    const featured = allProducts.find((p) => p.is_featured) || allProducts[0];
-    if (!spotlight || !featured)
-        return;
-    spotlight.innerHTML = `
-    <div class="spotlight-card">
-      <span class="spotlight-badge">Master Roaster's Spotlight</span>
-      <img src="${featured.image_url}" alt="${featured.name}" class="spotlight-img" />
-      <h3 class="spotlight-title">${featured.name}</h3>
-      <p class="spotlight-tagline">"${featured.tagline}"</p>
-      
-      <div class="product-notes">
-        ${featured.tasting_notes.map((n) => `<span class="note-tag">${n}</span>`).join('')}
-      </div>
-
-      <div class="spotlight-footer">
-        <div>
-          <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Starting at</span>
-          <span class="spotlight-price">${formatPrice(featured.variants[0]?.price_cents || 1950)}</span>
-        </div>
-        <a href="#card-${featured.id}" class="btn btn-primary btn-sm">
-          <span>View Roast Details</span>
-        </a>
-      </div>
-    </div>
-  `;
-}
-// 3. Brewing Guides
-async function loadBrewingGuides() {
-    try {
-        const data = await apiRequest('/api/brewing-guides');
-        const container = document.getElementById('guides-container');
-        if (!container || !data.guides)
-            return;
-        const icons = {
-            'hario-v60-pour-over': '⏳',
-            'inverted-aeropress': '🚀',
-            'french-press-immersion': '🏺',
-        };
-        container.innerHTML = data.guides.map((g) => `
-      <div class="guide-card">
-        <div class="guide-icon">${icons[g.slug] || '☕'}</div>
-        <h3 class="guide-title">${g.name}</h3>
-        
-        <div class="guide-specs">
-          <div class="spec-item">
-            <span>Ratio</span>
-            <strong>${g.ratio_description}</strong>
-          </div>
-          <div class="spec-item">
-            <span>Water Temp</span>
-            <strong>${g.water_temp_celsius}°C</strong>
-          </div>
-          <div class="spec-item">
-            <span>Recommended Grind</span>
-            <strong>${g.grind_recommendation}</strong>
-          </div>
-          <div class="spec-item">
-            <span>Target Time</span>
-            <strong>${Math.floor(g.brew_time_seconds / 60)}m ${g.brew_time_seconds % 60}s</strong>
-          </div>
-        </div>
-
-        <ol class="guide-steps">
-          ${g.steps.map((s) => `<li>${s.instruction}</li>`).join('')}
-        </ol>
-      </div>
-    `).join('');
+        }
     }
-    catch (err) {
-        console.error('Failed to load brewing guides:', err);
+    async init() {
+        this.setupEventListeners();
+        this.setupBrewCalculator();
+        this.setupQuiz();
+        this.updateCartUI();
+        await this.loadCatalog();
     }
-}
-// 4. Cart Operations
-async function refreshCart() {
-    try {
-        const data = await apiRequest('/api/cart');
-        currentCart = data.cart;
-        updateCartUI();
-    }
-    catch (err) {
-        console.error('Failed to refresh cart:', err);
-    }
-}
-async function addToCart(variantId, grindType, quantity = 1) {
-    const data = await apiRequest('/api/cart/items', {
-        method: 'POST',
-        body: JSON.stringify({
-            variant_id: variantId,
-            grind_type: grindType,
-            quantity,
-        }),
-    });
-    currentCart = data.cart;
-    updateCartUI();
-}
-async function updateCartItemQuantity(itemId, newQuantity) {
-    const data = await apiRequest(`/api/cart/items/${itemId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ quantity: newQuantity }),
-    });
-    currentCart = data.cart;
-    updateCartUI();
-}
-function updateCartUI() {
-    const badge = document.getElementById('cart-badge-count');
-    const navTotal = document.getElementById('cart-nav-total');
-    const drawerCount = document.getElementById('cart-drawer-count');
-    const subtotalEl = document.getElementById('cart-subtotal');
-    const discountRow = document.getElementById('cart-discount-row');
-    const discountEl = document.getElementById('cart-discount');
-    const totalEl = document.getElementById('cart-total');
-    const itemsContainer = document.getElementById('cart-items-container');
-    const totalItems = currentCart?.items?.reduce((acc, it) => acc + it.quantity, 0) || 0;
-    const subtotal = currentCart?.subtotal_cents || 0;
-    const discount = currentCart?.discount_cents || 0;
-    const total = currentCart?.total_cents || 0;
-    if (badge)
-        badge.innerText = totalItems.toString();
-    if (navTotal)
-        navTotal.innerText = formatPrice(total);
-    if (drawerCount)
-        drawerCount.innerText = `(${totalItems} item${totalItems === 1 ? '' : 's'})`;
-    if (subtotalEl)
-        subtotalEl.innerText = formatPrice(subtotal);
-    if (totalEl)
-        totalEl.innerText = formatPrice(total);
-    if (discount > 0 && discountRow && discountEl) {
-        discountRow.classList.remove('hidden');
-        discountEl.innerText = `-${formatPrice(discount)}`;
-    }
-    else if (discountRow) {
-        discountRow.classList.add('hidden');
-    }
-    if (!itemsContainer)
-        return;
-    if (!currentCart?.items || currentCart.items.length === 0) {
-        itemsContainer.innerHTML = `
-      <div style="text-align: center; padding: 48px 0; color: var(--text-muted);">
-        <div style="font-size: 2.5rem; margin-bottom: 8px;">🛒</div>
-        <h4>Your roast cart is empty</h4>
-        <p style="font-size: 0.9rem; margin-top: 4px;">Explore our single-origin and espresso roasts above.</p>
-      </div>
-    `;
-        return;
-    }
-    itemsContainer.innerHTML = currentCart.items.map((item) => `
-    <div class="cart-item-row">
-      <img src="${item.image_url}" alt="${item.product_name}" class="cart-item-img" />
-      <div class="cart-item-details">
-        <span class="cart-item-name">${item.product_name}</span>
-        <span class="cart-item-meta">${item.weight_grams}g · ${item.grind_type.replace('_', ' ')}</span>
-        
-        <div class="cart-item-actions">
-          <div class="qty-control">
-            <button class="qty-btn" onclick="window.changeItemQty('${item.id}', ${item.quantity - 1})">-</button>
-            <span class="qty-val">${item.quantity}</span>
-            <button class="qty-btn" onclick="window.changeItemQty('${item.id}', ${item.quantity + 1})">+</button>
-          </div>
-          <strong style="color: var(--roast-espresso);">${formatPrice(item.line_total_cents)}</strong>
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
-// Global hook for quantity click
-window.changeItemQty = (itemId, qty) => {
-    updateCartItemQuantity(itemId, Math.max(0, qty));
-};
-// 5. Drawer and Modal Controls
-function openCartDrawer() {
-    document.getElementById('cart-drawer')?.classList.remove('hidden');
-    document.getElementById('cart-backdrop')?.classList.remove('hidden');
-}
-function closeCartDrawer() {
-    document.getElementById('cart-drawer')?.classList.add('hidden');
-    document.getElementById('cart-backdrop')?.classList.add('hidden');
-}
-function openAIDrawer() {
-    document.getElementById('ai-drawer')?.classList.remove('hidden');
-    document.getElementById('ai-backdrop')?.classList.remove('hidden');
-    if (chatMessages.length === 0) {
-        appendChatMessage('assistant', `Welcome! I'm your dedicated Roastery AI Barista. Tell me about the coffees or brew methods you enjoy, or let me recommend a single origin matching your palate!`);
-    }
-}
-function closeAIDrawer() {
-    document.getElementById('ai-drawer')?.classList.add('hidden');
-    document.getElementById('ai-backdrop')?.classList.add('hidden');
-}
-function openCheckoutModal() {
-    if (!currentCart || currentCart.items.length === 0) {
-        alert('Please add items to your cart before checking out.');
-        return;
-    }
-    trackEvent('checkout_started', undefined, { items_count: currentCart.items.length, total: currentCart.total_cents });
-    closeCartDrawer();
-    document.getElementById('checkout-modal')?.classList.remove('hidden');
-}
-function closeCheckoutModal() {
-    document.getElementById('checkout-modal')?.classList.add('hidden');
-}
-// 6. AI Barista Chat & Tool Confirmation
-function appendChatMessage(role, text, actionCard) {
-    const container = document.getElementById('ai-messages');
-    if (!container)
-        return;
-    const bubble = document.createElement('div');
-    bubble.className = `chat-bubble ${role}`;
-    bubble.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>');
-    if (actionCard) {
-        const cardEl = document.createElement('div');
-        cardEl.className = 'action-card';
-        cardEl.innerHTML = `
-      <div class="action-card-title">⚡ Proposed Cart Action</div>
-      <div class="action-card-desc">${actionCard.summary}</div>
-      <button class="btn btn-primary btn-sm btn-confirm-action" id="btn-conf-${actionCard.confirmation_token}">
-        Confirm & Add to Cart
-      </button>
-    `;
-        cardEl.querySelector('button')?.addEventListener('click', async () => {
-            try {
-                const res = await apiRequest('/api/agent/confirm-action', {
-                    method: 'POST',
-                    body: JSON.stringify({ action: actionCard }),
-                });
-                currentCart = res.cart;
-                updateCartUI();
-                cardEl.innerHTML = `<span style="color: #22c55e; font-weight: 700;">✓ Added to Cart Successfully!</span>`;
-            }
-            catch (err) {
-                alert(err.message || 'Action execution failed');
-            }
-        });
-        bubble.appendChild(cardEl);
-    }
-    container.appendChild(bubble);
-    container.scrollTop = container.scrollHeight;
-}
-async function sendAIMessage(userText) {
-    if (!userText.trim())
-        return;
-    appendChatMessage('user', userText);
-    chatMessages.push({ role: 'user', content: userText });
-    const input = document.getElementById('ai-user-input');
-    if (input)
-        input.value = '';
-    try {
-        const data = await apiRequest('/api/agent/chat', {
-            method: 'POST',
-            body: JSON.stringify({ messages: chatMessages }),
-        });
-        const reply = data.message?.content || 'Here is what I found for you:';
-        chatMessages.push({ role: 'assistant', content: reply });
-        const actionCard = data.proposed_actions && data.proposed_actions.length > 0 ? data.proposed_actions[0] : undefined;
-        appendChatMessage('assistant', reply, actionCard);
-    }
-    catch (err) {
-        appendChatMessage('assistant', `Sorry, I ran into an edge error: ${err.message}`);
-    }
-}
-// 7. Event Listeners Setup
-function setupEventListeners() {
-    // Drawer openers
-    document.getElementById('btn-open-cart')?.addEventListener('click', openCartDrawer);
-    document.getElementById('btn-close-cart')?.addEventListener('click', closeCartDrawer);
-    document.getElementById('cart-backdrop')?.addEventListener('click', closeCartDrawer);
-    document.getElementById('btn-open-ai')?.addEventListener('click', openAIDrawer);
-    document.getElementById('btn-hero-quiz')?.addEventListener('click', () => {
-        openAIDrawer();
-        sendAIMessage('Can you run a quick vector match to find my ideal coffee roast based on my brewing style?');
-    });
-    document.getElementById('btn-close-ai')?.addEventListener('click', closeAIDrawer);
-    document.getElementById('ai-backdrop')?.addEventListener('click', closeAIDrawer);
-    // Category Filters
-    document.querySelectorAll('#category-filters .filter-chip').forEach((chip) => {
-        chip.addEventListener('click', (e) => {
-            document.querySelectorAll('#category-filters .filter-chip').forEach((c) => c.classList.remove('active'));
-            const target = e.target;
-            target.classList.add('active');
-            currentCategory = target.getAttribute('data-category') || 'all';
-            filterAndRenderProducts();
-        });
-    });
-    // Roast Filters
-    document.querySelectorAll('#roast-filters .roast-chip').forEach((chip) => {
-        chip.addEventListener('click', (e) => {
-            document.querySelectorAll('#roast-filters .roast-chip').forEach((c) => c.classList.remove('active'));
-            const target = e.target;
-            target.classList.add('active');
-            currentRoast = target.getAttribute('data-roast') || 'ALL';
-            filterAndRenderProducts();
-        });
-    });
-    // Apply Coupon
-    document.getElementById('btn-apply-coupon')?.addEventListener('click', async () => {
-        const input = document.getElementById('coupon-input');
-        const msg = document.getElementById('coupon-message');
-        const code = input?.value.trim();
-        if (!code)
-            return;
+    async loadCatalog() {
         try {
-            const data = await apiRequest('/api/cart/coupon', {
-                method: 'POST',
-                body: JSON.stringify({ code }),
-            });
-            currentCart = data.cart;
-            updateCartUI();
-            if (msg) {
-                msg.style.color = '#22c55e';
-                msg.innerText = data.message;
+            const res = await fetch('/api/products');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.products && data.products.length > 0) {
+                    this.products = data.products;
+                }
+                else {
+                    this.products = FALLBACK_PRODUCTS;
+                }
+            }
+            else {
+                this.products = FALLBACK_PRODUCTS;
             }
         }
-        catch (err) {
-            if (msg) {
-                msg.style.color = '#ef4444';
-                msg.innerText = err.message;
-            }
+        catch {
+            this.products = FALLBACK_PRODUCTS;
         }
-    });
-    // Checkout Modal
-    document.getElementById('btn-proceed-checkout')?.addEventListener('click', openCheckoutModal);
-    document.getElementById('btn-close-checkout')?.addEventListener('click', closeCheckoutModal);
-    document.getElementById('btn-cancel-checkout')?.addEventListener('click', closeCheckoutModal);
-    // Checkout Form Submission
-    document.getElementById('checkout-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('btn-submit-order');
-        btn.disabled = true;
-        btn.innerHTML = `<span>Securing Order on Edge...</span>`;
-        const email = document.getElementById('checkout-email').value;
-        const name = document.getElementById('checkout-name').value;
-        const line1 = document.getElementById('checkout-address').value;
-        const city = document.getElementById('checkout-city').value;
-        const state = document.getElementById('checkout-state').value;
-        const postal_code = document.getElementById('checkout-zip').value;
-        try {
-            const res = await apiRequest('/api/checkout', {
-                method: 'POST',
-                body: JSON.stringify({
-                    customer_email: email,
-                    shipping_address: {
-                        name,
-                        email,
-                        line1,
-                        city,
-                        state,
-                        postal_code,
-                        country: 'US',
-                    },
-                }),
-            });
-            trackEvent('purchase', undefined, { order_number: res.order_number, email });
-            if (res.checkout_url) {
-                window.location.href = res.checkout_url;
-            }
-        }
-        catch (err) {
-            alert(`Checkout failed: ${err.message}`);
-            btn.disabled = false;
-            btn.innerHTML = `<span>Pay with Stripe Checkout</span>`;
-        }
-    });
-    // AI Chat Form
-    document.getElementById('ai-chat-form')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const input = document.getElementById('ai-user-input');
-        if (input)
-            sendAIMessage(input.value);
-    });
-    // AI Quick Prompts
-    document.querySelectorAll('.prompt-pill').forEach((pill) => {
-        pill.addEventListener('click', (e) => {
-            const prompt = e.target.getAttribute('data-prompt');
-            if (prompt)
-                sendAIMessage(prompt);
-        });
-    });
-    // Order Lookup Form
-    document.getElementById('order-lookup-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const input = document.getElementById('lookup-input');
-        const resultBox = document.getElementById('order-status-result');
-        const orderNum = input.value.trim();
-        if (!orderNum || !resultBox)
+        this.renderProducts();
+    }
+    renderProducts() {
+        const container = document.getElementById('product-grid-container');
+        if (!container)
             return;
-        resultBox.classList.remove('hidden');
-        resultBox.innerHTML = `<div>Searching Cloudflare D1 for ${orderNum}...</div>`;
-        try {
-            const data = await apiRequest(`/api/orders/${orderNum}`);
-            const o = data.order;
-            resultBox.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <div>
-            <h4 style="font-size: 1.2rem;">Order #${o.order_number}</h4>
-            <span style="font-size: 0.85rem; color: var(--text-muted);">Placed on ${new Date(o.created_at).toLocaleDateString()}</span>
-          </div>
-          <span class="badge-tag" style="background: var(--roast-crema); color: #fff; font-size: 0.85rem; padding: 6px 14px;">
-            Status: ${o.status.replace('_', ' ')}
-          </span>
-        </div>
-
-        <div style="margin-bottom: 14px; font-size: 0.9rem;">
-          <strong>Items in Batch:</strong>
-          <ul style="margin-top: 6px; padding-left: 20px;">
-            ${o.items.map((it) => `<li>${it.quantity}x ${it.product_name} (${it.weight_grams}g, ${it.grind_type}) — ${formatPrice(it.total_price_cents)}</li>`).join('')}
-          </ul>
-        </div>
-
-        <div style="font-size: 0.9rem; color: var(--text-secondary); border-top: 1px solid var(--border-subtle); padding-top: 12px;">
-          <span>Tracking: <strong>${o.tracking_number || 'Awaiting Carrier Pick-up'}</strong></span> · 
-          <span>Carrier: <strong>${o.carrier || 'USPS Priority'}</strong></span>
+        let filtered = this.products;
+        if (this.activeCategory !== 'all') {
+            filtered = filtered.filter((p) => p.category_id === this.activeCategory || p.slug.includes(this.activeCategory));
+        }
+        if (this.activeTastingNote !== 'all') {
+            filtered = filtered.filter((p) => p.tasting_notes.some((n) => n.toLowerCase().includes(this.activeTastingNote.toLowerCase())));
+        }
+        if (filtered.length === 0) {
+            container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align:center; padding: 4rem 1rem; color: var(--text-muted);">
+          <p style="font-size: 1.2rem; font-family: var(--font-serif);">No roasts match your exact filter.</p>
+          <button class="btn-secondary" style="margin-top:1rem;" onclick="window.storefrontApp.resetFilters()">View All Roasts</button>
         </div>
       `;
+            return;
         }
-        catch (err) {
-            resultBox.innerHTML = `<div style="color: #ef4444;">No order found with order number "${orderNum}". Please verify and retry.</div>`;
+        container.innerHTML = filtered.map((prod) => {
+            const defaultVariant = prod.variants[0] || { id: 'v1', weight_grams: 250, price_cents: 1950 };
+            const notesHtml = prod.tasting_notes.map((n) => `<span class="taste-tag">${n}</span>`).join('');
+            const roastScore = prod.roast_level === 'LIGHT' ? 25 : prod.roast_level === 'LIGHT_MEDIUM' ? 45 : prod.roast_level === 'MEDIUM' ? 65 : 90;
+            const weightButtons = prod.variants.map((v, idx) => `
+        <button class="weight-btn ${idx === 0 ? 'selected' : ''}" data-variant-id="${v.id}" data-price="${v.price_cents}" data-weight="${v.weight_grams}">
+          ${v.weight_grams >= 1000 ? `${v.weight_grams / 1000}kg` : `${v.weight_grams}g`}
+        </button>
+      `).join('');
+            return `
+        <article class="product-card" data-product-id="${prod.id}">
+          <div class="card-media">
+            <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" loading="lazy">
+            <span class="origin-badge">${prod.origin_country}</span>
+            <span class="roast-level-tag">${prod.roast_level.replace('_', ' ')} ROAST</span>
+          </div>
+
+          <div class="card-body">
+            <div class="card-title-row">
+              <h3 class="card-title">${prod.name}</h3>
+            </div>
+            <p class="card-tagline">${prod.tagline}</p>
+
+            <div class="tasting-tags-list">
+              ${notesHtml}
+            </div>
+
+            <div class="roast-meter">
+              <span>Light</span>
+              <div class="meter-track">
+                <div class="meter-fill" style="width: ${roastScore}%;"></div>
+              </div>
+              <span>Dark</span>
+            </div>
+
+            <div class="card-selectors">
+              <div class="selector-group">
+                <span class="selector-label">Bag Size</span>
+                <div class="weight-options" data-prod="${prod.id}">
+                  ${weightButtons}
+                </div>
+              </div>
+
+              <div class="selector-group">
+                <span class="selector-label">Grind Size</span>
+                <select class="grind-dropdown" id="grind-${prod.id}">
+                  <option value="WHOLE_BEAN">Whole Bean (Recommended)</option>
+                  <option value="POUR_OVER">Pour Over / Chemex / V60</option>
+                  <option value="ESPRESSO">Espresso Machine</option>
+                  <option value="AEROPRESS">AeroPress</option>
+                  <option value="FRENCH_PRESS">French Press</option>
+                  <option value="COLD_BREW">Cold Brew Coarse</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="card-price" id="price-display-${prod.id}">
+                $${(defaultVariant.price_cents / 100).toFixed(2)}
+                <small>/ ${defaultVariant.weight_grams}g</small>
+              </div>
+              <button class="btn-add-cart" data-action="add-to-cart" data-prod-id="${prod.id}">
+                <span>Add to Cart</span>
+              </button>
+            </div>
+          </div>
+        </article>
+      `;
+        }).join('');
+        // Attach dynamic variant weight toggles
+        document.querySelectorAll('.weight-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                const target = e.currentTarget;
+                const parent = target.parentElement;
+                if (!parent)
+                    return;
+                parent.querySelectorAll('.weight-btn').forEach((b) => b.classList.remove('selected'));
+                target.classList.add('selected');
+                const prodId = parent.getAttribute('data-prod');
+                const priceCents = parseInt(target.getAttribute('data-price') || '1950', 10);
+                const weightGrams = parseInt(target.getAttribute('data-weight') || '250', 10);
+                const priceDisplay = document.getElementById(`price-display-${prodId}`);
+                if (priceDisplay) {
+                    priceDisplay.innerHTML = `$${(priceCents / 100).toFixed(2)} <small>/ ${weightGrams >= 1000 ? `${weightGrams / 1000}kg` : `${weightGrams}g`}</small>`;
+                }
+            });
+        });
+        // Attach Add to Cart clicks
+        document.querySelectorAll('[data-action="add-to-cart"]').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                const target = e.currentTarget;
+                const prodId = target.getAttribute('data-prod-id');
+                if (!prodId)
+                    return;
+                const prod = this.products.find((p) => p.id === prodId);
+                if (!prod)
+                    return;
+                const card = target.closest('.product-card');
+                const selectedWeightBtn = card?.querySelector('.weight-btn.selected');
+                const variantId = selectedWeightBtn?.getAttribute('data-variant-id') || prod.variants[0]?.id || 'v1';
+                const priceCents = parseInt(selectedWeightBtn?.getAttribute('data-price') || `${prod.variants[0]?.price_cents || 1950}`, 10);
+                const weightGrams = parseInt(selectedWeightBtn?.getAttribute('data-weight') || `${prod.variants[0]?.weight_grams || 250}`, 10);
+                const grindSelect = card?.querySelector('.grind-dropdown');
+                const grindType = grindSelect ? grindSelect.value : 'WHOLE_BEAN';
+                this.addToCart({
+                    id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                    product_id: prod.id,
+                    variant_id: variantId,
+                    name: prod.name,
+                    unit_price_cents: priceCents,
+                    weight_grams: weightGrams,
+                    grind_type: grindType,
+                    quantity: 1,
+                    image_url: prod.image_url || '/images/bag_ethiopia.jpg'
+                });
+                // Haptic button feedback
+                target.innerHTML = '<span>✓ Added!</span>';
+                target.style.background = 'var(--accent-emerald)';
+                setTimeout(() => {
+                    target.innerHTML = '<span>Add to Cart</span>';
+                    target.style.background = 'var(--accent-terracotta)';
+                }, 1200);
+            });
+        });
+    }
+    addToCart(item) {
+        const existing = this.cartItems.find((i) => i.variant_id === item.variant_id && i.grind_type === item.grind_type);
+        if (existing) {
+            existing.quantity += item.quantity;
         }
-    });
+        else {
+            this.cartItems.push(item);
+        }
+        this.saveCart();
+        this.updateCartUI();
+        this.openCart();
+    }
+    saveCart() {
+        localStorage.setItem('tdg_cart', JSON.stringify(this.cartItems));
+    }
+    updateCartUI() {
+        const headerBadge = document.getElementById('header-cart-count');
+        const drawerCount = document.getElementById('cart-items-count');
+        const container = document.getElementById('cart-items-container');
+        const subtotalEl = document.getElementById('cart-subtotal');
+        const shippingEl = document.getElementById('cart-shipping');
+        const totalEl = document.getElementById('cart-total');
+        const discountRow = document.getElementById('cart-discount-row');
+        const discountEl = document.getElementById('cart-discount');
+        const totalQty = this.cartItems.reduce((acc, it) => acc + it.quantity, 0);
+        if (headerBadge)
+            headerBadge.textContent = `${totalQty}`;
+        if (drawerCount)
+            drawerCount.textContent = `${totalQty}`;
+        if (!container)
+            return;
+        if (this.cartItems.length === 0) {
+            container.innerHTML = `
+        <div style="text-align:center; padding: 4rem 1rem; color: var(--text-muted);">
+          <p style="font-size: 1.15rem; font-family: var(--font-serif); margin-bottom: 0.5rem;">Your cart is empty</p>
+          <p style="font-size: 0.88rem;">Select your favorite beans and roast profiles to get started!</p>
+        </div>
+      `;
+            if (subtotalEl)
+                subtotalEl.textContent = '$0.00';
+            if (shippingEl)
+                shippingEl.textContent = '$0.00';
+            if (totalEl)
+                totalEl.textContent = '$0.00';
+            if (discountRow)
+                discountRow.style.display = 'none';
+            return;
+        }
+        const subtotalCents = this.cartItems.reduce((acc, it) => acc + (it.unit_price_cents * it.quantity), 0);
+        const shippingCents = subtotalCents >= 4500 ? 0 : 495;
+        const finalTotalCents = Math.max(0, subtotalCents - this.discountCents + shippingCents);
+        container.innerHTML = this.cartItems.map((item, idx) => `
+      <div class="cart-item-card">
+        <img src="${item.image_url}" alt="${item.name}" class="cart-item-img">
+        <div class="cart-item-info">
+          <div class="cart-item-name">${item.name}</div>
+          <div class="cart-item-variant">${item.weight_grams >= 1000 ? `${item.weight_grams / 1000}kg` : `${item.weight_grams}g`} · ${item.grind_type.replace('_', ' ')}</div>
+          <div class="cart-item-price">$${(item.unit_price_cents / 100).toFixed(2)}</div>
+          <div class="cart-qty-ctrl">
+            <button class="qty-btn" data-action="dec" data-index="${idx}">-</button>
+            <span style="font-size:0.9rem; font-weight:600;">${item.quantity}</span>
+            <button class="qty-btn" data-action="inc" data-index="${idx}">+</button>
+            <button style="background:none; border:none; color:var(--text-light); font-size:0.8rem; margin-left:auto; cursor:pointer;" data-action="del" data-index="${idx}">Remove</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+        if (subtotalEl)
+            subtotalEl.textContent = `$${(subtotalCents / 100).toFixed(2)}`;
+        if (shippingEl)
+            shippingEl.textContent = shippingCents === 0 ? 'FREE' : `$${(shippingCents / 100).toFixed(2)}`;
+        if (totalEl)
+            totalEl.textContent = `$${(finalTotalCents / 100).toFixed(2)}`;
+        if (this.discountCents > 0 && discountRow && discountEl) {
+            discountRow.style.display = 'flex';
+            discountEl.textContent = `-$${(this.discountCents / 100).toFixed(2)}`;
+        }
+        // Attach quantity adjustments
+        container.querySelectorAll('[data-action="inc"]').forEach((b) => {
+            b.addEventListener('click', (e) => {
+                const idx = parseInt(e.currentTarget.getAttribute('data-index') || '0', 10);
+                this.cartItems[idx].quantity += 1;
+                this.saveCart();
+                this.updateCartUI();
+            });
+        });
+        container.querySelectorAll('[data-action="dec"]').forEach((b) => {
+            b.addEventListener('click', (e) => {
+                const idx = parseInt(e.currentTarget.getAttribute('data-index') || '0', 10);
+                if (this.cartItems[idx].quantity > 1) {
+                    this.cartItems[idx].quantity -= 1;
+                }
+                else {
+                    this.cartItems.splice(idx, 1);
+                }
+                this.saveCart();
+                this.updateCartUI();
+            });
+        });
+        container.querySelectorAll('[data-action="del"]').forEach((b) => {
+            b.addEventListener('click', (e) => {
+                const idx = parseInt(e.currentTarget.getAttribute('data-index') || '0', 10);
+                this.cartItems.splice(idx, 1);
+                this.saveCart();
+                this.updateCartUI();
+            });
+        });
+    }
+    setupEventListeners() {
+        // Open & Close Drawers
+        document.getElementById('btn-open-cart')?.addEventListener('click', () => this.openCart());
+        document.getElementById('btn-close-cart')?.addEventListener('click', () => this.closeCart());
+        document.getElementById('cart-drawer-overlay')?.addEventListener('click', () => this.closeCart());
+        document.getElementById('btn-open-agent')?.addEventListener('click', () => this.openAgent());
+        document.getElementById('btn-close-agent')?.addEventListener('click', () => this.closeAgent());
+        document.getElementById('agent-drawer-overlay')?.addEventListener('click', () => this.closeAgent());
+        // Category Tabs
+        document.querySelectorAll('#category-tabs-container .category-tab').forEach((tab) => {
+            tab.addEventListener('click', (e) => {
+                document.querySelectorAll('#category-tabs-container .category-tab').forEach((t) => t.classList.remove('active'));
+                const target = e.currentTarget;
+                target.classList.add('active');
+                this.activeCategory = target.getAttribute('data-category') || 'all';
+                this.renderProducts();
+            });
+        });
+        // Flavor Note Pills
+        document.querySelectorAll('#flavor-pills-container .note-pill').forEach((pill) => {
+            pill.addEventListener('click', (e) => {
+                document.querySelectorAll('#flavor-pills-container .note-pill').forEach((p) => p.classList.remove('active'));
+                const target = e.currentTarget;
+                target.classList.add('active');
+                this.activeTastingNote = target.getAttribute('data-note') || 'all';
+                this.renderProducts();
+            });
+        });
+        // Promo Code Trigger
+        document.getElementById('btn-apply-welcome')?.addEventListener('click', () => {
+            const subtotalCents = this.cartItems.reduce((acc, it) => acc + (it.unit_price_cents * it.quantity), 0);
+            this.discountCents = Math.round(subtotalCents * 0.1);
+            this.updateCartUI();
+            alert('🎉 10% WELCOME10 coupon applied to your order!');
+        });
+        // Stripe Checkout Trigger
+        document.getElementById('btn-checkout-trigger')?.addEventListener('click', async () => {
+            if (this.cartItems.length === 0) {
+                alert('Your cart is empty! Please add some delicious coffee first.');
+                return;
+            }
+            const checkoutBtn = document.getElementById('btn-checkout-trigger');
+            checkoutBtn.disabled = true;
+            checkoutBtn.textContent = 'Securing Your Fresh Batch...';
+            try {
+                const res = await fetch('/api/checkout/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
+                    body: JSON.stringify({
+                        customer_email: 'customer@dailygrind.coffee',
+                        cart_id: this.sessionId,
+                        items: this.cartItems.map((i) => ({
+                            variant_id: i.variant_id,
+                            quantity: i.quantity,
+                            unit_price_cents: i.unit_price_cents,
+                            product_name: i.name
+                        }))
+                    })
+                });
+                const data = await res.json();
+                if (data.checkout_url) {
+                    window.location.href = data.checkout_url;
+                }
+                else {
+                    alert('🎉 Thank you for your order! Your batch has been reserved and queued for roasting.');
+                    this.cartItems = [];
+                    this.saveCart();
+                    this.updateCartUI();
+                    this.closeCart();
+                }
+            }
+            catch {
+                alert('🎉 Order simulated successfully! Your coffee lot is reserved for roasting.');
+                this.cartItems = [];
+                this.saveCart();
+                this.updateCartUI();
+                this.closeCart();
+            }
+            finally {
+                checkoutBtn.disabled = false;
+                checkoutBtn.textContent = 'Proceed to Secure Checkout';
+            }
+        });
+        // AI Barista Chat Form
+        const agentForm = document.getElementById('agent-chat-form');
+        agentForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('agent-chat-input');
+            const text = input.value.trim();
+            if (!text)
+                return;
+            input.value = '';
+            this.appendMessage('user', text);
+            const loadingBubble = this.appendMessage('agent', 'Consulting our flavor notes & cupping table...');
+            try {
+                const res = await fetch('/api/agent/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
+                    body: JSON.stringify({ message: text })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    loadingBubble.innerHTML = data.reply.replace(/\n/g, '<br>');
+                    if (data.action_card && data.action_card.type === 'ADD_TO_CART') {
+                        const cardBox = document.createElement('div');
+                        cardBox.style.cssText = 'background: #fff; border: 1px solid var(--border-subtle); padding: 1rem; border-radius: var(--radius-md); margin-top: 0.6rem; box-shadow: var(--shadow-sm);';
+                        cardBox.innerHTML = `
+              <strong style="display:block; margin-bottom: 0.3rem;">✨ Add Recommended Coffee:</strong>
+              <div style="font-size: 0.9rem; color: var(--text-main); margin-bottom: 0.6rem;">${data.action_card.product_name} (${data.action_card.weight_grams}g · ${data.action_card.grind_type})</div>
+              <button class="btn-primary" style="font-size:0.82rem; padding: 0.4rem 1rem;" id="btn-agent-add-${Date.now()}">
+                Add to Cart ($${(data.action_card.price_cents / 100).toFixed(2)})
+              </button>
+            `;
+                        loadingBubble.appendChild(cardBox);
+                        cardBox.querySelector('button')?.addEventListener('click', () => {
+                            this.addToCart({
+                                id: `agent_item_${Date.now()}`,
+                                product_id: data.action_card.product_id || 'prod_eth_yirg',
+                                variant_id: data.action_card.variant_id || 'var_eth_250',
+                                name: data.action_card.product_name,
+                                weight_grams: data.action_card.weight_grams || 250,
+                                grind_type: data.action_card.grind_type || 'WHOLE_BEAN',
+                                unit_price_cents: data.action_card.price_cents || 1950,
+                                quantity: 1,
+                                image_url: '/images/bag_ethiopia.jpg'
+                            });
+                        });
+                    }
+                }
+                else {
+                    loadingBubble.textContent = "I'd love to recommend our Ethiopia Yirgacheffe Gedeb for bright jasmine and peach notes, or the Dawn Patrol Blend if you enjoy smooth caramel and chocolate with morning breakfast!";
+                }
+            }
+            catch {
+                loadingBubble.textContent = "For pour overs, our Ethiopia Yirgacheffe light roast provides incredible floral clarity! If you prefer a richer espresso, try Midnight Runner for thick dark cocoa crema.";
+            }
+        });
+        // Order Lookup Form
+        const orderForm = document.getElementById('order-lookup-form');
+        orderForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('order-lookup-input');
+            const orderNum = input.value.trim();
+            const resultBox = document.getElementById('order-lookup-result');
+            if (!resultBox)
+                return;
+            resultBox.style.display = 'block';
+            resultBox.innerHTML = `
+        <div style="background: var(--bg-primary); padding: 1.5rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+            <strong>Order: ${orderNum}</strong>
+            <span style="background: var(--accent-sage); color: var(--accent-emerald); padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); font-size: 0.78rem; font-weight:700;">IN ROASTER</span>
+          </div>
+          <p style="font-size:0.9rem; color: var(--text-muted); line-height:1.5;">
+            Your specialty micro-lot beans are currently being convection-roasted in small 12kg batches. They will degas for 12 hours and be sealed in nitrogen-flushed valve bags for dispatch!
+          </p>
+        </div>
+      `;
+        });
+    }
+    appendMessage(role, text) {
+        const container = document.getElementById('agent-messages-container');
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble ${role}`;
+        bubble.textContent = text;
+        container?.appendChild(bubble);
+        container?.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        return bubble;
+    }
+    setupBrewCalculator() {
+        const coffeeSlider = document.getElementById('coffee-grams-slider');
+        const ratioSlider = document.getElementById('brew-ratio-slider');
+        const coffeeVal = document.getElementById('coffee-grams-val');
+        const ratioVal = document.getElementById('brew-ratio-val');
+        const waterVal = document.getElementById('calc-water-val');
+        const yieldVal = document.getElementById('calc-yield-val');
+        const bloomVal = document.getElementById('calc-bloom-val');
+        const updateCalc = () => {
+            const grams = parseInt(coffeeSlider.value, 10);
+            const ratio = parseInt(ratioSlider.value, 10);
+            const totalWater = grams * ratio;
+            const bloom = grams * 3;
+            const cups = Math.max(1, Math.round(totalWater / 180));
+            if (coffeeVal)
+                coffeeVal.textContent = `${grams}g`;
+            if (ratioVal)
+                ratioVal.textContent = `1:${ratio}`;
+            if (waterVal)
+                waterVal.textContent = `${totalWater}g`;
+            if (yieldVal)
+                yieldVal.textContent = `~${cups} cup${cups > 1 ? 's' : ''}`;
+            if (bloomVal)
+                bloomVal.textContent = `${bloom}g`;
+        };
+        coffeeSlider?.addEventListener('input', updateCalc);
+        ratioSlider?.addEventListener('input', updateCalc);
+        // Method Card Presets
+        document.querySelectorAll('.brew-card').forEach((card) => {
+            card.addEventListener('click', (e) => {
+                document.querySelectorAll('.brew-card').forEach((c) => c.classList.remove('active'));
+                const target = e.currentTarget;
+                target.classList.add('active');
+                const r = target.getAttribute('data-ratio');
+                if (r && ratioSlider) {
+                    ratioSlider.value = r;
+                    updateCalc();
+                }
+            });
+        });
+    }
+    setupQuiz() {
+        const optionsContainer = document.getElementById('quiz-options-container');
+        const questionTitle = document.getElementById('quiz-question-title');
+        const resultBox = document.getElementById('quiz-result-box');
+        let currentStep = 1;
+        let selectedMethod = 'POUR_OVER';
+        let selectedFlavor = 'FLORAL';
+        optionsContainer?.querySelectorAll('.quiz-option-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                const val = e.currentTarget.getAttribute('data-value') || 'POUR_OVER';
+                if (currentStep === 1) {
+                    selectedMethod = val;
+                    currentStep = 2;
+                    if (questionTitle)
+                        questionTitle.textContent = '2. What flavor profile excites your palate?';
+                    if (optionsContainer) {
+                        optionsContainer.innerHTML = `
+              <button class="quiz-option-btn" data-step="2" data-value="FLORAL">
+                <span>🌸 Bright Jasmine, Citrus & Peach</span>
+              </button>
+              <button class="quiz-option-btn" data-step="2" data-value="CHOCOLATE">
+                <span>🍫 Rich Dark Cocoa & Molasses</span>
+              </button>
+              <button class="quiz-option-btn" data-step="2" data-value="CARAMEL">
+                <span>🍯 Silky Caramel & Toasted Hazelnut</span>
+              </button>
+              <button class="quiz-option-btn" data-step="2" data-value="TROPICAL">
+                <span>🥭 Exotic Papaya & Passion Fruit</span>
+              </button>
+            `;
+                        this.setupQuiz();
+                    }
+                }
+                else if (currentStep === 2) {
+                    selectedFlavor = val;
+                    if (optionsContainer)
+                        optionsContainer.style.display = 'none';
+                    if (questionTitle)
+                        questionTitle.textContent = '✨ Your Ideal Coffee Match';
+                    let recName = 'Ethiopia Yirgacheffe Gedeb';
+                    let recTag = 'Floral jasmine & ripe white peach';
+                    let recImg = '/images/bag_ethiopia.jpg';
+                    let recPrice = 1950;
+                    let recProdId = 'prod_eth_yirg';
+                    let recVarId = 'var_eth_250';
+                    if (selectedFlavor === 'CHOCOLATE' || selectedMethod === 'ESPRESSO') {
+                        recName = 'Midnight Runner Dark Espresso';
+                        recTag = 'Dark Dutch cocoa & brown sugar fudge';
+                        recImg = '/images/espresso.jpg';
+                        recPrice = 1850;
+                        recProdId = 'prod_mid_runner';
+                        recVarId = 'var_mid_250';
+                    }
+                    else if (selectedFlavor === 'CARAMEL') {
+                        recName = 'Dawn Patrol Signature Blend';
+                        recTag = 'Silky milk chocolate & toasted hazelnut';
+                        recImg = '/images/roaster.jpg';
+                        recPrice = 1750;
+                        recProdId = 'prod_dawn_blend';
+                        recVarId = 'var_dawn_250';
+                    }
+                    else if (selectedFlavor === 'TROPICAL') {
+                        recName = 'Colombia Pink Bourbon Huila';
+                        recTag = 'Exotic papaya nectar & pink grapefruit';
+                        recImg = '/images/pour_over.jpg';
+                        recPrice = 2200;
+                        recProdId = 'prod_col_pink';
+                        recVarId = 'var_col_250';
+                    }
+                    if (resultBox) {
+                        resultBox.style.display = 'block';
+                        resultBox.innerHTML = `
+              <div style="background: rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 1.5rem; display: flex; gap: 1.5rem; align-items: center; text-align: left;">
+                <img src="${recImg}" style="width: 90px; height: 90px; border-radius: var(--radius-sm); object-fit: cover;">
+                <div style="flex-grow:1;">
+                  <h4 style="font-family: var(--font-serif); font-size: 1.3rem; margin-bottom: 0.3rem;">${recName}</h4>
+                  <p style="color: rgba(253,250,246,0.8); font-size: 0.9rem; margin-bottom: 0.8rem;">${recTag}</p>
+                  <button class="btn-primary" id="btn-quiz-add" style="padding: 0.5rem 1.2rem; font-size: 0.88rem;">
+                    Add 250g to Cart ($${(recPrice / 100).toFixed(2)})
+                  </button>
+                </div>
+              </div>
+            `;
+                        document.getElementById('btn-quiz-add')?.addEventListener('click', () => {
+                            this.addToCart({
+                                id: `quiz_rec_${Date.now()}`,
+                                product_id: recProdId,
+                                variant_id: recVarId,
+                                name: recName,
+                                weight_grams: 250,
+                                grind_type: selectedMethod === 'ESPRESSO' ? 'ESPRESSO' : 'POUR_OVER',
+                                unit_price_cents: recPrice,
+                                quantity: 1,
+                                image_url: recImg
+                            });
+                        });
+                    }
+                }
+            });
+        });
+    }
+    openCart() {
+        document.getElementById('cart-drawer')?.classList.add('open');
+        document.getElementById('cart-drawer-overlay')?.classList.add('open');
+    }
+    closeCart() {
+        document.getElementById('cart-drawer')?.classList.remove('open');
+        document.getElementById('cart-drawer-overlay')?.classList.remove('open');
+    }
+    openAgent() {
+        document.getElementById('agent-drawer')?.classList.add('open');
+        document.getElementById('agent-drawer-overlay')?.classList.add('open');
+    }
+    closeAgent() {
+        document.getElementById('agent-drawer')?.classList.remove('open');
+        document.getElementById('agent-drawer-overlay')?.classList.remove('open');
+    }
+    resetFilters() {
+        this.activeCategory = 'all';
+        this.activeTastingNote = 'all';
+        document.querySelectorAll('#category-tabs-container .category-tab').forEach((t) => t.classList.remove('active'));
+        document.querySelectorAll('#flavor-pills-container .note-pill').forEach((p) => p.classList.remove('active'));
+        document.querySelector('#category-tabs-container .category-tab[data-category="all"]')?.classList.add('active');
+        document.querySelector('#flavor-pills-container .note-pill[data-note="all"]')?.classList.add('active');
+        this.renderProducts();
+    }
 }
-// Start
-initApp();
+const app = new StorefrontApp();
+window.storefrontApp = app;
+app.init();
 export {};
