@@ -87,9 +87,9 @@ export class McpServer {
           if (args.query) {
             const q = args.query.toLowerCase();
             res = products.filter(
-              (p) =>
+              (p: any) =>
                 p.name.toLowerCase().includes(q) ||
-                p.tasting_notes.some((n) => n.toLowerCase().includes(q)) ||
+                p.tasting_notes.some((n: string) => n.toLowerCase().includes(q)) ||
                 p.origin_country.toLowerCase().includes(q)
             );
           }
@@ -101,7 +101,7 @@ export class McpServer {
                 {
                   type: 'text',
                   text: JSON.stringify(
-                    res.map((p) => ({
+                    res.map((p: any) => ({
                       id: p.id,
                       name: p.name,
                       roast: p.roast_level,
@@ -145,7 +145,7 @@ export class McpServer {
 
         if (toolName === 'get_brewing_guide') {
           const guides = await coffeeDb.getBrewingGuides();
-          const guide = guides.find((g) => g.slug.includes(args.slug) || g.name.toLowerCase().includes(args.slug));
+          const guide = guides.find((g: any) => g.slug.includes(args.slug) || g.name.toLowerCase().includes(args.slug));
           return {
             jsonrpc: '2.0',
             id: req.id,
