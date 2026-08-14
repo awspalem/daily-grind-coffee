@@ -39,8 +39,11 @@
       <nav>
         <ul class="sidebar-nav">
           <li><button class="nav-item-btn active" data-tab="overview">📊 Daily Operations</button></li>
+          <li><a href="/investor.html" class="nav-item-btn" style="text-decoration:none; display:flex; align-items:center; color: var(--gold); font-weight: 600;">🚀 Investor Readiness & Growth ↗</a></li>
           <li><button class="nav-item-btn" data-tab="labels">🏷️ Bag Labels & QR Studio</button></li>
           <li><button class="nav-item-btn" data-tab="pricing">🏷️ Catalog, Pricing & Discounts</button></li>
+          <li><button class="nav-item-btn" data-tab="capacity">⚙️ Capacity vs Demand Matrix</button></li>
+          <li><button class="nav-item-btn" data-tab="capex">🏭 Roaster Pricing & CapEx</button></li>
           <li><button class="nav-item-btn" data-tab="economics">💰 Unit Economics & Margins</button></li>
           <li><button class="nav-item-btn" data-tab="roasts">🔥 Batch Roaster & Loss Log</button></li>
           <li><button class="nav-item-btn" data-tab="coupons">🎟️ Promo Coupons Engine</button></li>
@@ -62,6 +65,9 @@
           <p>Multi-currency price control, discount engines, roast loss logging, and direct-trade unit economics.</p>
         </div>
         <div class="top-actions">
+          <a href="/investor.html" class="btn-admin-action" style="background: linear-gradient(135deg, var(--gold), var(--copper)); color: #141110; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 4px 15px rgba(212, 167, 84, 0.25);">
+            🚀 Investor Portal ↗
+          </a>
           <button class="btn-admin-action" id="btn-open-label-modal">🏷️ Generate Bag Label & QR</button>
           <button class="btn-admin-action" id="btn-quick-restock">+ Restock Green Silos</button>
           <a href="https://daily-grind-storefront.pages.dev" target="_blank" class="btn-table-action" style="padding: 0.65rem 1.2rem; text-decoration:none; display:flex; align-items:center;">
@@ -254,19 +260,503 @@
         </div>
       </section>
 
+      <!-- SECTION: Roaster Output Capacity vs Demand Matrix (Sheet 5) -->
+      <section class="section-panel" id="panel-capacity" style="border-left: 4px solid var(--gold);">
+        <div class="panel-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.2rem;">
+              <h2 class="panel-title">⚙️ Roaster Output Capacity vs Demand Matrix</h2>
+              <span style="background: var(--gold-glow); color: var(--gold); border: 1px solid rgba(212, 167, 84, 0.4); padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">Sheet 5 Operations Matrix</span>
+            </div>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">
+              Model 50-min convection/conduction cycles, daily operating hours & scale against breakeven & investor milestones (312 roast days/yr)
+            </span>
+          </div>
+          <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+            <span style="background: rgba(255,255,255,0.06); color: var(--text-muted); padding: 0.35rem 0.85rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight: 600; border: 1px solid var(--admin-border);">
+              Cycle Standard: 50 Min / Batch
+            </span>
+          </div>
+        </div>
+
+        <div style="padding: 1.8rem; display: flex; flex-direction: column; gap: 1.8rem;">
+          <!-- Batch Size Quick Selector Carousel -->
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <label style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted);">
+                Select Roaster Green Capacity Tier
+              </label>
+              <span id="cap-selected-tier-label" style="font-size: 0.85rem; font-weight: 700; color: var(--gold);">3.0kg Commercial Entry (Selected)</span>
+            </div>
+            
+            <div class="capacity-batch-carousel" id="capacity-batch-selector">
+              <button type="button" class="batch-tier-pill" data-batch="1.0">
+                <span class="pill-size">1.0 kg</span>
+                <span class="pill-role">Sample / Pilot</span>
+                <span class="pill-status danger">🔴 Sub-Breakeven</span>
+              </button>
+              <button type="button" class="batch-tier-pill" data-batch="1.5">
+                <span class="pill-size">1.5 kg</span>
+                <span class="pill-role">Nano Roaster</span>
+                <span class="pill-status danger">🔴 Sub-Breakeven</span>
+              </button>
+              <button type="button" class="batch-tier-pill" data-batch="2.0">
+                <span class="pill-size">2.0 kg</span>
+                <span class="pill-role">Micro Commercial</span>
+                <span class="pill-status warning">🟡 Tight Breakeven</span>
+              </button>
+              <button type="button" class="batch-tier-pill active" data-batch="3.0">
+                <span class="pill-size">3.0 kg</span>
+                <span class="pill-role">Commercial Entry</span>
+                <span class="pill-status success">🟢 Breakeven Floor</span>
+              </button>
+              <button type="button" class="batch-tier-pill" data-batch="5.0">
+                <span class="pill-size">5.0 kg</span>
+                <span class="pill-role">Investor Standard</span>
+                <span class="pill-status success">🚀 1.5x – 2.0x Scale</span>
+              </button>
+              <button type="button" class="batch-tier-pill" data-batch="10.0">
+                <span class="pill-size">10.0 kg</span>
+                <span class="pill-role">Wholesale Scaling</span>
+                <span class="pill-status premium">💎 High Volume</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Interactive Parameter Controls & Live KPI Dashboard -->
+          <div class="capacity-controls-dashboard-grid">
+            <!-- Left Controls Form -->
+            <div class="capacity-controls-box">
+              <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>⏱️ Operational Shift Parameters</span>
+              </h3>
+
+              <div style="display: flex; flex-direction: column; gap: 1.1rem;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; font-size: 0.86rem; font-weight: 600; margin-bottom: 0.35rem;">
+                    <span>Daily Roasting Shift Hours</span>
+                    <strong id="cap-hours-lbl" style="color: var(--copper); font-size: 0.95rem;">4.0 hrs / day</strong>
+                  </div>
+                  <input type="range" id="cap-hours-slider" min="1" max="10" value="4" step="0.5" style="width:100%; accent-color: var(--copper);">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 0.2rem;">
+                    <span>1.0h (Part-time)</span>
+                    <span>4.0h (Standard Half-Shift)</span>
+                    <span>8.0h (Full Shift)</span>
+                    <span>10.0h (Double)</span>
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;">
+                  <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem;">
+                      Batch Cycle Time (mins)
+                    </label>
+                    <select id="cap-cycle-select" class="admin-input-styled">
+                      <option value="40">40 mins (High Speed)</option>
+                      <option value="45">45 mins (Fast Turnaround)</option>
+                      <option value="50" selected>50 mins (Standard Sheet 5)</option>
+                      <option value="55">55 mins (Careful Artisan)</option>
+                      <option value="60">60 mins (Long Roast/Cool)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.3rem;">
+                      Roast Loss %
+                    </label>
+                    <select id="cap-loss-select" class="admin-input-styled">
+                      <option value="12">12% (Ultra-Light Filter)</option>
+                      <option value="15" selected>15% (Specialty Standard)</option>
+                      <option value="18">18% (Dark Espresso)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--admin-border); border-radius: var(--radius-sm); padding: 0.75rem 0.9rem; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between;">
+                  <span>Roasting Days Assumption:</span>
+                  <strong style="color: var(--text-main);">26 Days/Mo · 312 Days/Yr</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Live Key Outputs Cards -->
+            <div class="capacity-live-kpis">
+              <div class="cap-metric-card highlight">
+                <span class="cap-metric-label">Daily Roasted Output</span>
+                <div class="cap-metric-value" id="cap-daily-kg">12.2 kg</div>
+                <span class="cap-metric-sub" id="cap-daily-batches">4.8 batches / day</span>
+              </div>
+
+              <div class="cap-metric-card">
+                <span class="cap-metric-label">Monthly Roasted Output</span>
+                <div class="cap-metric-value" id="cap-monthly-kg">318.2 kg</div>
+                <span class="cap-metric-sub">26 operational days</span>
+              </div>
+
+              <div class="cap-metric-card copper-glow">
+                <span class="cap-metric-label">Annual Roasted Output</span>
+                <div class="cap-metric-value" id="cap-annual-kg" style="color: var(--gold);">3,818.9 kg</div>
+                <span class="cap-metric-sub" id="cap-annual-green">4,492.8 kg green beans</span>
+              </div>
+
+              <div class="cap-metric-card">
+                <span class="cap-metric-label">Annual 250g Retail Bags</span>
+                <div class="cap-metric-value" id="cap-annual-bags">15,276</div>
+                <span class="cap-metric-sub">4 bags per kg roasted</span>
+              </div>
+
+              <div class="cap-metric-card revenue-span">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 0.6rem;">
+                  <div>
+                    <span class="cap-metric-label">Annual Gross Revenue Capacity (@ ₹450/bag)</span>
+                    <div class="cap-metric-value-lg" id="cap-annual-revenue" style="color: var(--emerald);">₹68,73,984</div>
+                  </div>
+                  <div style="text-align: right;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Capacity Headroom</span>
+                    <strong id="cap-headroom-badge" style="font-size: 0.95rem; color: var(--gold);">+153.8% of Breakeven</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Key Milestone Benchmark Thresholds (Breakeven, 1.5x, 2.0x) -->
+          <div class="milestone-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.4rem;">
+              <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.4rem;">
+                <span>🎯 Sheet 5 Milestone Stress-Test & Capacity Coverage</span>
+              </h3>
+              <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">Selected Capacity: <strong id="milestone-cur-kg-hdr" style="color: var(--gold);">3,819 kg/yr</strong></span>
+            </div>
+
+            <div class="milestones-grid">
+              <!-- Milestone 1: Breakeven (2,483 kg/yr) -->
+              <div class="milestone-card" id="mcard-breakeven">
+                <div class="mcard-header">
+                  <div class="mcard-title-group">
+                    <span class="mcard-badge breakeven">Milestone 1 · Breakeven</span>
+                    <h4>2,483 kg / year</h4>
+                    <span class="mcard-sub">Min 3.0kg Roaster required (9,932 bags/yr)</span>
+                  </div>
+                  <span class="mcard-status-pill" id="mstatus-breakeven">✓ Achieved</span>
+                </div>
+                <div class="mcard-bar-wrap">
+                  <div class="mcard-bar-fill" id="mbar-breakeven" style="width: 100%;"></div>
+                </div>
+                <div class="mcard-footer-info">
+                  <span id="minfo-breakeven">153.8% of Breakeven Volume</span>
+                  <span style="color: var(--emerald);" id="mdelta-breakeven">+1,336 kg surplus</span>
+                </div>
+              </div>
+
+              <!-- Milestone 2: Investor-Ready Low End (3,725 kg/yr - 1.5x) -->
+              <div class="milestone-card" id="mcard-investor-low">
+                <div class="mcard-header">
+                  <div class="mcard-title-group">
+                    <span class="mcard-badge investor">Milestone 2 · Investor Low (1.5x)</span>
+                    <h4>3,725 kg / year</h4>
+                    <span class="mcard-sub">Min 5.0kg Roaster recommended (14,900 bags/yr)</span>
+                  </div>
+                  <span class="mcard-status-pill" id="mstatus-investor-low">✓ Achieved</span>
+                </div>
+                <div class="mcard-bar-wrap">
+                  <div class="mcard-bar-fill" id="mbar-investor-low" style="width: 100%;"></div>
+                </div>
+                <div class="mcard-footer-info">
+                  <span id="minfo-investor-low">102.5% of Target Volume</span>
+                  <span style="color: var(--emerald);" id="mdelta-investor-low">+94 kg surplus</span>
+                </div>
+              </div>
+
+              <!-- Milestone 3: Investor-Ready High End (4,967 kg/yr - 2.0x) -->
+              <div class="milestone-card" id="mcard-investor-high">
+                <div class="mcard-header">
+                  <div class="mcard-title-group">
+                    <span class="mcard-badge wholesale">Milestone 3 · Investor High (2.0x)</span>
+                    <h4>4,967 kg / year</h4>
+                    <span class="mcard-sub">5.0kg – 10.0kg Roaster required (19,868 bags/yr)</span>
+                  </div>
+                  <span class="mcard-status-pill" id="mstatus-investor-high">⚠️ Needs More Hours</span>
+                </div>
+                <div class="mcard-bar-wrap">
+                  <div class="mcard-bar-fill" id="mbar-investor-high" style="width: 76.9%;"></div>
+                </div>
+                <div class="mcard-footer-info">
+                  <span id="minfo-investor-high">76.9% of Target Volume</span>
+                  <span style="color: var(--amber);" id="mdelta-investor-high">-1,148 kg deficit</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- All Batch Sizes Side-by-Side Comparison Matrix Table -->
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.4rem;">
+              <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--text-main);">
+                📋 Complete Sheet 5 Capacity Comparison Matrix (All Roasters @ <span id="cap-tbl-hours-ref" style="color: var(--copper);">4.0h</span> Shift)
+              </h3>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">Click any row to test batch size</span>
+            </div>
+
+            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius-sm); border: 1px solid var(--admin-border);">
+              <table class="data-table" id="capacity-comparison-table" style="margin: 0; min-width: 820px;">
+                <thead>
+                  <tr>
+                    <th>Batch Size</th>
+                    <th>Machine Class</th>
+                    <th>Batches/Day</th>
+                    <th>Roasted kg/Day</th>
+                    <th>Monthly kg (26d)</th>
+                    <th>Annual kg (312d)</th>
+                    <th>250g Bags/Yr</th>
+                    <th>Annual Revenue (@ ₹450)</th>
+                    <th>Milestone Fit</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="capacity-comparison-tbody">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: India Roaster Market Pricing & CapEx Upgrade Benchmarks (Sheet 6) -->
+      <section class="section-panel" id="panel-capex" style="border-left: 4px solid var(--copper);">
+        <div class="panel-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.2rem;">
+              <h2 class="panel-title">🏭 India Roaster Market Pricing & CapEx Benchmarks</h2>
+              <span style="background: rgba(217, 119, 70, 0.18); color: var(--copper); border: 1px solid rgba(217, 119, 70, 0.4); padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">Sheet 6 Benchmark Schedule</span>
+            </div>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">
+              Current equipment pricing in India, 5-year straight-line depreciation & 1-click CapEx upgrade simulation into Unit Economics
+            </span>
+          </div>
+          <span style="background: rgba(217, 119, 70, 0.15); color: var(--copper); padding: 0.35rem 0.85rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight:700; border: 1px solid rgba(217, 119, 70, 0.3);">
+            Depreciation: 5-Year (60 Mo) Straight-Line
+          </span>
+        </div>
+
+        <div style="padding: 1.8rem; display: flex; flex-direction: column; gap: 1.8rem;">
+          <!-- 5 Equipment Benchmark Cards Carousel -->
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.4rem;">
+              <label style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted);">
+                India Specialty & Commercial Roaster CapEx Spectrum
+              </label>
+              <span style="font-size: 0.78rem; color: var(--gold); font-weight: 600;">⚡ 1-Click Simulate CapEx Upgrade</span>
+            </div>
+
+            <div class="capex-cards-carousel" id="capex-cards-container">
+              <!-- Card 1: 1kg Specialty -->
+              <div class="capex-machine-card" data-capex="435000" data-batch="1.0" data-model="1kg Specialty (Aillio Bullet R1 V2)">
+                <div class="capex-card-top">
+                  <span class="capex-tag">1.0kg Specialty Drum</span>
+                  <div class="capex-price-range">₹4.0L – ₹4.7L</div>
+                  <h4 class="capex-model-name">Aillio Bullet R1 V2</h4>
+                </div>
+                <div class="capex-specs-list">
+                  <div class="capex-spec-item">
+                    <span>Tech / Heat:</span>
+                    <strong>1.5kW Induction / 230V</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Profiling:</span>
+                    <strong>RoasTime USB-C / Artisan</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>5-Yr Deprec:</span>
+                    <strong style="color: var(--copper);">₹7,250 / mo</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Best For:</span>
+                    <strong>Pilot Batches & Sample Lab</strong>
+                  </div>
+                </div>
+                <button type="button" class="btn-simulate-capex" data-cost="435000" data-name="1kg Specialty (Aillio Bullet R1 V2)" data-batch="1.0">
+                  ⚡ Simulate ₹4.35L CapEx
+                </button>
+              </div>
+
+              <!-- Card 2: 1.5–2kg Indian Fabricated -->
+              <div class="capex-machine-card" data-capex="250000" data-batch="2.0" data-model="1.5–2kg Indian Fabricated">
+                <div class="capex-card-top">
+                  <span class="capex-tag">1.5–2.0kg Indian Fabricated</span>
+                  <div class="capex-price-range">₹2.0L – ₹3.0L</div>
+                  <h4 class="capex-model-name">Indian Fabricated Drum</h4>
+                </div>
+                <div class="capex-specs-list">
+                  <div class="capex-spec-item">
+                    <span>Tech / Heat:</span>
+                    <strong>Dual LPG Burners / MS Drum</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Drive / Air:</span>
+                    <strong>Direct Drive / Single Fan</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>5-Yr Deprec:</span>
+                    <strong style="color: var(--copper);">₹4,167 / mo</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Best For:</span>
+                    <strong>Budget Bootstrapping</strong>
+                  </div>
+                </div>
+                <button type="button" class="btn-simulate-capex" data-cost="250000" data-name="1.5–2kg Indian Fabricated" data-batch="2.0">
+                  ⚡ Simulate ₹2.50L CapEx
+                </button>
+              </div>
+
+              <!-- Card 3: 3kg Commercial (Aatomize ARST-3) -->
+              <div class="capex-machine-card active-simulation" data-capex="450000" data-batch="3.0" data-model="3kg Commercial (Aatomize ARST-3)">
+                <div class="capex-card-top">
+                  <span class="capex-tag" style="background: var(--gold-glow); color: var(--gold); border: 1px solid var(--gold);">★ Active Breakeven Model</span>
+                  <div class="capex-price-range">₹2.5L – ₹6.0L</div>
+                  <h4 class="capex-model-name">Aatomize ARST-3 / Golden 3kg</h4>
+                </div>
+                <div class="capex-specs-list">
+                  <div class="capex-spec-item">
+                    <span>Tech / Heat:</span>
+                    <strong>Double Cast Iron Drum / LPG</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Exhaust:</span>
+                    <strong>Cyclone Chaff + BT/ET Artisan</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>5-Yr Deprec:</span>
+                    <strong style="color: var(--gold);">₹7,500 / mo</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Best For:</span>
+                    <strong>Min Breakeven (2,483 kg/yr)</strong>
+                  </div>
+                </div>
+                <button type="button" class="btn-simulate-capex active" data-cost="450000" data-name="3kg Commercial (Aatomize ARST-3)" data-batch="3.0">
+                  ✓ Active in Model (₹4.50L)
+                </button>
+              </div>
+
+              <!-- Card 4: 5kg Commercial Gas (RPM / Aatomize) -->
+              <div class="capex-machine-card" data-capex="520000" data-batch="5.0" data-model="5kg Commercial Gas (RPM Automation / Aatomize)">
+                <div class="capex-card-top">
+                  <span class="capex-tag">5.0kg Commercial Gas</span>
+                  <div class="capex-price-range">₹2.15L – ₹7.43L</div>
+                  <h4 class="capex-model-name">RPM Automation / Aatomize Pro</h4>
+                </div>
+                <div class="capex-specs-list">
+                  <div class="capex-spec-item">
+                    <span>Tech / Heat:</span>
+                    <strong>Double Walled / Precision LPG</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Controls:</span>
+                    <strong>Inverter Drum & Agitated Cooling</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>5-Yr Deprec:</span>
+                    <strong style="color: var(--copper);">₹8,667 / mo</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Best For:</span>
+                    <strong>Investor Scale (3,725–4,967 kg)</strong>
+                  </div>
+                </div>
+                <button type="button" class="btn-simulate-capex" data-cost="520000" data-name="5kg Commercial Gas (RPM Automation)" data-batch="5.0">
+                  ⚡ Simulate ₹5.20L CapEx
+                </button>
+              </div>
+
+              <!-- Card 5: 10kg+ Scaling / Wholesale -->
+              <div class="capex-machine-card" data-capex="780000" data-batch="10.0" data-model="10kg+ Wholesale / Scaling">
+                <div class="capex-card-top">
+                  <span class="capex-tag">10.0kg+ Wholesale Scaling</span>
+                  <div class="capex-price-range">₹1.95L – ₹9.60L</div>
+                  <h4 class="capex-model-name">Industrial Wholesale 10kg+</h4>
+                </div>
+                <div class="capex-specs-list">
+                  <div class="capex-spec-item">
+                    <span>Tech / Heat:</span>
+                    <strong>Pneumatic Loader & Destoner</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Capacity:</span>
+                    <strong>12,730 kg/yr @ 4h shift</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>5-Yr Deprec:</span>
+                    <strong style="color: var(--copper);">₹13,000 / mo</strong>
+                  </div>
+                  <div class="capex-spec-item">
+                    <span>Best For:</span>
+                    <strong>Multi-Cafe & National D2C</strong>
+                  </div>
+                </div>
+                <button type="button" class="btn-simulate-capex" data-cost="780000" data-name="10kg+ Wholesale / Scaling" data-batch="10.0">
+                  ⚡ Simulate ₹7.80L CapEx
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Simulation Banner & Custom CapEx Slider -->
+          <div class="capex-simulation-control-box">
+            <div class="capex-sim-left">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.3rem;">
+                <label style="font-size: 0.88rem; font-weight: 700; color: var(--text-main);">
+                  Custom Roaster CapEx Investment Slider
+                </label>
+                <strong id="capex-slider-cost-lbl" style="font-size: 1.1rem; color: var(--gold); font-family: var(--font-serif);">₹4,50,000 (₹4.50 Lakhs)</strong>
+              </div>
+              <input type="range" id="capex-custom-slider" min="150000" max="1200000" value="450000" step="10000" style="width:100%; accent-color: var(--gold);">
+              <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 0.2rem;">
+                <span>₹1.5L (Entry)</span>
+                <span>₹4.5L (3kg Commercial)</span>
+                <span>₹7.5L (5kg Pro)</span>
+                <span>₹12.0L (Automated Line)</span>
+              </div>
+            </div>
+
+            <div class="capex-sim-right">
+              <div class="capex-sim-metric">
+                <span class="csm-lbl">5-Yr Monthly Depreciation</span>
+                <strong id="capex-sim-deprec-lbl" style="color: var(--copper);">₹7,500 / mo</strong>
+                <small>(CapEx / 60 months)</small>
+              </div>
+              <div class="capex-sim-metric">
+                <span class="csm-lbl">Total Monthly Overhead</span>
+                <strong id="capex-sim-total-overhead-lbl" style="color: var(--gold);">₹1,38,167 / mo</strong>
+                <small>(Salary ₹1.0L + Rent + Ops + Deprec)</small>
+              </div>
+              <div class="capex-sim-metric">
+                <span class="csm-lbl">Simulated Breakeven</span>
+                <strong id="capex-sim-be-bags-lbl" style="color: var(--emerald);">842 Bags / mo</strong>
+                <small id="capex-sim-be-kg-lbl">≈ 2,526 kg/yr</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- SECTION: Live Unit Economics & Breakeven Controller -->
       <section class="section-panel" id="panel-economics" style="border-left: 4px solid var(--copper);">
         <div class="panel-header">
           <div>
-            <h2 class="panel-title">💰 Live Unit Economics & Breakeven Controller</h2>
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.2rem;">
+              <h2 class="panel-title">💰 Live Unit Economics & Breakeven Controller</h2>
+              <span style="background: rgba(217, 119, 70, 0.18); color: var(--copper); border: 1px solid rgba(217, 119, 70, 0.4); padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); font-size: 0.72rem; font-weight: 700; text-transform: uppercase;">Direct Trade Model</span>
+            </div>
             <span style="font-size: 0.85rem; color: var(--text-muted);">Interactive simulator aligned with your 250g roasting cost model & ₹12L salary target</span>
           </div>
-          <span style="background: var(--gold-glow); color: var(--gold); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight:700;">
-            Target: ₹16.30L Annual Overhead (₹1.35L/mo)
+          <span id="econ-target-overhead-badge" style="background: var(--gold-glow); color: var(--gold); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight:700; border: 1px solid rgba(212, 167, 84, 0.3);">
+            Target Overhead: ₹1.38L/mo (₹16.58L/yr)
           </span>
         </div>
 
-        <div style="padding: 1.8rem; display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem;">
+        <div style="padding: 1.8rem; display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem;" class="econ-panel-grid">
           <!-- Left Controls -->
           <div style="display: flex; flex-direction: column; gap: 1.2rem;">
             <div>
@@ -298,16 +788,40 @@
                 <span>Sales Channel & Marketplace Commission</span>
                 <strong id="econ-channel-lbl" style="color: var(--emerald);">Direct Storefront (0%)</strong>
               </label>
-              <select id="econ-channel-select" style="width:100%; background: var(--admin-surface); color: var(--text-main); border: 1px solid var(--admin-border); padding: 0.6rem; border-radius: var(--radius-sm); font-family: inherit;">
+              <select id="econ-channel-select" class="admin-input-styled" style="width:100%;">
                 <option value="0">Own Direct Storefront (0% Commission, 2% Gateway)</option>
                 <option value="15" selected>Blended Channel Mix (15% Commission, 2% Gateway)</option>
                 <option value="25">Third-Party Marketplace Only (25% Commission, 2% Gateway)</option>
               </select>
             </div>
+
+            <!-- Integrated CapEx Depreciation & Fixed Cost Breakdown -->
+            <div style="background: rgba(0,0,0,0.28); border: 1px solid var(--admin-border); border-radius: var(--radius-sm); padding: 1rem; display: flex; flex-direction: column; gap: 0.4rem;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted);">
+                <span>Founder Salary:</span>
+                <strong>₹1,00,000 / mo (₹12L/yr)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted);">
+                <span>Rent & Utilities (Indiranagar Shed):</span>
+                <strong>₹12,000 / mo</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted);">
+                <span>Biz-Dev / Marketing / Cloudflare:</span>
+                <strong>₹18,667 / mo</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--gold);">
+                <span>Roaster Depreciation (5-Yr):</span>
+                <strong id="econ-roaster-deprec-row">₹7,500 / mo (<span id="econ-roaster-model-ref">3kg ARST-3</span>)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.84rem; font-weight: 700; color: var(--text-main); border-top: 1px dashed var(--admin-border); padding-top: 0.4rem; margin-top: 0.2rem;">
+                <span>Total Monthly Fixed Overhead:</span>
+                <span id="econ-total-fixed-cost-val" style="color: var(--gold);">₹1,38,167 / mo</span>
+              </div>
+            </div>
           </div>
 
           <!-- Right Live Output Summary -->
-          <div style="background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: var(--radius-md); padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between;">
+          <div style="background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: var(--radius-md); padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; text-align: center;">
               <div style="background: var(--admin-card); padding: 1rem; border-radius: var(--radius-sm);">
                 <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">COGS / Bag</span>
@@ -329,12 +843,24 @@
 
               <div style="background: var(--admin-card); padding: 1rem; border-radius: var(--radius-sm);">
                 <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Monthly Breakeven</span>
-                <div style="font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--gold);" id="econ-breakeven-bags">828 Bags</div>
-                <small style="font-size:0.72rem; color:var(--text-dim);">≈ 32 bags / day (26 days)</small>
+                <div style="font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--gold);" id="econ-breakeven-bags">842 Bags</div>
+                <small style="font-size:0.72rem; color:var(--text-dim);" id="econ-breakeven-daily-sub">≈ 33 bags / day (26 days)</small>
               </div>
             </div>
 
-            <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); padding: 0.8rem 1rem; border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text-muted);">
+            <!-- Annual Breakeven kg & Capacity Buffer Highlight -->
+            <div style="background: var(--admin-card); border: 1px solid var(--admin-border); border-radius: var(--radius-sm); padding: 0.9rem 1.1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem;">
+              <div>
+                <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: block;">Annual Breakeven Output</span>
+                <strong id="econ-annual-be-kg" style="font-family: var(--font-serif); font-size: 1.25rem; color: var(--text-main);">2,526 kg / yr</strong>
+              </div>
+              <div style="text-align: right;">
+                <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: block;">Roaster Capacity Fit</span>
+                <span id="econ-capacity-fit-pill" class="status-badge paid" style="font-size: 0.8rem; font-weight: 700;">🟢 3.0kg Roaster (151% Buffer)</span>
+              </div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.2); padding: 0.8rem 1rem; border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text-muted);">
               💡 <strong>Margin Optimization Insight:</strong> <span id="econ-insight-text">Moving 100% of sales to your Direct Storefront saves ₹67.50/bag in marketplace commissions, lowering breakeven by 241 bags/month.</span>
             </div>
           </div>
@@ -525,6 +1051,7 @@
   <!-- MODAL: Roastery Thermal Bag Label & QR Code Quick Modal -->
   <div class="admin-modal-backdrop" id="modal-bag-label">
     <div class="admin-modal-dialog">
+      <div class="sheet-drag-handle"><div class="drag-pill"></div></div>
       <div class="admin-modal-header">
         <h3>🏷️ Roastery Thermal Bag Label Generator</h3>
         <button type="button" class="admin-modal-close" id="modal-label-close">&times;</button>
@@ -591,6 +1118,7 @@
   <!-- MODAL: Indian GST Tax Invoice Viewer (HSN 0901) -->
   <div class="admin-modal-backdrop" id="modal-gst-invoice">
     <div class="admin-modal-dialog" style="max-width: 900px;">
+      <div class="sheet-drag-handle"><div class="drag-pill"></div></div>
       <div class="admin-modal-header">
         <h3>🧾 Tax Invoice — GSTIN: 29AABCT0123M1Z5 (HSN 0901)</h3>
         <button type="button" class="admin-modal-close" id="modal-invoice-close">&times;</button>
@@ -621,22 +1149,24 @@
       </div>
       <span>Ops</span>
     </button>
-    <button class="admin-cmd-item" id="mob-cmd-pricing" data-tab="pricing">
+    <button class="admin-cmd-item" id="mob-cmd-capacity" data-tab="capacity">
       <div class="cmd-icon-wrap">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-          <line x1="7" y1="7" x2="7.01" y2="7"></line>
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
         </svg>
       </div>
-      <span>Pricing</span>
+      <span>Capacity</span>
     </button>
-    <button class="admin-cmd-item" id="mob-cmd-batches" data-tab="roasts">
+    <button class="admin-cmd-item" id="mob-cmd-capex" data-tab="capex">
       <div class="cmd-icon-wrap">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"></path>
+          <path d="M2 20h20"></path>
+          <path d="M5 20V8l5 4V4l5 4v12"></path>
+          <path d="M19 20v-6l-4-2"></path>
         </svg>
       </div>
-      <span>Batches</span>
+      <span>CapEx</span>
     </button>
     <button class="admin-cmd-item" id="mob-cmd-econ" data-tab="economics">
       <div class="cmd-icon-wrap">
@@ -660,6 +1190,14 @@
       </div>
       <span>Orders</span>
     </button>
+    <a href="/investor.html" class="admin-cmd-item" id="mob-cmd-investor" style="text-decoration:none; color:var(--gold);">
+      <div class="cmd-icon-wrap" style="color:var(--gold);">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+      </div>
+      <span>Investor</span>
+    </a>
   </nav>
 
   <script type="module" src="/src/main.ts"></script>

@@ -7,6 +7,7 @@ import { McpServer } from '../src/services/mcpServer';
 import { FreeTierQuotaMonitor } from '../src/services/quotaMonitor';
 import { D1BackupService } from '../src/services/backupService';
 import { generateOrderConfirmationEmail } from '../src/services/emailTemplate';
+import { GroqService } from '../src/services/groq';
 
 // Comprehensive Mock D1 Database
 class MockD1Database {
@@ -342,4 +343,68 @@ test('Phase 6: 3x 100g Curated Taster Flight correctly bundles 3 distinct estate
   assert.ok(flightItem.custom_notes.includes('Araku'));
   assert.ok(flightItem.custom_notes.includes('Ethiopia'));
 });
+
+// ---------------------- AI BARISTA MAYA & GROQ ENGINE TESTS ----------------------
+test('Maya Engine: GroqService defaults to llama-3.3-70b-versatile and handles model fallback', async () => {
+  const groq = new GroqService(undefined, 'llama-3.3-70b-versatile');
+  
+  // Test South Indian Filter Kaapi recipe
+  const kaapiRes = await groq.chatCompletion([
+    { role: 'user', content: 'How do I brew South Indian Filter Kaapi decoction?' }
+  ]);
+  assert.strictEqual(kaapiRes.role, 'assistant');
+  assert.ok(kaapiRes.content.includes('1:5'));
+  assert.ok(kaapiRes.content.includes('Attikan'));
+  assert.ok(kaapiRes.content.includes('98°C'));
+
+  // Test Chikmagalur Attikan Honey query
+  const attikanRes = await groq.chatCompletion([
+    { role: 'user', content: 'Tell me about Chikmagalur Attikan Estate Honey' }
+  ]);
+  assert.ok(attikanRes.content.includes('Baba Budan'));
+  assert.ok(attikanRes.content.includes('Jaggery'));
+
+  // Test Araku Valley query
+  const arakuRes = await groq.chatCompletion([
+    { role: 'user', content: 'What are the notes on Araku Valley Red Honey?' }
+  ]);
+  assert.ok(arakuRes.content.includes('Jackfruit'));
+  assert.ok(arakuRes.content.includes('Eastern Ghats'));
+
+  // Test V60 dial in recipe
+  const v60Res = await groq.chatCompletion([
+    { role: 'user', content: 'What is the Hario V60 ratio and water temp?' }
+  ]);
+  assert.ok(v60Res.content.includes('1:16'));
+  assert.ok(v60Res.content.includes('93°C') || v60Res.content.includes('94°C'));
+
+  // Test Midnight Runner Espresso
+  const espRes = await groq.chatCompletion([
+    { role: 'user', content: 'Recommend an espresso blend for dense crema' }
+  ]);
+  assert.ok(espRes.content.includes('Midnight Runner'));
+  assert.ok(espRes.content.includes('9-Bar') || espRes.content.includes('crema'));
+});
+
+test('Maya Engine: Multi-Turn Conversation Memory retains context across questions', async () => {
+  const groq = new GroqService(undefined, 'llama-3.3-70b-versatile');
+
+  // Turn 1
+  const history: { role: 'user' | 'assistant'; content: string }[] = [
+    { role: 'user', content: 'I like light roasted coffees with high floral aromatics and fruit sweetness.' }
+  ];
+  const turn1Res = await groq.chatCompletion(history as any);
+  assert.strictEqual(turn1Res.role, 'assistant');
+  assert.ok(turn1Res.content.includes('Ethiopia') || turn1Res.content.includes('Yirgacheffe'));
+
+  // Turn 2
+  history.push({ role: 'assistant', content: turn1Res.content });
+  history.push({ role: 'user', content: 'How should I brew this on my Hario V60?' });
+
+  const turn2Res = await groq.chatCompletion(history as any);
+  assert.strictEqual(turn2Res.role, 'assistant');
+  assert.ok(turn2Res.content.includes('1:16'));
+  assert.ok(turn2Res.content.includes('Bloom') || turn2Res.content.includes('45g'));
+});
+
 

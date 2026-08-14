@@ -1236,6 +1236,114 @@ body {
   border-bottom-left-radius: 4px;
 }
 
+.chat-bubble.agent table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6rem 0;
+  font-size: 0.82rem;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.chat-bubble.agent th {
+  background: var(--accent-sage);
+  color: var(--text-main);
+  padding: 0.4rem 0.6rem;
+  font-weight: 700;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chat-bubble.agent td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chat-bubble.agent tr:last-child td {
+  border-bottom: none;
+}
+
+.chat-bubble.agent ul, .chat-bubble.agent ol {
+  margin: 0.4rem 0 0.4rem 1.2rem;
+  padding: 0;
+}
+
+.chat-bubble.agent li {
+  margin-bottom: 0.3rem;
+}
+
+.chat-action-card {
+  background: #fff;
+  border: 1px solid var(--border-subtle);
+  padding: 0.9rem;
+  border-radius: var(--radius-md);
+  margin-top: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+
+.chat-action-card:hover {
+  border-color: var(--accent-terracotta);
+}
+
+.chat-action-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+
+.chat-action-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.chat-action-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.chat-chips-container {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding: 0.6rem 1.2rem;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-subtle);
+  scrollbar-width: none;
+}
+
+.chat-chips-container::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-chip {
+  background: #fff;
+  border: 1px solid var(--border-subtle);
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  flex-shrink: 0;
+}
+
+.chat-chip:hover {
+  background: var(--accent-sage);
+  border-color: var(--accent-emerald);
+  color: var(--accent-emerald);
+}
+
 .chat-bubble.user {
   background: var(--accent-terracotta);
   color: #fff;

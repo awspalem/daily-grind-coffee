@@ -282,6 +282,7 @@ class StorefrontApp {
         isSub: false,
         frequency: '2_WEEKS'
     };
+    chatHistory = [];
     constructor() {
         this.sessionId = localStorage.getItem('tdg_session_id') || `sess_${Math.random().toString(36).substring(2, 12)}`;
         localStorage.setItem('tdg_session_id', this.sessionId);
@@ -1180,61 +1181,24 @@ class StorefrontApp {
                 checkoutBtn.textContent = 'Proceed to Secure Checkout';
             }
         });
-        // AI Barista Chat Form
+        // AI Barista Chat Form & Quick Suggestion Chips
         const agentForm = document.getElementById('agent-chat-form');
-        agentForm?.addEventListener('submit', async (e) => {
+        agentForm?.addEventListener('submit', (e) => {
             e.preventDefault();
             const input = document.getElementById('agent-chat-input');
             const text = input.value.trim();
             if (!text)
                 return;
             input.value = '';
-            this.appendMessage('user', text);
-            const loadingBubble = this.appendMessage('agent', 'Consulting our Bangalore cupping table...');
-            try {
-                const res = await fetch('/api/agent/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
-                    body: JSON.stringify({ message: text })
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    loadingBubble.innerHTML = data.reply.replace(/\n/g, '<br>');
-                    if (data.action_card && data.action_card.type === 'ADD_TO_CART') {
-                        const cardBox = document.createElement('div');
-                        cardBox.style.cssText = 'background: #fff; border: 1px solid var(--border-subtle); padding: 1rem; border-radius: var(--radius-md); margin-top: 0.6rem; box-shadow: var(--shadow-sm);';
-                        cardBox.innerHTML = `
-              <strong style="display:block; margin-bottom: 0.3rem;">✨ Add Recommended Coffee:</strong>
-              <div style="font-size: 0.9rem; color: var(--text-main); margin-bottom: 0.6rem;">${data.action_card.product_name} (${data.action_card.weight_grams}g · ${data.action_card.grind_type})</div>
-              <button class="btn-primary" style="font-size:0.82rem; padding: 0.4rem 1rem;" id="btn-agent-add-${Date.now()}">
-                Add to Cart (${this.formatPrice(450, 1850)})
-              </button>
-            `;
-                        loadingBubble.appendChild(cardBox);
-                        cardBox.querySelector('button')?.addEventListener('click', () => {
-                            this.addToCart({
-                                id: `agent_item_${Date.now()}`,
-                                product_id: data.action_card.product_id || 'prod_chik_attikan',
-                                variant_id: data.action_card.variant_id || 'var_att_250',
-                                name: data.action_card.product_name,
-                                weight_grams: data.action_card.weight_grams || 250,
-                                grind_type: data.action_card.grind_type || 'WHOLE_BEAN',
-                                unit_price_inr: 450,
-                                unit_price_usd_cents: 1850,
-                                discount_percent: 0,
-                                quantity: 1,
-                                image_url: '/images/pour_over.jpg'
-                            });
-                        });
-                    }
+            this.sendAgentMessage(text);
+        });
+        document.querySelectorAll('#agent-suggestion-chips .chat-chip').forEach((chip) => {
+            chip.addEventListener('click', () => {
+                const prompt = chip.getAttribute('data-prompt');
+                if (prompt) {
+                    this.sendAgentMessage(prompt);
                 }
-                else {
-                    loadingBubble.textContent = "I'd love to recommend our Chikmagalur Attikan Estate honey process for sweet jaggery and red apple notes, or our Dawn Patrol Bangalore blend for morning comfort!";
-                }
-            }
-            catch {
-                loadingBubble.textContent = "For traditional filter kaapi or pour over, try our Chikmagalur Attikan Estate. For a rich dark espresso with thick crema, Midnight Runner is phenomenal!";
-            }
+            });
         });
         // Order Lookup Form & Indian GST Tax Invoicing (HSN 0901)
         const orderForm = document.getElementById('order-lookup-form');
@@ -1347,6 +1311,288 @@ class StorefrontApp {
             this.triggerHaptic();
             window.print();
         });
+    }
+    async sendAgentMessage(text) {
+        if (!text || !text.trim())
+            return;
+        const cleanText = text.trim();
+        this.triggerHaptic();
+        // 1. Append user message to UI
+        this.appendMessage('user', cleanText);
+        // 2. Add to chat history (multi-turn memory)
+        this.chatHistory.push({ role: 'user', content: cleanText });
+        if (this.chatHistory.length > 12) {
+            this.chatHistory = this.chatHistory.slice(-12);
+        }
+        // 3. Show loading bubble
+        const loadingBubble = this.appendMessage('agent', 'Consulting our Indiranagar cupping table...');
+        try {
+            const res = await fetch('/api/agent/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
+                body: JSON.stringify({ messages: this.chatHistory })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const replyContent = data.reply || "I'd love to help you find your next favourite roast or dial in your brew!";
+                this.chatHistory.push({ role: 'assistant', content: replyContent });
+                if (this.chatHistory.length > 12) {
+                    this.chatHistory = this.chatHistory.slice(-12);
+                }
+                // Render formatted markdown inside bubble
+                loadingBubble.innerHTML = this.renderMarkdown(replyContent);
+                // Render interactive action cards if present
+                this.renderAgentActionCards(loadingBubble, data, cleanText, replyContent);
+            }
+            else {
+                const fallbackReply = "I highly recommend our **Chikmagalur Attikan Estate Honey** for sweet sugarcane jaggery and red apple notes, or our **Dawn Patrol Bangalore Blend** for morning comfort!";
+                this.chatHistory.push({ role: 'assistant', content: fallbackReply });
+                loadingBubble.innerHTML = this.renderMarkdown(fallbackReply);
+                this.renderAgentActionCards(loadingBubble, { success: true, reply: fallbackReply }, cleanText, fallbackReply);
+            }
+        }
+        catch {
+            const fallbackReply = "For traditional filter kaapi or pour over, try our **Chikmagalur Attikan Estate Honey**. For a rich dark espresso with thick golden crema, **Midnight Runner** is phenomenal!";
+            this.chatHistory.push({ role: 'assistant', content: fallbackReply });
+            loadingBubble.innerHTML = this.renderMarkdown(fallbackReply);
+            this.renderAgentActionCards(loadingBubble, { success: true, reply: fallbackReply }, cleanText, fallbackReply);
+        }
+    }
+    renderAgentActionCards(bubble, data, userQuery, replyText) {
+        const lowerQuery = userQuery.toLowerCase();
+        const lowerReply = replyText.toLowerCase();
+        // Map known products for 1-click cart action cards
+        const knownProducts = {
+            attikan: { id: 'prod_chik_attikan', variantId: 'var_att_250', name: 'Chikmagalur Attikan Estate Honey', weight: 250, inr: 450, usd: 1850, grind: 'SOUTH_INDIAN_FILTER', img: '/images/pour_over.jpg' },
+            chikmagalur: { id: 'prod_chik_attikan', variantId: 'var_att_250', name: 'Chikmagalur Attikan Estate Honey', weight: 250, inr: 450, usd: 1850, grind: 'SOUTH_INDIAN_FILTER', img: '/images/pour_over.jpg' },
+            araku: { id: 'prod_araku_honey', variantId: 'var_ara_250', name: 'Araku Valley Red Honey Micro-Lot', weight: 250, inr: 490, usd: 1950, grind: 'POUR_OVER', img: '/images/bag_ethiopia.jpg' },
+            yirgacheffe: { id: 'prod_eth_yirg', variantId: 'var_eth_250', name: 'Ethiopia Yirgacheffe Gedeb', weight: 250, inr: 580, usd: 2200, grind: 'POUR_OVER', img: '/images/bag_ethiopia.jpg' },
+            ethiopia: { id: 'prod_eth_yirg', variantId: 'var_eth_250', name: 'Ethiopia Yirgacheffe Gedeb', weight: 250, inr: 580, usd: 2200, grind: 'POUR_OVER', img: '/images/bag_ethiopia.jpg' },
+            flight: { id: 'prod_taster_flight', variantId: 'var_flight_300', name: 'Curated 3x 100g Roastery Taster Flight', weight: 300, inr: 590, usd: 2400, grind: 'WHOLE_BEAN', img: '/images/pour_over.jpg' },
+            dawn: { id: 'prod_dawn_blend', variantId: 'var_dawn_250', name: 'Dawn Patrol Bangalore Roastery Blend', weight: 250, inr: 420, usd: 1650, grind: 'WHOLE_BEAN', img: '/images/roaster.jpg' },
+            midnight: { id: 'prod_mid_runner', variantId: 'var_mid_250', name: 'Midnight Runner Dark Espresso', weight: 250, inr: 440, usd: 1750, grind: 'ESPRESSO', img: '/images/espresso.jpg' },
+            monsoon: { id: 'prod_monsoon_malabar', variantId: 'var_mon_250', name: 'Monsoon Malabar AA Special Reserve', weight: 250, inr: 470, usd: 1900, grind: 'SOUTH_INDIAN_FILTER', img: '/images/roaster.jpg' },
+            colombia: { id: 'prod_col_geisha', variantId: 'var_col_250', name: 'Colombia Huila Pink Bourbon', weight: 250, inr: 590, usd: 2300, grind: 'POUR_OVER', img: '/images/bag_ethiopia.jpg' },
+            glacier: { id: 'prod_glacier_cb', variantId: 'var_gcb_500', name: 'Glacier Steep Cold Brew Blend', weight: 500, inr: 850, usd: 3400, grind: 'COLD_BREW_COARSE', img: '/images/bag_ethiopia.jpg' },
+        };
+        // 1. Proposed actions from tool calls or explicit action card
+        let actionItem = null;
+        if (data.proposed_actions && data.proposed_actions.length > 0) {
+            const act = data.proposed_actions[0];
+            if (act.tool_name === 'add_to_cart' && act.arguments) {
+                const pName = act.arguments.product_name || 'Specialty Coffee Selection';
+                const vId = act.arguments.variant_id || 'var_att_250';
+                const gType = act.arguments.grind_type || 'WHOLE_BEAN';
+                const pKey = Object.keys(knownProducts).find((k) => pName.toLowerCase().includes(k)) || 'attikan';
+                const matched = knownProducts[pKey];
+                actionItem = {
+                    product_id: matched ? matched.id : 'prod_chik_attikan',
+                    variant_id: vId,
+                    name: pName,
+                    weight_grams: matched ? matched.weight : 250,
+                    grind_type: gType,
+                    unit_price_inr: matched ? matched.inr : 450,
+                    unit_price_usd_cents: matched ? matched.usd : 1850,
+                    image_url: matched ? matched.img : '/images/pour_over.jpg'
+                };
+            }
+        }
+        else if (data.action_card && data.action_card.type === 'ADD_TO_CART') {
+            actionItem = {
+                product_id: data.action_card.product_id || 'prod_chik_attikan',
+                variant_id: data.action_card.variant_id || 'var_att_250',
+                name: data.action_card.product_name,
+                weight_grams: data.action_card.weight_grams || 250,
+                grind_type: data.action_card.grind_type || 'WHOLE_BEAN',
+                unit_price_inr: data.action_card.price_inr || 450,
+                unit_price_usd_cents: data.action_card.price_usd_cents || 1850,
+                image_url: data.action_card.image_url || '/images/pour_over.jpg'
+            };
+        }
+        else {
+            // Check if user query or assistant reply strongly references one of our coffees
+            for (const [key, item] of Object.entries(knownProducts)) {
+                if (lowerReply.includes(key) || lowerQuery.includes(key)) {
+                    actionItem = {
+                        product_id: item.id,
+                        variant_id: item.variantId,
+                        name: item.name,
+                        weight_grams: item.weight,
+                        grind_type: item.grind,
+                        unit_price_inr: item.inr,
+                        unit_price_usd_cents: item.usd,
+                        image_url: item.img
+                    };
+                    break;
+                }
+            }
+        }
+        // Render Action Card Box
+        const cardBox = document.createElement('div');
+        cardBox.className = 'chat-action-card';
+        if (actionItem) {
+            const priceFormatted = this.formatPrice(actionItem.unit_price_inr, actionItem.unit_price_usd_cents);
+            const prettyGrind = actionItem.grind_type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+            cardBox.innerHTML = `
+        <div class="chat-action-title">✨ Recommended Coffee (1-Click Add):</div>
+        <div class="chat-action-meta"><strong>${actionItem.name}</strong> (${actionItem.weight_grams}g · ${prettyGrind})</div>
+        <div class="chat-action-actions">
+          <button type="button" class="btn-primary btn-chat-add" style="font-size:0.8rem; padding: 0.4rem 0.9rem; display:inline-flex; align-items:center; gap: 0.35rem;">
+            🛒 Add to Cart (${priceFormatted})
+          </button>
+        </div>
+      `;
+            cardBox.querySelector('.btn-chat-add')?.addEventListener('click', (e) => {
+                this.triggerHaptic();
+                this.addToCart({
+                    id: `agent_item_${Date.now()}`,
+                    product_id: actionItem.product_id,
+                    variant_id: actionItem.variant_id,
+                    name: actionItem.name,
+                    weight_grams: actionItem.weight_grams,
+                    grind_type: actionItem.grind_type,
+                    unit_price_inr: actionItem.unit_price_inr,
+                    unit_price_usd_cents: actionItem.unit_price_usd_cents,
+                    discount_percent: 0,
+                    quantity: 1,
+                    image_url: actionItem.image_url
+                });
+                const targetBtn = e.currentTarget;
+                if (targetBtn) {
+                    targetBtn.textContent = '✓ Added to Cart!';
+                    targetBtn.style.background = 'var(--accent-emerald)';
+                    setTimeout(() => {
+                        targetBtn.textContent = `🛒 Add to Cart (${priceFormatted})`;
+                        targetBtn.style.background = '';
+                    }, 2000);
+                }
+            });
+        }
+        // Check if brewing guide or live timer is relevant
+        const isBrewContext = lowerReply.includes('v60') || lowerReply.includes('kaapi') || lowerReply.includes('filter') || lowerReply.includes('aeropress') || lowerReply.includes('espresso') || lowerReply.includes('ratio') || lowerReply.includes('bloom') || lowerQuery.includes('brew') || lowerQuery.includes('v60') || lowerQuery.includes('filter');
+        if (isBrewContext) {
+            let targetMethod = 'v60';
+            let targetGrams = 15;
+            let targetRatio = 16;
+            if (lowerReply.includes('kaapi') || lowerReply.includes('filter') || lowerReply.includes('decoction')) {
+                targetMethod = 'filter-kaapi';
+                targetGrams = 20;
+                targetRatio = 5;
+            }
+            else if (lowerReply.includes('aeropress')) {
+                targetMethod = 'aeropress';
+                targetGrams = 18;
+                targetRatio = 14;
+            }
+            else if (lowerReply.includes('espresso')) {
+                targetMethod = 'espresso';
+                targetGrams = 18;
+                targetRatio = 2;
+            }
+            const timerBtn = document.createElement('button');
+            timerBtn.type = 'button';
+            timerBtn.className = 'btn-secondary btn-chat-timer';
+            timerBtn.style.cssText = 'font-size: 0.78rem; padding: 0.4rem 0.85rem; border-radius: var(--radius-pill); cursor: pointer; display:inline-flex; align-items:center; gap: 0.35rem;';
+            timerBtn.innerHTML = `⏱️ Launch Live Brew Timer (${targetRatio === 5 ? '1:5 Kaapi' : `1:${targetRatio} ${targetMethod.toUpperCase()}`})`;
+            timerBtn.addEventListener('click', () => {
+                this.triggerHaptic();
+                this.closeAgent();
+                const brewSection = document.getElementById('brew-guide');
+                brewSection?.scrollIntoView({ behavior: 'smooth' });
+                // Select brew card
+                const card = document.querySelector(`.brew-card[data-method="${targetMethod}"]`);
+                if (card) {
+                    document.querySelectorAll('.brew-card').forEach((c) => c.classList.remove('active'));
+                    card.classList.add('active');
+                }
+                // Adjust sliders
+                const doseSlider = document.getElementById('coffee-grams-slider');
+                const ratioSlider = document.getElementById('brew-ratio-slider');
+                if (doseSlider)
+                    doseSlider.value = targetGrams.toString();
+                if (ratioSlider)
+                    ratioSlider.value = targetRatio.toString();
+                doseSlider?.dispatchEvent(new Event('input'));
+                ratioSlider?.dispatchEvent(new Event('input'));
+            });
+            const actionsContainer = cardBox.querySelector('.chat-action-actions');
+            if (actionsContainer) {
+                actionsContainer.appendChild(timerBtn);
+            }
+            else {
+                cardBox.innerHTML = `<div class="chat-action-actions"></div>`;
+                cardBox.querySelector('.chat-action-actions')?.appendChild(timerBtn);
+            }
+        }
+        // If cardBox has content, append it to bubble
+        if (cardBox.querySelector('.chat-action-actions')?.hasChildNodes()) {
+            bubble.appendChild(cardBox);
+        }
+    }
+    renderMarkdown(md) {
+        if (!md)
+            return '';
+        // Handle Markdown Tables
+        const lines = md.split('\n');
+        let inTable = false;
+        let tableHtml = '';
+        const processedLines = [];
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line.startsWith('|') && line.endsWith('|')) {
+                if (!inTable) {
+                    inTable = true;
+                    tableHtml = '<div style="overflow-x:auto; margin: 0.6rem 0;"><table>';
+                    const headers = line.split('|').slice(1, -1).map((h) => h.trim());
+                    tableHtml += '<thead><tr>' + headers.map((h) => `<th>${this.formatInlineMarkdown(h)}</th>`).join('') + '</tr></thead><tbody>';
+                    if (i + 1 < lines.length && lines[i + 1].trim().startsWith('|') && lines[i + 1].includes('---')) {
+                        i++; // skip separator line
+                    }
+                }
+                else {
+                    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+                    tableHtml += '<tr>' + cells.map((c) => `<td>${this.formatInlineMarkdown(c)}</td>`).join('') + '</tr>';
+                }
+            }
+            else {
+                if (inTable) {
+                    inTable = false;
+                    tableHtml += '</tbody></table></div>';
+                    processedLines.push(tableHtml);
+                    tableHtml = '';
+                }
+                processedLines.push(line);
+            }
+        }
+        if (inTable) {
+            tableHtml += '</tbody></table></div>';
+            processedLines.push(tableHtml);
+        }
+        let text = processedLines.join('\n');
+        // Headers
+        text = text.replace(/^#### (.*$)/gim, '<h5 style="margin: 0.5rem 0 0.2rem; font-weight:700; color: var(--text-main); font-size: 0.9rem;">$1</h5>');
+        text = text.replace(/^### (.*$)/gim, '<h4 style="margin: 0.6rem 0 0.3rem; font-weight:700; color: var(--accent-terracotta); font-size: 0.96rem;">$1</h4>');
+        text = text.replace(/^## (.*$)/gim, '<h3 style="margin: 0.7rem 0 0.3rem; font-weight:700; color: var(--text-main); font-size: 1.05rem;">$1</h3>');
+        // Lists
+        text = text.replace(/^\s*[-*•]\s+(.*$)/gim, '<li style="margin-left: 1.2rem; margin-bottom: 0.25rem;">$1</li>');
+        text = text.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<li style="margin-left: 1.2rem; margin-bottom: 0.25rem;">$2</li>');
+        // Inline styles
+        text = this.formatInlineMarkdown(text);
+        // Newlines
+        text = text.replace(/\n\n+/g, '<br><br>');
+        text = text.replace(/\n/g, '<br>');
+        // Clean extra breaks around divs/tables/headers
+        text = text.replace(/<\/div><br>/g, '</div>');
+        text = text.replace(/<br><div/g, '<div');
+        text = text.replace(/<\/h4><br>/g, '</h4>');
+        text = text.replace(/<\/h5><br>/g, '</h5>');
+        return text;
+    }
+    formatInlineMarkdown(str) {
+        return str
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`([^`]+)`/g, '<code style="background: rgba(0,0,0,0.06); padding: 0.15rem 0.35rem; border-radius: 3px; font-size: 0.88em;">$1</code>');
     }
     appendMessage(role, text) {
         const container = document.getElementById('agent-messages-container');

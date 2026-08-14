@@ -678,15 +678,25 @@
           <span>☕ Maya, Master Barista</span>
           <span style="font-size:0.7rem; background: var(--accent-sage); color: var(--accent-emerald); padding: 0.15rem 0.5rem; border-radius: var(--radius-pill);">Online</span>
         </h3>
-        <span style="font-size: 0.78rem; color: var(--text-muted);">Bangalore Roastery Sommelier · Powered by OpenAI GPT 120B</span>
+        <span style="font-size: 0.78rem; color: var(--text-muted);">Bangalore Roastery Sommelier · Powered by Groq Llama 3.3 70B</span>
       </div>
       <button class="btn-close-drawer" id="btn-close-agent" aria-label="Close Assistant">&times;</button>
     </div>
 
     <div class="agent-messages" id="agent-messages-container">
       <div class="chat-bubble agent">
-        Namaskara! I'm Maya, your specialty coffee barista from our Bangalore roastery. Ask me anything about our Chikmagalur estates, Ethiopia Yirgacheffe, grind sizes, or brewing the perfect South Indian filter coffee or V60!
+        Namaskara! I'm Maya, your Master Barista from our Bangalore roastery on 100ft Road, Indiranagar. Ask me anything about our Chikmagalur honey lots, Ethiopia Yirgacheffe, dialing in V60 ratios, or brewing traditional South Indian Filter Kaapi!
       </div>
+    </div>
+
+    <!-- Quick Barista Suggestion Chips -->
+    <div class="chat-chips-container" id="agent-suggestion-chips">
+      <button type="button" class="chat-chip" data-prompt="How do I brew traditional South Indian Filter Kaapi?">☕ Filter Kaapi (1:5)</button>
+      <button type="button" class="chat-chip" data-prompt="Tell me about Chikmagalur Attikan Estate Honey coffee">🌿 Chikmagalur Attikan</button>
+      <button type="button" class="chat-chip" data-prompt="Recommend a light floral roast with high acidity">🌸 Ethiopia Yirgacheffe</button>
+      <button type="button" class="chat-chip" data-prompt="What is the dial-in recipe for Hario V60?">⏱️ V60 Dial-In</button>
+      <button type="button" class="chat-chip" data-prompt="Recommend a dark roast espresso with heavy crema">🍫 Midnight Runner Espresso</button>
+      <button type="button" class="chat-chip" data-prompt="Tell me about the 3x 100g Taster Flight">🎁 3x 100g Flight</button>
     </div>
 
     <form class="agent-input-container" id="agent-chat-form">

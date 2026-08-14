@@ -11,8 +11,48 @@ interface PricingRow {
   discount_percent: number;
 }
 
+interface RoasterTierSpec {
+  batchSizeKg: number;
+  label: string;
+  category: string;
+  recommendedRole: string;
+  statusClass: 'danger' | 'warning' | 'success' | 'premium';
+}
+
+const ROASTER_TIERS: RoasterTierSpec[] = [
+  { batchSizeKg: 1.0, label: '1.0kg Specialty Drum', category: 'Sample / Pilot', recommendedRole: '🔴 Sub-Breakeven (4h: 1,273 kg/yr)', statusClass: 'danger' },
+  { batchSizeKg: 1.5, label: '1.5kg Nano Roaster', category: 'Nano Roaster', recommendedRole: '🔴 Sub-Breakeven (4h: 1,909 kg/yr)', statusClass: 'danger' },
+  { batchSizeKg: 2.0, label: '2.0kg Micro Commercial', category: 'Micro Commercial', recommendedRole: '🟡 Tight Breakeven (4h: 2,546 kg/yr)', statusClass: 'warning' },
+  { batchSizeKg: 3.0, label: '3.0kg Commercial Entry', category: 'Commercial Entry', recommendedRole: '🟢 Breakeven Floor (4h: 3,819 kg/yr)', statusClass: 'success' },
+  { batchSizeKg: 5.0, label: '5.0kg Investor Standard', category: 'Investor Standard', recommendedRole: '🚀 1.5x – 2.0x Scale (4h: 6,365 kg/yr)', statusClass: 'success' },
+  { batchSizeKg: 10.0, label: '10.0kg Wholesale Scaling', category: 'Wholesale Scaling', recommendedRole: '💎 High Volume (4h: 12,730 kg/yr)', statusClass: 'premium' }
+];
+
+const BREAKEVEN_KG_YEAR = 2483; // Sheet 5 Milestone 1: 2,483 kg/year (Requires min 3kg roaster)
+const INVESTOR_LOW_KG_YEAR = 3725; // Sheet 5 Milestone 2: 3,725 kg/year (1.5x, requires min 5kg roaster)
+const INVESTOR_HIGH_KG_YEAR = 4967; // Sheet 5 Milestone 3: 4,967 kg/year (2.0x, requires 5kg–10kg roaster)
+
 class AdminPortal {
-  private monthlyFixedCost: number = 135834; // ₹1.35L/month to cover ₹12L salary + ₹2L biz-dev + depreciation + ops
+  // Base fixed monthly overheads excluding roaster machine depreciation:
+  // Founder Salary: ₹1,00,000 + Rent/Power (Indiranagar Shed): ₹12,000 + Marketing/CAC/BizDev: ₹16,667 + Cloudflare/Ops: ₹2,000 = ₹1,30,667/mo
+  private baseFixedCostExcludingRoaster: number = 130667;
+  private auxEquipmentDeprec: number = 2500; // ₹1.5L grinder/sealer/scales over 5 years (60 mo)
+  private simulatedRoasterCapEx: number = 450000; // ₹4.50L default for 3kg Aatomize ARST-3 (Sheet 6)
+  private simulatedRoasterName: string = '3kg Commercial (Aatomize ARST-3)';
+  private monthlyFixedCost: number = 130667 + 2500 + Math.round(450000 / 60); // ₹1,40,667/mo
+
+  // Capacity Matrix State (Sheet 5)
+  private selectedBatchSizeKg: number = 3.0;
+  private dailyRoastingHours: number = 4.0;
+  private batchCycleMinutes: number = 50;
+  private capacityRoastLossPct: number = 0.15;
+  private operatingDaysPerMonth: number = 26;
+  private operatingDaysPerYear: number = 312;
+  private retailPricePerBag: number = 450;
+
+  // External recalculation triggers
+  private recalculateEconomics?: () => void;
+  private recalculateCapacity?: () => void;
 
   private catalogPricing: PricingRow[] = [
     { variant_id: 'var_att_250', product_name: 'Chikmagalur Attikan Estate Honey', weight_grams: 250, price_inr: 450, price_usd_cents: 1850, discount_percent: 0 },
@@ -32,6 +72,8 @@ class AdminPortal {
   async init() {
     this.setupNavigation();
     this.setupPricingTable();
+    this.setupCapacityMatrix();
+    this.setupCapExManager();
     this.setupEconomicsSimulator();
     this.setupBatchLogging();
     this.setupCouponsManager();
@@ -43,7 +85,7 @@ class AdminPortal {
   private triggerHaptic() {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
-        navigator.vibrate(10);
+        navigator.vibrate(12);
       } catch {
         // Ignore vibration errors on unsupported platforms
       }
@@ -69,6 +111,10 @@ class AdminPortal {
         document.getElementById('panel-labels')?.scrollIntoView({ behavior: 'smooth' });
       } else if (tab === 'pricing') {
         document.getElementById('panel-pricing')?.scrollIntoView({ behavior: 'smooth' });
+      } else if (tab === 'capacity') {
+        document.getElementById('panel-capacity')?.scrollIntoView({ behavior: 'smooth' });
+      } else if (tab === 'capex') {
+        document.getElementById('panel-capex')?.scrollIntoView({ behavior: 'smooth' });
       } else if (tab === 'economics') {
         document.getElementById('panel-economics')?.scrollIntoView({ behavior: 'smooth' });
       } else if (tab === 'roasts') {
@@ -184,6 +230,340 @@ class AdminPortal {
     });
   }
 
+  // ==========================================================================
+  // SHEET 5: ROASTER CAPACITY VS DEMAND MATRIX
+  // ==========================================================================
+  private setupCapacityMatrix() {
+    const batchPills = document.querySelectorAll('#capacity-batch-selector .batch-tier-pill');
+    const hoursSlider = document.getElementById('cap-hours-slider') as HTMLInputElement;
+    const cycleSelect = document.getElementById('cap-cycle-select') as HTMLSelectElement;
+    const lossSelect = document.getElementById('cap-loss-select') as HTMLSelectElement;
+
+    const hoursLbl = document.getElementById('cap-hours-lbl');
+    const selectedTierLbl = document.getElementById('cap-selected-tier-label');
+    const tblHoursRef = document.getElementById('cap-tbl-hours-ref');
+    const milestoneCurKgHdr = document.getElementById('milestone-cur-kg-hdr');
+
+    const dailyKgVal = document.getElementById('cap-daily-kg');
+    const dailyBatchesVal = document.getElementById('cap-daily-batches');
+    const monthlyKgVal = document.getElementById('cap-monthly-kg');
+    const annualKgVal = document.getElementById('cap-annual-kg');
+    const annualGreenVal = document.getElementById('cap-annual-green');
+    const annualBagsVal = document.getElementById('cap-annual-bags');
+    const annualRevVal = document.getElementById('cap-annual-revenue');
+    const headroomBadge = document.getElementById('cap-headroom-badge');
+
+    // Milestone DOM elements
+    const mbarBreakeven = document.getElementById('mbar-breakeven');
+    const minfoBreakeven = document.getElementById('minfo-breakeven');
+    const mdeltaBreakeven = document.getElementById('mdelta-breakeven');
+    const mstatusBreakeven = document.getElementById('mstatus-breakeven');
+
+    const mbarInvLow = document.getElementById('mbar-investor-low');
+    const minfoInvLow = document.getElementById('minfo-investor-low');
+    const mdeltaInvLow = document.getElementById('mdelta-investor-low');
+    const mstatusInvLow = document.getElementById('mstatus-investor-low');
+
+    const mbarInvHigh = document.getElementById('mbar-investor-high');
+    const minfoInvHigh = document.getElementById('minfo-investor-high');
+    const mdeltaInvHigh = document.getElementById('mdelta-investor-high');
+    const mstatusInvHigh = document.getElementById('mstatus-investor-high');
+
+    const comparisonTbody = document.getElementById('capacity-comparison-tbody');
+
+    const recalculate = () => {
+      if (hoursSlider) this.dailyRoastingHours = parseFloat(hoursSlider.value);
+      if (cycleSelect) this.batchCycleMinutes = parseFloat(cycleSelect.value);
+      if (lossSelect) this.capacityRoastLossPct = parseFloat(lossSelect.value) / 100;
+
+      const batchesPerDay = (this.dailyRoastingHours * 60) / this.batchCycleMinutes;
+      const dailyRoastedKg = batchesPerDay * this.selectedBatchSizeKg * (1 - this.capacityRoastLossPct);
+      const monthlyRoastedKg = dailyRoastedKg * this.operatingDaysPerMonth;
+      const annualRoastedKg = dailyRoastedKg * this.operatingDaysPerYear;
+      const annualGreenKg = batchesPerDay * this.selectedBatchSizeKg * this.operatingDaysPerYear;
+      const annualBags250g = Math.round(annualRoastedKg * 4);
+      const annualGrossRevenue = annualBags250g * this.retailPricePerBag;
+
+      // Update Label headers
+      if (hoursLbl) hoursLbl.textContent = `${this.dailyRoastingHours.toFixed(1)} hrs / day`;
+      if (tblHoursRef) tblHoursRef.textContent = `${this.dailyRoastingHours.toFixed(1)}h`;
+      if (milestoneCurKgHdr) milestoneCurKgHdr.textContent = `${Math.round(annualRoastedKg).toLocaleString('en-IN')} kg/yr`;
+
+      const activeTier = ROASTER_TIERS.find(t => t.batchSizeKg === this.selectedBatchSizeKg);
+      if (selectedTierLbl && activeTier) {
+        selectedTierLbl.textContent = `${activeTier.batchSizeKg.toFixed(1)}kg ${activeTier.category} (Selected)`;
+      }
+
+      // Update live KPIs
+      if (dailyKgVal) dailyKgVal.textContent = `${dailyRoastedKg.toFixed(1)} kg`;
+      if (dailyBatchesVal) dailyBatchesVal.textContent = `${batchesPerDay.toFixed(1)} batches / day`;
+      if (monthlyKgVal) monthlyKgVal.textContent = `${monthlyRoastedKg.toFixed(1)} kg`;
+      if (annualKgVal) annualKgVal.textContent = `${Math.round(annualRoastedKg).toLocaleString('en-IN')} kg`;
+      if (annualGreenVal) annualGreenVal.textContent = `${Math.round(annualGreenKg).toLocaleString('en-IN')} kg green beans`;
+      if (annualBagsVal) annualBagsVal.textContent = `${annualBags250g.toLocaleString('en-IN')}`;
+      if (annualRevVal) annualRevVal.textContent = `₹${annualGrossRevenue.toLocaleString('en-IN')}`;
+
+      // Headroom badge calculation
+      const beCoveragePct = ((annualRoastedKg / BREAKEVEN_KG_YEAR) * 100);
+      if (headroomBadge) {
+        if (annualRoastedKg >= BREAKEVEN_KG_YEAR) {
+          headroomBadge.textContent = `+${beCoveragePct.toFixed(1)}% of Breakeven (+${Math.round(annualRoastedKg - BREAKEVEN_KG_YEAR).toLocaleString('en-IN')} kg surplus)`;
+          headroomBadge.style.color = 'var(--emerald)';
+        } else {
+          headroomBadge.textContent = `${beCoveragePct.toFixed(1)}% of Breakeven (-${Math.round(BREAKEVEN_KG_YEAR - annualRoastedKg).toLocaleString('en-IN')} kg deficit)`;
+          headroomBadge.style.color = 'var(--rose)';
+        }
+      }
+
+      // Update Milestone 1: Breakeven (2,483 kg/yr)
+      const bePct = (annualRoastedKg / BREAKEVEN_KG_YEAR) * 100;
+      if (mbarBreakeven) mbarBreakeven.style.width = `${Math.min(100, Math.max(0, bePct))}%`;
+      if (minfoBreakeven) minfoBreakeven.textContent = `${bePct.toFixed(1)}% of Breakeven Volume`;
+      if (annualRoastedKg >= BREAKEVEN_KG_YEAR) {
+        if (mstatusBreakeven) {
+          mstatusBreakeven.textContent = '✓ Achieved';
+          mstatusBreakeven.className = 'mcard-status-pill success';
+        }
+        if (mdeltaBreakeven) {
+          mdeltaBreakeven.textContent = `+${Math.round(annualRoastedKg - BREAKEVEN_KG_YEAR).toLocaleString('en-IN')} kg surplus`;
+          mdeltaBreakeven.style.color = 'var(--emerald)';
+        }
+      } else {
+        if (mstatusBreakeven) {
+          mstatusBreakeven.textContent = '🔴 Sub-Breakeven';
+          mstatusBreakeven.className = 'mcard-status-pill danger';
+        }
+        if (mdeltaBreakeven) {
+          mdeltaBreakeven.textContent = `-${Math.round(BREAKEVEN_KG_YEAR - annualRoastedKg).toLocaleString('en-IN')} kg deficit (Requires min 3kg roaster)`;
+          mdeltaBreakeven.style.color = 'var(--rose)';
+        }
+      }
+
+      // Update Milestone 2: Investor Low (3,725 kg/yr - 1.5x)
+      const invLowPct = (annualRoastedKg / INVESTOR_LOW_KG_YEAR) * 100;
+      if (mbarInvLow) mbarInvLow.style.width = `${Math.min(100, Math.max(0, invLowPct))}%`;
+      if (minfoInvLow) minfoInvLow.textContent = `${invLowPct.toFixed(1)}% of Target Volume`;
+      if (annualRoastedKg >= INVESTOR_LOW_KG_YEAR) {
+        if (mstatusInvLow) {
+          mstatusInvLow.textContent = '✓ Achieved';
+          mstatusInvLow.className = 'mcard-status-pill success';
+        }
+        if (mdeltaInvLow) {
+          mdeltaInvLow.textContent = `+${Math.round(annualRoastedKg - INVESTOR_LOW_KG_YEAR).toLocaleString('en-IN')} kg surplus`;
+          mdeltaInvLow.style.color = 'var(--emerald)';
+        }
+      } else {
+        if (mstatusInvLow) {
+          mstatusInvLow.textContent = '⚠️ Needs Scale';
+          mstatusInvLow.className = 'mcard-status-pill warning';
+        }
+        if (mdeltaInvLow) {
+          mdeltaInvLow.textContent = `-${Math.round(INVESTOR_LOW_KG_YEAR - annualRoastedKg).toLocaleString('en-IN')} kg deficit (Requires min 5kg roaster)`;
+          mdeltaInvLow.style.color = 'var(--amber)';
+        }
+      }
+
+      // Update Milestone 3: Investor High (4,967 kg/yr - 2.0x)
+      const invHighPct = (annualRoastedKg / INVESTOR_HIGH_KG_YEAR) * 100;
+      if (mbarInvHigh) mbarInvHigh.style.width = `${Math.min(100, Math.max(0, invHighPct))}%`;
+      if (minfoInvHigh) minfoInvHigh.textContent = `${invHighPct.toFixed(1)}% of Target Volume`;
+      if (annualRoastedKg >= INVESTOR_HIGH_KG_YEAR) {
+        if (mstatusInvHigh) {
+          mstatusInvHigh.textContent = '🚀 Scale Achieved';
+          mstatusInvHigh.className = 'mcard-status-pill success';
+        }
+        if (mdeltaInvHigh) {
+          mdeltaInvHigh.textContent = `+${Math.round(annualRoastedKg - INVESTOR_HIGH_KG_YEAR).toLocaleString('en-IN')} kg surplus`;
+          mdeltaInvHigh.style.color = 'var(--emerald)';
+        }
+      } else {
+        if (mstatusInvHigh) {
+          mstatusInvHigh.textContent = '⚠️ Needs 5kg–10kg';
+          mstatusInvHigh.className = 'mcard-status-pill warning';
+        }
+        if (mdeltaInvHigh) {
+          mdeltaInvHigh.textContent = `-${Math.round(INVESTOR_HIGH_KG_YEAR - annualRoastedKg).toLocaleString('en-IN')} kg deficit (Requires 5kg–10kg roaster)`;
+          mdeltaInvHigh.style.color = 'var(--amber)';
+        }
+      }
+
+      // Render Complete Comparison Table
+      if (comparisonTbody) {
+        comparisonTbody.innerHTML = ROASTER_TIERS.map((tier) => {
+          const tierDaily = batchesPerDay * tier.batchSizeKg * (1 - this.capacityRoastLossPct);
+          const tierMonthly = tierDaily * this.operatingDaysPerMonth;
+          const tierAnnual = tierDaily * this.operatingDaysPerYear;
+          const tierBags = Math.round(tierAnnual * 4);
+          const tierRev = tierBags * this.retailPricePerBag;
+          const isSelected = tier.batchSizeKg === this.selectedBatchSizeKg;
+
+          let fitBadge = '';
+          if (tierAnnual < BREAKEVEN_KG_YEAR) {
+            fitBadge = `<span class="status-badge refunded" style="font-size:0.75rem;">🔴 Sub-Breakeven</span>`;
+          } else if (tierAnnual < INVESTOR_LOW_KG_YEAR) {
+            fitBadge = `<span class="status-badge paid" style="font-size:0.75rem;">🟢 Breakeven Floor</span>`;
+          } else if (tierAnnual < INVESTOR_HIGH_KG_YEAR) {
+            fitBadge = `<span class="status-badge paid" style="font-size:0.75rem; background: rgba(212,167,84,0.15); color: var(--gold); border: 1px solid var(--gold);">🚀 1.5x Scale</span>`;
+          } else {
+            fitBadge = `<span class="status-badge paid" style="font-size:0.75rem; background: rgba(63,163,124,0.2); color: var(--emerald); border: 1px solid var(--emerald);">💎 Wholesale 2x+</span>`;
+          }
+
+          return `
+            <tr style="${isSelected ? 'background: rgba(212, 167, 84, 0.08); font-weight: 600;' : ''}">
+              <td><strong style="color: ${isSelected ? 'var(--gold)' : 'var(--text-main)'};">${tier.batchSizeKg.toFixed(1)} kg</strong></td>
+              <td>${tier.category}</td>
+              <td>${batchesPerDay.toFixed(1)}</td>
+              <td>${tierDaily.toFixed(1)} kg</td>
+              <td>${tierMonthly.toFixed(1)} kg</td>
+              <td><strong>${Math.round(tierAnnual).toLocaleString('en-IN')} kg</strong></td>
+              <td>${tierBags.toLocaleString('en-IN')}</td>
+              <td><strong style="color: var(--emerald);">₹${tierRev.toLocaleString('en-IN')}</strong></td>
+              <td>${fitBadge}</td>
+              <td>
+                <button type="button" class="btn-table-action btn-select-batch" data-batch="${tier.batchSizeKg}" style="${isSelected ? 'background: var(--gold); color: #000; font-weight: 700;' : ''}">
+                  ${isSelected ? '✓ Active' : 'Select'}
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        // Attach listeners to table row select buttons
+        comparisonTbody.querySelectorAll('.btn-select-batch').forEach((btn) => {
+          btn.addEventListener('click', (e) => {
+            this.triggerHaptic();
+            const batchVal = parseFloat((e.currentTarget as HTMLElement).getAttribute('data-batch') || '3.0');
+            this.selectedBatchSizeKg = batchVal;
+            this.updateBatchPillsActiveState();
+            recalculate();
+          });
+        });
+      }
+
+      // Update Unit Economics capacity pill
+      const econCapPill = document.getElementById('econ-capacity-fit-pill');
+      if (econCapPill) {
+        const bufferPct = ((annualRoastedKg / BREAKEVEN_KG_YEAR) * 100).toFixed(0);
+        econCapPill.textContent = `${this.selectedBatchSizeKg.toFixed(1)}kg Roaster (${Math.round(annualRoastedKg).toLocaleString('en-IN')} kg/yr · ${bufferPct}% Buffer)`;
+        econCapPill.className = annualRoastedKg >= BREAKEVEN_KG_YEAR ? 'status-badge paid' : 'status-badge refunded';
+      }
+    };
+
+    this.recalculateCapacity = recalculate;
+
+    // Attach listeners to batch pills
+    batchPills.forEach((pill) => {
+      pill.addEventListener('click', (e) => {
+        this.triggerHaptic();
+        const batch = parseFloat((e.currentTarget as HTMLElement).getAttribute('data-batch') || '3.0');
+        this.selectedBatchSizeKg = batch;
+        this.updateBatchPillsActiveState();
+        recalculate();
+      });
+    });
+
+    hoursSlider?.addEventListener('input', recalculate);
+    cycleSelect?.addEventListener('change', recalculate);
+    lossSelect?.addEventListener('change', recalculate);
+
+    recalculate();
+  }
+
+  private updateBatchPillsActiveState() {
+    document.querySelectorAll('#capacity-batch-selector .batch-tier-pill').forEach((pill) => {
+      const b = parseFloat(pill.getAttribute('data-batch') || '0');
+      pill.classList.toggle('active', b === this.selectedBatchSizeKg);
+    });
+  }
+
+  // ==========================================================================
+  // SHEET 6: INDIA ROASTER PRICING & CAPEX UPGRADE SIMULATOR
+  // ==========================================================================
+  private setupCapExManager() {
+    const customSlider = document.getElementById('capex-custom-slider') as HTMLInputElement;
+    const sliderCostLbl = document.getElementById('capex-slider-cost-lbl');
+    const simDeprecLbl = document.getElementById('capex-sim-deprec-lbl');
+    const simTotalOverheadLbl = document.getElementById('capex-sim-total-overhead-lbl');
+    const simBeBagsLbl = document.getElementById('capex-sim-be-bags-lbl');
+    const simBeKgLbl = document.getElementById('capex-sim-be-kg-lbl');
+
+    const capexButtons = document.querySelectorAll('.btn-simulate-capex');
+
+    const applyCapExUpgrade = (cost: number, name?: string, batchSize?: number) => {
+      this.triggerHaptic();
+      this.simulatedRoasterCapEx = cost;
+      if (name) this.simulatedRoasterName = name;
+      if (batchSize) {
+        this.selectedBatchSizeKg = batchSize;
+        this.updateBatchPillsActiveState();
+        if (this.recalculateCapacity) this.recalculateCapacity();
+      }
+
+      if (customSlider) customSlider.value = cost.toString();
+
+      const monthlyRoasterDeprec = Math.round(cost / 60);
+      this.monthlyFixedCost = this.baseFixedCostExcludingRoaster + this.auxEquipmentDeprec + monthlyRoasterDeprec;
+
+      // Update CapEx simulation metrics
+      if (sliderCostLbl) sliderCostLbl.textContent = `₹${cost.toLocaleString('en-IN')} (₹${(cost / 100000).toFixed(2)} Lakhs)`;
+      if (simDeprecLbl) simDeprecLbl.textContent = `₹${monthlyRoasterDeprec.toLocaleString('en-IN')} / mo`;
+      if (simTotalOverheadLbl) simTotalOverheadLbl.textContent = `₹${this.monthlyFixedCost.toLocaleString('en-IN')} / mo`;
+
+      // Update Unit Economics panel references
+      const econRoasterDeprecRow = document.getElementById('econ-roaster-deprec-row');
+      if (econRoasterDeprecRow) {
+        econRoasterDeprecRow.textContent = `₹${monthlyRoasterDeprec.toLocaleString('en-IN')} / mo (${this.simulatedRoasterName})`;
+      }
+      const econTotalFixedVal = document.getElementById('econ-total-fixed-cost-val');
+      if (econTotalFixedVal) {
+        econTotalFixedVal.textContent = `₹${this.monthlyFixedCost.toLocaleString('en-IN')} / mo`;
+      }
+      const econOverheadBadge = document.getElementById('econ-target-overhead-badge');
+      if (econOverheadBadge) {
+        econOverheadBadge.textContent = `Target Overhead: ₹${(this.monthlyFixedCost / 100000).toFixed(2)}L/mo (₹${((this.monthlyFixedCost * 12) / 100000).toFixed(2)}L/yr)`;
+      }
+
+      // Update active cards and buttons
+      document.querySelectorAll('.capex-machine-card').forEach((card) => {
+        const cardCost = parseFloat(card.getAttribute('data-capex') || '0');
+        const isActive = Math.abs(cardCost - cost) < 10000;
+        card.classList.toggle('active-simulation', isActive);
+
+        const btn = card.querySelector('.btn-simulate-capex') as HTMLElement;
+        if (btn) {
+          btn.classList.toggle('active', isActive);
+          btn.textContent = isActive ? `✓ Active in Model (₹${(cardCost / 100000).toFixed(2)}L)` : `⚡ Simulate ₹${(cardCost / 100000).toFixed(2)}L CapEx`;
+        }
+      });
+
+      // Recalculate Unit Economics
+      if (this.recalculateEconomics) {
+        this.recalculateEconomics();
+      }
+    };
+
+    capexButtons.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const cost = parseFloat(target.getAttribute('data-cost') || '450000');
+        const name = target.getAttribute('data-name') || 'Roaster Upgrade';
+        const batch = parseFloat(target.getAttribute('data-batch') || '3.0');
+        applyCapExUpgrade(cost, name, batch);
+      });
+    });
+
+    customSlider?.addEventListener('input', (e) => {
+      const cost = parseFloat((e.target as HTMLInputElement).value);
+      applyCapExUpgrade(cost, `Custom Roaster (₹${(cost / 100000).toFixed(2)}L)`);
+    });
+
+    // Initialize with default
+    applyCapExUpgrade(450000, '3kg Commercial (Aatomize ARST-3)', 3.0);
+  }
+
+  // ==========================================================================
+  // UNIT ECONOMICS & BREAKEVEN CONTROLLER
+  // ==========================================================================
   private setupEconomicsSimulator() {
     const priceSlider = document.getElementById('econ-price-slider') as HTMLInputElement;
     const greenSlider = document.getElementById('econ-green-slider') as HTMLInputElement;
@@ -198,7 +578,12 @@ class AdminPortal {
     const marginVal = document.getElementById('econ-margin-val');
     const profitVal = document.getElementById('econ-profit-val');
     const breakevenBags = document.getElementById('econ-breakeven-bags');
+    const breakevenDailySub = document.getElementById('econ-breakeven-daily-sub');
+    const annualBeKgEl = document.getElementById('econ-annual-be-kg');
     const insightText = document.getElementById('econ-insight-text');
+
+    const simBeBagsLbl = document.getElementById('capex-sim-be-bags-lbl');
+    const simBeKgLbl = document.getElementById('capex-sim-be-kg-lbl');
 
     const recalculate = () => {
       const price = parseFloat(priceSlider.value);
@@ -206,6 +591,8 @@ class AdminPortal {
       const roastLossPct = parseFloat(lossSlider.value) / 100;
       const commissionPct = parseFloat(channelSelect.value) / 100;
       const gatewayPct = 0.02;
+
+      this.retailPricePerBag = price;
 
       if (priceLbl) priceLbl.textContent = `₹${price}`;
       if (greenLbl) greenLbl.textContent = `₹${greenPerKg}`;
@@ -223,27 +610,36 @@ class AdminPortal {
 
       const bagsNeeded = grossProfit > 0 ? Math.ceil(this.monthlyFixedCost / grossProfit) : 0;
       const dailyBags = Math.ceil(bagsNeeded / 26);
+      const annualBeKg = Math.round(bagsNeeded * 12 * 0.25);
 
       if (cogsVal) cogsVal.textContent = `₹${totalCogs.toFixed(2)}`;
       if (marginVal) marginVal.textContent = `${grossMarginPct.toFixed(1)}%`;
       if (profitVal) profitVal.textContent = `₹${grossProfit.toFixed(2)}`;
-      if (breakevenBags) {
-        breakevenBags.textContent = `${bagsNeeded} Bags`;
-        const smallEl = breakevenBags.parentElement?.querySelector('small');
-        if (smallEl) smallEl.textContent = `≈ ${dailyBags} bags / day (26 days)`;
-      }
+      if (breakevenBags) breakevenBags.textContent = `${bagsNeeded} Bags`;
+      if (breakevenDailySub) breakevenDailySub.textContent = `≈ ${dailyBags} bags / day (26 days)`;
+      if (annualBeKgEl) annualBeKgEl.textContent = `${annualBeKg.toLocaleString('en-IN')} kg / yr`;
+
+      if (simBeBagsLbl) simBeBagsLbl.textContent = `${bagsNeeded} Bags / mo`;
+      if (simBeKgLbl) simBeKgLbl.textContent = `≈ ${annualBeKg.toLocaleString('en-IN')} kg/yr`;
 
       if (insightText) {
         if (commissionPct === 0) {
-          insightText.textContent = `Direct Storefront mode (0% commission) maximizes profit to ₹${grossProfit.toFixed(2)}/bag. You only need ${dailyBags} bags/day to hit your ₹12L salary!`;
+          insightText.textContent = `Direct Storefront mode (0% commission) maximizes profit to ₹${grossProfit.toFixed(2)}/bag. You need ${dailyBags} bags/day (${bagsNeeded} bags/mo) to cover all fixed costs & salary!`;
         } else if (commissionPct === 0.15) {
           const savings = (price * 0.15).toFixed(2);
-          insightText.textContent = `Marketplace mix loses ₹${savings}/bag to platform commissions. Shifting traffic to your direct storefront drops your monthly breakeven by ~240 bags!`;
+          insightText.textContent = `Marketplace mix loses ₹${savings}/bag to platform commissions. Shifting traffic to your direct storefront drops monthly breakeven by ~${Math.round(bagsNeeded * 0.22)} bags!`;
         } else {
-          insightText.textContent = `25% marketplace commission heavily cuts margins to ${grossMarginPct.toFixed(1)}%. Recommend offering exclusive single-origin lots only on your direct storefront.`;
+          insightText.textContent = `25% marketplace commission cuts gross margin to ${grossMarginPct.toFixed(1)}%. Recommend driving subscriptions and repeat orders exclusively to your direct storefront.`;
         }
       }
+
+      // Update capacity calculations with the latest price
+      if (this.recalculateCapacity) {
+        this.recalculateCapacity();
+      }
     };
+
+    this.recalculateEconomics = recalculate;
 
     priceSlider?.addEventListener('input', recalculate);
     greenSlider?.addEventListener('input', recalculate);

@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Investor Readiness & Sales Velocity Portal — The Daily Grind · Bangalore</title>
+  <meta name="description" content="Executive Seed Round Pitch, Sales Traction Matrix, CapEx Scenario Modeler, and Milestone Scorecard for The Daily Grind Specialty Coffee Roasters.">
+  <meta name="theme-color" content="#120e0d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Investor Portal">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/src/styles/admin.css">
+  <link rel="stylesheet" href="/src/styles/investor.css">
+</head>
+<body class="investor-body">
+  <div class="investor-layout">
+    <!-- Desktop Sidebar -->
+    <aside class="investor-sidebar">
+      <div class="investor-brand-header">
+        <div class="investor-brand-icon">🚀</div>
+        <div class="investor-brand-title">
+          <h2>THE DAILY GRIND</h2>
+          <span>INVESTOR RELATIONS</span>
+        </div>
+      </div>
+
+      <div class="round-status-badge">
+        <div class="badge-label">
+          <span>SEED STAGE ROUND</span>
+          <span class="pulse-dot"></span>
+        </div>
+        <p>Target: ₹50L–₹1.25Cr / $60k–$150k. Direct specialty coffee D2C & subscriptions expansion.</p>
+      </div>
+
+      <nav>
+        <ul class="inv-nav-list">
+          <li><button class="inv-nav-btn active" data-tab="overview">🏛️ Executive Thesis</button></li>
+          <li><button class="inv-nav-btn" data-tab="traction">📈 Sales & Revenue Traction</button></li>
+          <li><button class="inv-nav-btn" data-tab="scorecard">🎯 Seed Readiness Scorecard</button></li>
+          <li><button class="inv-nav-btn" data-tab="sourcing">🌱 Direct Indian Estates</button></li>
+          <li><button class="inv-nav-btn" data-tab="modeler">🧮 CapEx & Valuation Modeler</button></li>
+          <li><button class="inv-nav-btn" data-tab="diligence">📁 Cap Table & Data Room</button></li>
+        </ul>
+      </nav>
+
+      <div class="inv-sidebar-footer">
+        <div><strong>Bangalore Hub:</strong> Indiranagar</div>
+        <div><strong>Entity:</strong> Private Limited (Pvt Ltd)</div>
+        <a href="/index.html">← Back to Roastery Command Center</a>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="investor-main">
+      <!-- Top Navigation & Global Controls -->
+      <div class="inv-top-bar">
+        <div class="inv-headline">
+          <h1>Investor Readiness & Sales Velocity Portal</h1>
+          <p>Real-time financial traction matrix, 8-point seed milestone verification, and interactive CapEx valuation simulator for The Daily Grind.</p>
+        </div>
+
+        <div class="inv-top-actions">
+          <!-- Currency Toggle -->
+          <div class="currency-toggle-wrap">
+            <button class="currency-btn active" id="curr-btn-inr">₹ INR</button>
+            <button class="currency-btn" id="curr-btn-usd">$ USD</button>
+          </div>
+
+          <button class="btn-inv-secondary" id="btn-print-onepager" title="Print 1-Page Summary">
+            🖨️ Print 1-Pager (PDF)
+          </button>
+          <button class="btn-inv-secondary" id="btn-copy-pitch" title="Copy Executive Pitch to Clipboard">
+            📋 Copy Pitch Memo
+          </button>
+          <button class="btn-inv-primary" id="btn-export-json" title="Download Due Diligence JSON Dataset">
+            📥 Data Room Export
+          </button>
+          <a href="/index.html" class="btn-inv-secondary">
+            ← Roastery Ops
+          </a>
+        </div>
+      </div>
+
+      <!-- Executive Highlight & Investment Thesis Banner -->
+      <section class="inv-hero-banner" id="sec-overview">
+        <div class="hero-thesis-grid">
+          <div class="hero-thesis-text">
+            <h3>Sourcing, Roasting & Scaling India's Direct-Trade Specialty Coffee</h3>
+            <p>
+              The Daily Grind bridges top-tier Indian micro-lot estates (Chikmagalur, Araku, Coorg) directly to premium urban coffee drinkers via zero-commission edge D2C storefronts, recurring bean subscriptions, and proprietary Maya AI flavor sommelier technology.
+            </p>
+            <div class="thesis-pill-list">
+              <span class="thesis-pill">🌱 <strong>Direct Farmgate:</strong> ₹610/kg Landed</span>
+              <span class="thesis-pill">💰 <strong>50.6% Margin:</strong> Zero Commission D2C</span>
+              <span class="thesis-pill">⚡ <strong>$0/mo Cloud:</strong> Cloudflare Serverless</span>
+              <span class="thesis-pill">🤖 <strong>Maya AI Engine:</strong> Llama 3.3 70B</span>
+            </div>
+          </div>
+
+          <div class="hero-key-stats">
+            <div class="hero-stat-card">
+              <span class="stat-label">Current ARR</span>
+              <div class="stat-val" id="hero-stat-arr">₹22.14L</div>
+              <span class="stat-sub">↑ +22.4% MoM Growth</span>
+            </div>
+            <div class="hero-stat-card">
+              <span class="stat-label">Current MRR</span>
+              <div class="stat-val" id="hero-stat-mrr">₹1.84L</div>
+              <span class="stat-sub">345 Active Club Subs</span>
+            </div>
+            <div class="hero-stat-card">
+              <span class="stat-label">LTV : CAC</span>
+              <div class="stat-val">5.27x</div>
+              <span class="stat-sub">LTV ₹4,850 vs CAC ₹920</span>
+            </div>
+            <div class="hero-stat-card">
+              <span class="stat-label">Readiness Score</span>
+              <div class="stat-val" style="color: var(--inv-emerald);">87.5%</div>
+              <span class="stat-sub">7/8 Milestones Proven</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 1: Sales & Revenue Traction Matrix -->
+      <section class="section-wrapper" id="sec-traction">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">📊 Sales & Revenue Traction Matrix</h2>
+            <p class="section-subtitle">Real-time revenue velocity, subscription retention, and channel contribution waterfall.</p>
+          </div>
+        </div>
+
+        <!-- 6 KPI Metric Cards Grid -->
+        <div class="traction-metrics-grid">
+          <div class="metric-card highlight-gold">
+            <div class="metric-header">
+              <span class="metric-title">Annual Run Rate (ARR)</span>
+              <div class="metric-icon-badge">🚀</div>
+            </div>
+            <div class="metric-number" id="metric-val-arr">₹22.14L</div>
+            <div class="metric-trend positive">↑ +22.4% MoM Velocity</div>
+            <div class="metric-subtext">Based on trailing 30-day run rate</div>
+          </div>
+
+          <div class="metric-card highlight-copper">
+            <div class="metric-header">
+              <span class="metric-title">Monthly Recurring Revenue</span>
+              <div class="metric-icon-badge">📅</div>
+            </div>
+            <div class="metric-number" id="metric-val-mrr">₹1,84,500</div>
+            <div class="metric-trend positive">↑ 345 Active Club Subs</div>
+            <div class="metric-subtext">The Daily Club 250g/500g recurring</div>
+          </div>
+
+          <div class="metric-card highlight-emerald">
+            <div class="metric-header">
+              <span class="metric-title">Blended Gross Margin</span>
+              <div class="metric-icon-badge">💎</div>
+            </div>
+            <div class="metric-number">36.5%</div>
+            <div class="metric-trend positive">Up to 50.6% on Direct D2C</div>
+            <div class="metric-subtext">₹164.09 Net Profit / 250g bag</div>
+          </div>
+
+          <div class="metric-card highlight-cyan">
+            <div class="metric-header">
+              <span class="metric-title">Average Order Value (AOV)</span>
+              <div class="metric-icon-badge">🛒</div>
+            </div>
+            <div class="metric-number" id="metric-val-aov">₹850</div>
+            <div class="metric-trend neutral">₹1,490 on Multi-Bag bundles</div>
+            <div class="metric-subtext">2.1 items per average checkout</div>
+          </div>
+
+          <div class="metric-card highlight-gold">
+            <div class="metric-header">
+              <span class="metric-title">LTV : CAC Ratio</span>
+              <div class="metric-icon-badge">🎯</div>
+            </div>
+            <div class="metric-number">5.27x</div>
+            <div class="metric-trend positive" id="metric-val-ltv">LTV: ₹4,850 | CAC: ₹920</div>
+            <div class="metric-subtext">Payback period &lt; 2.1 months</div>
+          </div>
+
+          <div class="metric-card highlight-emerald">
+            <div class="metric-header">
+              <span class="metric-title">90-Day Retention Rate</span>
+              <div class="metric-icon-badge">🔁</div>
+            </div>
+            <div class="metric-number">91.4%</div>
+            <div class="metric-trend positive">2.8% Monthly Churn Rate</div>
+            <div class="metric-subtext">Avg 6.8 fresh bags / subscriber / year</div>
+          </div>
+        </div>
+
+        <!-- 2-Column Charts Grid: SVG Growth Chart + Margin Waterfall -->
+        <div class="traction-charts-grid">
+          <!-- Left Chart Panel -->
+          <div class="chart-panel">
+            <div class="chart-panel-header">
+              <span class="chart-panel-title">6-Month Monthly Recurring Revenue (MRR) Trajectory</span>
+              <div class="chart-panel-legend">
+                <div class="legend-item">
+                  <span class="legend-dot" style="background: var(--inv-gold);"></span>
+                  <span>Monthly Revenue</span>
+                </div>
+              </div>
+            </div>
+            <div class="svg-chart-container">
+              <svg id="traction-svg-chart" viewBox="0 0 680 190" preserveAspectRatio="none">
+                <!-- SVG Chart injected dynamically by investor.ts -->
+              </svg>
+            </div>
+          </div>
+
+          <!-- Right Margin Waterfall Breakdown -->
+          <div class="chart-panel">
+            <div class="chart-panel-header">
+              <span class="chart-panel-title">Channel Contribution & Margin Realisation</span>
+              <span style="font-size: 0.75rem; color: var(--inv-gold); font-weight: 700;">Per 250g Bag</span>
+            </div>
+
+            <div class="waterfall-bars-list">
+              <div class="waterfall-item">
+                <div class="waterfall-labels">
+                  <span class="channel-name">1. Own Direct Storefront (0% Comm.)</span>
+                  <span class="margin-pct" style="color: var(--inv-emerald);">50.6% Net Margin (₹227.60)</span>
+                </div>
+                <div class="waterfall-bar-track">
+                  <div class="waterfall-bar-fill" style="width: 85%; background: var(--inv-emerald);"></div>
+                </div>
+                <span class="waterfall-desc">Full realization via Cloudflare D2C edge checkout with 2% payment gateway only.</span>
+              </div>
+
+              <div class="waterfall-item">
+                <div class="waterfall-labels">
+                  <span class="channel-name">2. Current Blended Roastery Mix</span>
+                  <span class="margin-pct" style="color: var(--inv-gold);">36.5% Net Margin (₹164.09)</span>
+                </div>
+                <div class="waterfall-bar-track">
+                  <div class="waterfall-bar-fill" style="width: 61%; background: var(--inv-gold);"></div>
+                </div>
+                <span class="waterfall-desc">Weighted average of D2C subscribers, cafe supply, and curated marketplace pilots.</span>
+              </div>
+
+              <div class="waterfall-item">
+                <div class="waterfall-labels">
+                  <span class="channel-name">3. Third-Party Marketplace (25% Comm.)</span>
+                  <span class="margin-pct" style="color: var(--inv-rose);">25.4% Net Margin (₹114.50)</span>
+                </div>
+                <div class="waterfall-bar-track">
+                  <div class="waterfall-bar-fill" style="width: 42%; background: var(--inv-rose);"></div>
+                </div>
+                <span class="waterfall-desc">Traditional delivery apps and commercial e-commerce marketplace take rates.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: Seed Round Readiness Scorecard (8-Point Checklist) -->
+      <section class="section-wrapper" id="sec-scorecard">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">🎯 Seed Round Readiness Scorecard</h2>
+            <p class="section-subtitle">8-point operational, unit economics, tech, and compliance validation checklist.</p>
+          </div>
+        </div>
+
+        <div class="readiness-container">
+          <div class="readiness-header-row">
+            <!-- Circular SVG Gauge -->
+            <div class="gauge-wrap">
+              <svg class="gauge-svg" viewBox="0 0 140 140">
+                <defs>
+                  <linearGradient id="gaugeGoldGradient" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#42b88a"/>
+                    <stop offset="100%" stop-color="#e5b358"/>
+                  </linearGradient>
+                </defs>
+                <circle class="gauge-bg-circle" cx="70" cy="70" r="60"></circle>
+                <circle class="gauge-fill-circle" id="gauge-circle-fill" cx="70" cy="70" r="60"></circle>
+              </svg>
+              <div class="gauge-center-text">
+                <span class="gauge-score-number" id="gauge-score-number">88%</span>
+                <span class="gauge-score-sub">Investor Ready</span>
+              </div>
+            </div>
+
+            <!-- Gauge Explanation & Filters -->
+            <div class="readiness-summary-text">
+              <h3>High Institutional Investor Readiness</h3>
+              <p>
+                The Daily Grind has demonstrated defensible unit economics, active direct estate trade, $0 fixed cloud overhead, and proprietary Maya AI retention. <strong id="readiness-count-label">7 of 8 Milestones Verified (87.5%)</strong>.
+              </p>
+              <div class="milestone-filter-tabs">
+                <button class="filter-tab-btn active" data-filter="all">All Milestones (8)</button>
+                <button class="filter-tab-btn" data-filter="econ">💰 Unit Economics (2)</button>
+                <button class="filter-tab-btn" data-filter="ops">📦 Ops & Supply (3)</button>
+                <button class="filter-tab-btn" data-filter="tech">⚡ Edge Tech & AI (2)</button>
+                <button class="filter-tab-btn" data-filter="legal">⚖️ Compliance (1)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Milestones Cards Grid -->
+          <div class="milestones-grid" id="milestones-grid-container">
+            <!-- Dynamic Milestone Cards populated by investor.ts -->
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: Direct Indian Estate Sourcing Showcase -->
+      <section class="section-wrapper" id="sec-sourcing">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">🌱 Direct Indian Estate Partnerships</h2>
+            <p class="section-subtitle">Single-origin micro-lots with farmgate traceability and high cupping scores.</p>
+          </div>
+        </div>
+
+        <div class="sourcing-carousel-wrap">
+          <div class="sourcing-carousel">
+            <!-- Estate 1 -->
+            <div class="estate-card">
+              <div class="estate-badge-row">
+                <span style="font-size:0.75rem; color:var(--inv-copper); font-weight:700;">KARNATAKA</span>
+                <span class="cupping-score-pill">88.5 PTS</span>
+              </div>
+              <h3 class="estate-title">Chikmagalur Attikan Estate Honey</h3>
+              <div class="estate-meta-grid">
+                <span>Altitude: <strong>1,750m (Baba Budan)</strong></span>
+                <span>Process: <strong>Yellow Honey</strong></span>
+                <span>Cost / kg: <strong>₹610 Landed</strong></span>
+                <span>Silo Stock: <strong>180 kg</strong></span>
+              </div>
+              <div class="tasting-tags">
+                <span class="tasting-tag">Dark Chocolate</span>
+                <span class="tasting-tag">Fig</span>
+                <span class="tasting-tag">Brown Sugar</span>
+              </div>
+            </div>
+
+            <!-- Estate 2 -->
+            <div class="estate-card">
+              <div class="estate-badge-row">
+                <span style="font-size:0.75rem; color:var(--inv-emerald); font-weight:700;">ANDHRA PRADESH</span>
+                <span class="cupping-score-pill">89.0 PTS</span>
+              </div>
+              <h3 class="estate-title">Araku Valley Red Honey Micro-Lot</h3>
+              <div class="estate-meta-grid">
+                <span>Altitude: <strong>1,200m (Eastern Ghats)</strong></span>
+                <span>Process: <strong>Red Honey</strong></span>
+                <span>Cost / kg: <strong>₹640 Landed</strong></span>
+                <span>Silo Stock: <strong>120 kg</strong></span>
+              </div>
+              <div class="tasting-tags">
+                <span class="tasting-tag">Strawberry</span>
+                <span class="tasting-tag">Mandarin</span>
+                <span class="tasting-tag">Caramel</span>
+              </div>
+            </div>
+
+            <!-- Estate 3 -->
+            <div class="estate-card">
+              <div class="estate-badge-row">
+                <span style="font-size:0.75rem; color:var(--inv-gold); font-weight:700;">COORG HIGHLANDS</span>
+                <span class="cupping-score-pill">87.8 PTS</span>
+              </div>
+              <h3 class="estate-title">Coorg Polibetta Shade Plantation</h3>
+              <div class="estate-meta-grid">
+                <span>Altitude: <strong>1,400m (Western Ghats)</strong></span>
+                <span>Process: <strong>Washed Arabica</strong></span>
+                <span>Cost / kg: <strong>₹580 Landed</strong></span>
+                <span>Silo Stock: <strong>150 kg</strong></span>
+              </div>
+              <div class="tasting-tags">
+                <span class="tasting-tag">Hazelnut</span>
+                <span class="tasting-tag">Citrus Zest</span>
+                <span class="tasting-tag">Cocoa Nibs</span>
+              </div>
+            </div>
+
+            <!-- Estate 4 -->
+            <div class="estate-card">
+              <div class="estate-badge-row">
+                <span style="font-size:0.75rem; color:var(--inv-cyan); font-weight:700;">SPECIAL RESERVE</span>
+                <span class="cupping-score-pill">90.2 PTS</span>
+              </div>
+              <h3 class="estate-title">Ethiopia Yirgacheffe Gedeb Heirloom</h3>
+              <div class="estate-meta-grid">
+                <span>Altitude: <strong>2,100m (Gedeb)</strong></span>
+                <span>Process: <strong>Natural Heirloom</strong></span>
+                <span>Cost / kg: <strong>₹890 Landed</strong></span>
+                <span>Silo Stock: <strong>60 kg</strong></span>
+              </div>
+              <div class="tasting-tags">
+                <span class="tasting-tag">Bergamot</span>
+                <span class="tasting-tag">Jasmine</span>
+                <span class="tasting-tag">Peach Nectar</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: Interactive CapEx & Valuation Scenario Modeler -->
+      <section class="section-wrapper" id="sec-modeler">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">🧮 Interactive CapEx & Valuation Scenario Modeler</h2>
+            <p class="section-subtitle">Simulate funding terms, roaster equipment CapEx, subscriber scale, and projected investor return.</p>
+          </div>
+        </div>
+
+        <div class="modeler-grid">
+          <!-- Left Controls & Sliders -->
+          <div class="modeler-controls-card">
+            <div>
+              <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--inv-text-muted); display: block; margin-bottom: 0.6rem;">Quick Scenario Presets</span>
+              <div class="scenario-presets-bar">
+                <button class="preset-chip" id="preset-conservative">🌱 Conservative Seed (₹35L)</button>
+                <button class="preset-chip active" id="preset-growth">🚀 Growth Acceleration (₹60L)</button>
+                <button class="preset-chip" id="preset-hyper">⚡ Hyper-Scale (₹1.25Cr)</button>
+              </div>
+            </div>
+
+            <!-- Slider 1: Target Raise -->
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span>Target Raise Amount</span>
+                <span class="slider-val-pill" id="pill-val-raise">₹50.00L</span>
+              </div>
+              <input type="range" class="inv-range-slider" id="slider-raise" min="2500000" max="15000000" step="500000" value="5000000">
+              <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--inv-text-dim);">
+                <span>₹25 Lakhs ($30k)</span>
+                <span>₹1.50 Crores ($180k)</span>
+              </div>
+            </div>
+
+            <!-- Slider 2: Pre-Money Valuation -->
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span>Pre-Money Valuation</span>
+                <span class="slider-val-pill" id="pill-val-pre">₹5.00 Cr</span>
+              </div>
+              <input type="range" class="inv-range-slider" id="slider-pre" min="20000000" max="150000000" step="5000000" value="50000000">
+              <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--inv-text-dim);">
+                <span>₹2.00 Cr ($240k)</span>
+                <span>₹15.00 Cr ($1.8M)</span>
+              </div>
+            </div>
+
+            <!-- Slider 3: Target Active Subscribers -->
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span>Target Active Subscribers (18-Month)</span>
+                <span class="slider-val-pill" id="pill-val-subs">1,200 Subs</span>
+              </div>
+              <input type="range" class="inv-range-slider" id="slider-subs" min="300" max="5000" step="100" value="1200">
+              <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--inv-text-dim);">
+                <span>300 Subscribers</span>
+                <span>5,000 Subscribers</span>
+              </div>
+            </div>
+
+            <!-- Slider 4: Projected 18-Month ARR -->
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span>Projected 18-Month ARR</span>
+                <span class="slider-val-pill" id="pill-val-arr">₹1.20 Cr</span>
+              </div>
+              <input type="range" class="inv-range-slider" id="slider-arr" min="3000000" max="50000000" step="1000000" value="12000000">
+              <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--inv-text-dim);">
+                <span>₹30 Lakhs</span>
+                <span>₹5.00 Crores</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Calculation Outputs -->
+          <div class="modeler-outputs-card">
+            <div class="output-metrics-grid">
+              <div class="calc-box">
+                <span class="calc-label">Investor Equity %</span>
+                <div class="calc-value" id="calc-equity-pct" style="color: var(--inv-gold);">9.09%</div>
+                <span class="calc-sub">Post-Money: <strong id="calc-post-money">₹5.50 Cr</strong></span>
+              </div>
+
+              <div class="calc-box">
+                <span class="calc-label">Roaster CapEx Allocation</span>
+                <div class="calc-value" id="calc-capex-val" style="color: var(--inv-copper);">₹16.00L</div>
+                <span class="calc-sub">5kg Drum Roaster + Sealer</span>
+              </div>
+
+              <div class="calc-box">
+                <span class="calc-label">Working Capital Runway</span>
+                <div class="calc-value" id="calc-runway-months" style="color: var(--inv-emerald);">22 Months</div>
+                <span class="calc-sub">At scale burn rate</span>
+              </div>
+
+              <div class="calc-box">
+                <span class="calc-label">Projected 3-Yr Return</span>
+                <div class="calc-value" id="calc-projected-irr" style="color: var(--inv-cyan);">42% (4.2x)</div>
+                <span class="calc-sub">Exit at 4.2x ARR Multiple</span>
+              </div>
+            </div>
+
+            <!-- Use of Funds Progress Breakdown -->
+            <div class="funds-bar-wrap">
+              <div class="funds-bar-header">
+                <span>Proposed Use of Funds Allocation</span>
+                <span>100% Capitalized</span>
+              </div>
+              <div class="funds-segmented-bar">
+                <div class="funds-seg-capex" title="32% Roaster & Equipment CapEx"></div>
+                <div class="funds-seg-beans" title="28% Green Bean Estate Silos"></div>
+                <div class="funds-seg-growth" title="25% D2C Marketing & Subscriptions"></div>
+                <div class="funds-seg-ops" title="15% Edge Tech & Ops Runway"></div>
+              </div>
+              <div class="funds-legend">
+                <div class="funds-legend-item">
+                  <span class="legend-dot" style="background: var(--inv-copper);"></span>
+                  <span>32% Equipment CapEx</span>
+                </div>
+                <div class="funds-legend-item">
+                  <span class="legend-dot" style="background: var(--inv-gold);"></span>
+                  <span>28% Direct Bean Silos</span>
+                </div>
+                <div class="funds-legend-item">
+                  <span class="legend-dot" style="background: var(--inv-emerald);"></span>
+                  <span>25% Growth & D2C CAC</span>
+                </div>
+                <div class="funds-legend-item">
+                  <span class="legend-dot" style="background: var(--inv-cyan);"></span>
+                  <span>15% Edge Tech & Working Cap</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.3); padding: 0.9rem; border-radius: 10px; font-size: 0.78rem; color: var(--inv-text-muted); border-left: 3px solid var(--inv-gold);">
+              💡 <strong>Scaling Note:</strong> At <span id="calc-beans-volume" style="color: #fff; font-weight: 700;">1,020 kg/mo</span> throughput, the 5kg commercial roaster transition reduces labor hours by 65% and drops roast loss below 14.2%.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 5: Cap Table Structure & Due Diligence Data Room -->
+      <section class="section-wrapper" id="sec-diligence">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">📁 Cap Table Structure & Due Diligence Data Room</h2>
+            <p class="section-subtitle">Transparent governance, capitalization structure, and audit-ready data room files.</p>
+          </div>
+        </div>
+
+        <div class="diligence-grid">
+          <!-- Current Ownership Structure -->
+          <div class="diligence-card">
+            <h3 style="font-family: 'Fraunces', Georgia, serif; font-size: 1.15rem; color: var(--inv-text-main);">Pro-Forma Post-Seed Capitalization</h3>
+            <table class="diligence-table">
+              <thead>
+                <tr>
+                  <th>Shareholder Group</th>
+                  <th>Pre-Seed %</th>
+                  <th>Post-Seed %</th>
+                  <th>Governance Rights</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Founders & Core Team</strong></td>
+                  <td>85.0%</td>
+                  <td>76.5%</td>
+                  <td>Board Majority / Common Equity</td>
+                </tr>
+                <tr>
+                  <td><strong>Employee Stock Pool (ESOP)</strong></td>
+                  <td>15.0%</td>
+                  <td>13.5%</td>
+                  <td>4-Year Vesting with 1-Yr Cliff</td>
+                </tr>
+                <tr>
+                  <td><strong>Seed Syndicate Investors</strong></td>
+                  <td>0.0%</td>
+                  <td><strong>10.0%</strong></td>
+                  <td>Information Rights + Pro-Rata</td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="font-size: 0.75rem; color: var(--inv-text-dim); margin-top: auto;">
+              * Clean cap table with zero existing debt, convertible notes, or liquidation preferences.
+            </div>
+          </div>
+
+          <!-- Due Diligence Documents -->
+          <div class="diligence-card">
+            <h3 style="font-family: 'Fraunces', Georgia, serif; font-size: 1.15rem; color: var(--inv-text-main);">Verified Diligence Data Room</h3>
+            <div class="doc-download-list">
+              <a href="#" class="doc-item" onclick="event.preventDefault(); window.print();">
+                <div>
+                  <strong>📑 Executive 1-Page Summary (PDF Format)</strong>
+                  <div style="font-size:0.72rem; color:var(--inv-text-muted);">Formatted for Angel Investors & Syndicates</div>
+                </div>
+                <span class="doc-tag">1-CLICK PDF</span>
+              </a>
+
+              <a href="#" class="doc-item" id="doc-btn-json" onclick="event.preventDefault(); document.getElementById('btn-export-json').click();">
+                <div>
+                  <strong>📊 Full Financial Traction & Scorecard Dataset</strong>
+                  <div style="font-size:0.72rem; color:var(--inv-text-muted);">JSON format with all 8 verified milestones</div>
+                </div>
+                <span class="doc-tag">JSON</span>
+              </a>
+
+              <div class="doc-item">
+                <div>
+                  <strong>☕ Unit Economics Financial Model (Excel / XLSX)</strong>
+                  <div style="font-size:0.72rem; color:var(--inv-text-muted);">coffee_roasting_unit_economics.xlsx</div>
+                </div>
+                <span class="doc-tag" style="color:var(--inv-emerald);">AUDITED</span>
+              </div>
+
+              <div class="doc-item">
+                <div>
+                  <strong>🏛️ Entity & Regulatory Compliance</strong>
+                  <div style="font-size:0.72rem; color:var(--inv-text-muted);">GSTIN: 29AABCT0123M1Z5 · FSSAI Central License</div>
+                </div>
+                <span class="doc-tag" style="color:var(--inv-cyan);">ACTIVE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Printable Footer Signature Block (Appears in Print Mode) -->
+      <div class="print-footer-signature" style="display:none;">
+        <div style="display:flex; justify-content:space-between; border-top:1px solid #ccc; padding-top:12px; margin-top:20px;">
+          <div>
+            <strong>The Daily Grind Coffee Roasters Private Limited</strong><br>
+            Bangalore Roastery Hub · Indiranagar, Bangalore, KA 560038<br>
+            Email: roasters@dailygrind.coffee · GSTIN: 29AABCT0123M1Z5
+          </div>
+          <div style="text-align:right;">
+            <strong>Confidential Seed Stage Term Sheet</strong><br>
+            Prepared for Specialty Coffee Angel Syndicates & Family Offices
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Mobile-Native Bottom Command Bar -->
+  <nav class="mobile-investor-bar" aria-label="Investor Mobile Navigation">
+    <button class="inv-cmd-item active" data-tab="overview">
+      <div class="cmd-icon-wrap">🏛️</div>
+      <span>Thesis</span>
+    </button>
+    <button class="inv-cmd-item" data-tab="traction">
+      <div class="cmd-icon-wrap">📊</div>
+      <span>Traction</span>
+    </button>
+    <button class="inv-cmd-item" data-tab="scorecard">
+      <div class="cmd-icon-wrap">🎯</div>
+      <span>Readiness</span>
+    </button>
+    <button class="inv-cmd-item" data-tab="sourcing">
+      <div class="cmd-icon-wrap">🌱</div>
+      <span>Estates</span>
+    </button>
+    <button class="inv-cmd-item" data-tab="modeler">
+      <div class="cmd-icon-wrap">🧮</div>
+      <span>Modeler</span>
+    </button>
+    <button class="inv-cmd-item" data-tab="diligence">
+      <div class="cmd-icon-wrap">📁</div>
+      <span>Cap Table</span>
+    </button>
+  </nav>
+
+  <!-- Interactive Logic Script -->
+  <script type="module" src="/src/investor.ts"></script>
+</body>
+</html>

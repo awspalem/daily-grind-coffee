@@ -517,6 +517,20 @@ input[type="range"]::-webkit-slider-thumb {
     padding: 1.2rem !important;
   }
 
+  /* Capacity & CapEx Mobile Resets */
+  .capacity-controls-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .capex-simulation-control-box {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+
+  .milestones-grid {
+    grid-template-columns: 1fr;
+  }
+
   /* Batch Roaster Form Wrap */
   #roast-batch-form {
     grid-template-columns: 1fr 1fr !important;
@@ -529,6 +543,82 @@ input[type="range"]::-webkit-slider-thumb {
   #roast-batch-form button {
     grid-column: 1 / -1;
     min-height: 48px;
+  }
+}
+
+@media (max-width: 768px) {
+  .sheet-drag-handle {
+    display: flex !important;
+    justify-content: center;
+    padding: 12px 0 6px;
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .admin-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .admin-modal-dialog {
+    border-radius: 24px 24px 0 0 !important;
+    max-height: 88vh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    animation: sheetSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  @keyframes sheetSlideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .admin-modal-footer {
+    padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Horizontal Snap Carousels on Mobile */
+  .capacity-batch-carousel {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .capacity-batch-carousel::-webkit-scrollbar {
+    display: none;
+  }
+  .batch-tier-pill {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+    min-width: 135px;
+  }
+
+  .capex-cards-carousel {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.6rem;
+    scrollbar-width: none;
+  }
+  .capex-cards-carousel::-webkit-scrollbar {
+    display: none;
+  }
+  .capex-machine-card {
+    scroll-snap-align: start;
+    min-width: 270px;
+    flex-shrink: 0;
+  }
+
+  .capex-sim-right {
+    grid-template-columns: 1fr 1fr 1fr;
   }
 }
 
@@ -556,14 +646,538 @@ input[type="range"]::-webkit-slider-thumb {
     min-width: 80vw;
   }
 
+  .capacity-live-kpis {
+    grid-template-columns: 1fr !important;
+  }
+
+  .capex-sim-right {
+    grid-template-columns: 1fr !important;
+  }
+
   #roast-batch-form {
     grid-template-columns: 1fr !important;
   }
 }
 
 /* ==========================================================================
-   MODAL DIALOGS FOR THERMAL LABELS & GST INVOICES
+   SHEET 5: ROASTER OUTPUT CAPACITY VS DEMAND MATRIX STYLES
    ========================================================================== */
+.capacity-batch-carousel {
+  display: flex;
+  gap: 0.8rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.4rem;
+  scrollbar-width: none;
+}
+
+.capacity-batch-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.batch-tier-pill {
+  flex: 1;
+  min-width: 140px;
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: var(--transition);
+  scroll-snap-align: start;
+  text-align: center;
+  color: var(--text-main);
+  touch-action: manipulation;
+}
+
+.batch-tier-pill:hover {
+  border-color: rgba(212, 167, 84, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.batch-tier-pill.active {
+  background: linear-gradient(180deg, rgba(212, 167, 84, 0.15), rgba(212, 167, 84, 0.05));
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(212, 167, 84, 0.2);
+}
+
+.pill-size {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.pill-role {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pill-status {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  margin-top: 0.2rem;
+  white-space: nowrap;
+}
+
+.pill-status.danger {
+  background: rgba(214, 93, 93, 0.15);
+  color: var(--rose);
+}
+
+.pill-status.warning {
+  background: rgba(230, 157, 69, 0.15);
+  color: var(--amber);
+}
+
+.pill-status.success {
+  background: var(--emerald-bg);
+  color: var(--emerald);
+}
+
+.pill-status.premium {
+  background: rgba(212, 167, 84, 0.15);
+  color: var(--gold);
+}
+
+.capacity-controls-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 1.5rem;
+}
+
+.capacity-controls-box {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.admin-input-styled {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  background: var(--admin-card);
+  color: var(--text-main);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.88rem;
+  transition: var(--transition);
+}
+
+.admin-input-styled:focus {
+  outline: none;
+  border-color: var(--copper);
+  box-shadow: 0 0 0 2px rgba(217, 119, 70, 0.2);
+}
+
+.capacity-live-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.cap-metric-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.cap-metric-card.highlight {
+  border-color: rgba(217, 119, 70, 0.4);
+}
+
+.cap-metric-card.copper-glow {
+  background: linear-gradient(135deg, rgba(217, 119, 70, 0.1), rgba(212, 167, 84, 0.05));
+  border-color: rgba(212, 167, 84, 0.4);
+}
+
+.cap-metric-card.revenue-span {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(63, 163, 124, 0.12), rgba(30, 25, 23, 0.8));
+  border-color: rgba(63, 163, 124, 0.4);
+}
+
+.cap-metric-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.cap-metric-value {
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0.15rem 0;
+  line-height: 1.2;
+}
+
+.cap-metric-value-lg {
+  font-family: var(--font-serif);
+  font-size: 1.85rem;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0.15rem 0;
+}
+
+.cap-metric-sub {
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+/* Milestone Container & Cards */
+.milestone-container {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md);
+  padding: 1.4rem;
+}
+
+.milestones-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.milestone-card {
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition: var(--transition);
+}
+
+.milestone-card:hover {
+  border-color: rgba(212, 167, 84, 0.35);
+}
+
+.mcard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.mcard-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mcard-badge {
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.mcard-badge.breakeven {
+  background: rgba(217, 119, 70, 0.2);
+  color: var(--copper);
+}
+
+.mcard-badge.investor {
+  background: rgba(212, 167, 84, 0.2);
+  color: var(--gold);
+}
+
+.mcard-badge.wholesale {
+  background: rgba(63, 163, 124, 0.2);
+  color: var(--emerald);
+}
+
+.mcard-title-group h4 {
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.mcard-sub {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.mcard-status-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.mcard-status-pill.success {
+  background: var(--emerald-bg);
+  color: var(--emerald);
+  border: 1px solid rgba(63, 163, 124, 0.3);
+}
+
+.mcard-status-pill.warning {
+  background: rgba(230, 157, 69, 0.15);
+  color: var(--amber);
+  border: 1px solid rgba(230, 157, 69, 0.3);
+}
+
+.mcard-status-pill.danger {
+  background: rgba(214, 93, 93, 0.15);
+  color: var(--rose);
+  border: 1px solid rgba(214, 93, 93, 0.3);
+}
+
+.mcard-bar-wrap {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin: 0.2rem 0;
+}
+
+.mcard-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--copper), var(--gold));
+  border-radius: var(--radius-pill);
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mcard-footer-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   SHEET 6: INDIA ROASTER MARKET PRICING & CAPEX UPGRADE BENCHMARKS
+   ========================================================================== */
+.capex-cards-carousel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.2rem;
+}
+
+.capex-machine-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md);
+  padding: 1.3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.1rem;
+  transition: var(--transition);
+  position: relative;
+}
+
+.capex-machine-card:hover {
+  border-color: rgba(217, 119, 70, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.capex-machine-card.active-simulation {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, rgba(212, 167, 84, 0.08), rgba(30, 25, 23, 0.95));
+  box-shadow: 0 0 20px rgba(212, 167, 84, 0.2);
+}
+
+.capex-card-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.capex-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--copper);
+  background: rgba(217, 119, 70, 0.12);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
+
+.capex-price-range {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: -0.01em;
+}
+
+.capex-model-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.25;
+}
+
+.capex-specs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.8rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.capex-spec-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.75rem;
+  gap: 0.4rem;
+}
+
+.capex-spec-item span {
+  color: var(--text-muted);
+}
+
+.capex-spec-item strong {
+  color: var(--text-main);
+  text-align: right;
+}
+
+.btn-simulate-capex {
+  width: 100%;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--admin-border);
+  color: var(--text-main);
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.btn-simulate-capex:hover {
+  background: var(--copper);
+  border-color: var(--copper);
+  color: #fff;
+}
+
+.btn-simulate-capex.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #141110;
+}
+
+.btn-simulate-capex:active {
+  transform: scale(0.97);
+}
+
+.capex-simulation-control-box {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: 1.3fr 1.7fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.capex-sim-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.capex-sim-right {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.capex-sim-metric {
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-sm);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  gap: 0.2rem;
+}
+
+.capex-sim-metric .csm-lbl {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.capex-sim-metric strong {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.capex-sim-metric small {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+/* ==========================================================================
+   MODAL DIALOGS FOR THERMAL LABELS & GST INVOICES (WITH BOTTOM SHEET SUPPORT)
+   ========================================================================== */
+.sheet-drag-handle {
+  display: none;
+  width: 100%;
+  padding: 12px 0 6px;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.drag-pill {
+  width: 44px;
+  height: 5px;
+  background: var(--admin-border);
+  border-radius: var(--radius-pill);
+  margin: 0 auto;
+}
+
 .admin-modal-backdrop {
   position: fixed;
   inset: 0;
