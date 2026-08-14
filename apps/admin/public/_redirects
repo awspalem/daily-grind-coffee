@@ -1,0 +1,3 @@
+# Cloudflare Pages Redirects / Proxies to live Edge API
+/api/* https://daily-grind-api.awspalem.workers.dev/api/:splat 200
+/* /index.html 200
