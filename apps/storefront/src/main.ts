@@ -1988,61 +1988,12 @@ class StorefrontApp {
     window.addEventListener('beforeinstallprompt', (e: Event) => {
       e.preventDefault();
       this.deferredInstallPrompt = e;
-
-      const banner = document.getElementById('pwa-install-banner');
-      const headerBtn = document.getElementById('btn-header-install');
-
-      const dismissedAt = localStorage.getItem('tdg_pwa_dismissed');
-      const isDismissedRecently = dismissedAt && (Date.now() - parseInt(dismissedAt, 10)) < 24 * 60 * 60 * 1000;
-
-      if (banner && !isDismissedRecently) {
-        banner.style.display = 'block';
-      }
-      if (headerBtn) {
-        headerBtn.style.display = 'flex';
-      }
-    });
-
-    document.getElementById('btn-pwa-install')?.addEventListener('click', () => {
-      this.triggerHaptic();
-      this.installPWA();
-    });
-
-    document.getElementById('btn-header-install')?.addEventListener('click', () => {
-      this.triggerHaptic();
-      this.installPWA();
-    });
-
-    document.getElementById('btn-pwa-dismiss')?.addEventListener('click', () => {
-      this.triggerHaptic();
-      const banner = document.getElementById('pwa-install-banner');
-      if (banner) {
-        banner.style.display = 'none';
-      }
-      localStorage.setItem('tdg_pwa_dismissed', Date.now().toString());
     });
 
     window.addEventListener('appinstalled', () => {
       console.log('[PWA] The Daily Grind installed successfully');
       this.deferredInstallPrompt = null;
-      const banner = document.getElementById('pwa-install-banner');
-      const headerBtn = document.getElementById('btn-header-install');
-      if (banner) banner.style.display = 'none';
-      if (headerBtn) headerBtn.style.display = 'none';
     });
-  }
-
-  private async installPWA() {
-    if (this.deferredInstallPrompt) {
-      this.deferredInstallPrompt.prompt();
-      const choice = await this.deferredInstallPrompt.userChoice;
-      console.log(`[PWA] User choice: ${choice?.outcome}`);
-      this.deferredInstallPrompt = null;
-      const banner = document.getElementById('pwa-install-banner');
-      if (banner) banner.style.display = 'none';
-    } else {
-      alert('To install The Daily Grind Mobile App:\n\n• iOS Safari: Tap the Share button (⎋) → "Add to Home Screen"\n• Android Chrome: Tap Menu (⋮) → "Install app"\n• Desktop: Click the install icon in your address bar');
-    }
   }
 
   private renderFlavorWheelSVGs() {

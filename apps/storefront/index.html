@@ -51,9 +51,9 @@
 
       <nav aria-label="Main Navigation">
         <ul class="nav-links">
+          <li><a href="#catalog" id="nav-coffees-link">Our Roasts</a></li>
           <li><a href="#taster-flight" id="nav-flight-link">3x 100g Flight</a></li>
           <li><a href="#flavor-wheel" id="nav-wheel-link">Flavor Wheel</a></li>
-          <li><a href="#catalog" id="nav-coffees-link">Our Roasts</a></li>
           <li><a href="#quiz" id="nav-quiz-link">Coffee Quiz</a></li>
           <li><a href="#brew-guide" id="nav-brew-link">Brewing Guides</a></li>
           <li><a href="#roastery-story" id="nav-story-link">Bangalore Roastery</a></li>
@@ -62,11 +62,6 @@
       </nav>
 
       <div class="nav-actions">
-        <!-- PWA Header Install Button (Revealed when prompt is ready or on mobile) -->
-        <button class="btn-header-install" id="btn-header-install" style="display:none;" aria-label="Install The Daily Grind Web App">
-          <span>📲 Install App</span>
-        </button>
-
         <!-- Currency Toggle Switcher -->
         <div class="currency-toggle" id="currency-switcher-container" style="display:flex; background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); padding: 0.2rem 0.3rem;">
           <button class="currency-btn active" id="btn-currency-inr" data-currency="INR" style="border:none; background: var(--bg-espresso); color:#fff; border-radius: var(--radius-pill); padding: 0.3rem 0.75rem; font-size: 0.8rem; font-weight:700; cursor:pointer;">₹ INR</button>
@@ -139,79 +134,38 @@
       </div>
     </section>
 
-    <!-- Interactive SCA Coffee Flavor Wheel Section -->
-    <section class="flavor-wheel-section" id="flavor-wheel">
-      <div class="flavor-wheel-wrapper">
-        <div class="flavor-wheel-intro">
-          <span class="wheel-badge">🌸 🍓 🍯 🍫 🌶️ SCA SENSORY MATRIX</span>
-          <h2 class="wheel-title">Interactive Coffee Flavor Wheel</h2>
-          <p class="wheel-subtitle">
-            Explore our roasts by sensory families. Click any category on the wheel or cards below to immediately filter matching Bangalore micro-lots and origin profiles.
-          </p>
+    <!-- Coffee Catalog Section (Fresh Coffee Products Front & Center) -->
+    <section class="catalog-section" id="catalog">
+      <div class="section-header">
+        <span class="section-label">FRESH FROM THE ROASTERY</span>
+        <h2 class="section-title">Specialty Lots & Signature Blends</h2>
+        <p class="section-subtitle">Roasted to order in Bangalore. Custom grind size ground fresh right before sealing.</p>
+      </div>
 
-          <div class="wheel-categories-list" id="flavor-wheel-pills">
-            <button class="wheel-cat-btn active" data-category="all" id="wheel-pill-all">
-              <span class="cat-dot" style="background: #a89a91;"></span>
-              <span class="cat-name">All Profiles</span>
-              <span class="cat-notes">All freshly roasted Bangalore lots</span>
-              <span class="cat-count" id="count-wheel-all">8 Roasts</span>
-            </button>
-            <button class="wheel-cat-btn" data-category="floral" id="wheel-pill-floral">
-              <span class="cat-dot" style="background: #b85d94;"></span>
-              <span class="cat-name">🌸 Floral</span>
-              <span class="cat-notes">Jasmine · Bergamot · Blossom · Honey</span>
-            </button>
-            <button class="wheel-cat-btn" data-category="fruity" id="wheel-pill-fruity">
-              <span class="cat-dot" style="background: #e0533b;"></span>
-              <span class="cat-name">🍓 Fruity</span>
-              <span class="cat-notes">Jackfruit · Red Apple · Peach · Citrus</span>
-            </button>
-            <button class="wheel-cat-btn" data-category="sweet" id="wheel-pill-sweet">
-              <span class="cat-dot" style="background: #d97706;"></span>
-              <span class="cat-name">🍯 Sweet</span>
-              <span class="cat-notes">Jaggery · Wild Honey · Caramel · Toffee</span>
-            </button>
-            <button class="wheel-cat-btn" data-category="chocolate_nutty" id="wheel-pill-chocolate_nutty">
-              <span class="cat-dot" style="background: #6e3922;"></span>
-              <span class="cat-name">🍫 Chocolate & Nutty</span>
-              <span class="cat-notes">Dark Cacao · Hazelnut · Cashew · Fudge</span>
-            </button>
-            <button class="wheel-cat-btn" data-category="spiced" id="wheel-pill-spiced">
-              <span class="cat-dot" style="background: #991b1b;"></span>
-              <span class="cat-name">🌶️ Spiced</span>
-              <span class="cat-notes">Cardamom · Cinnamon · Spiced Rum · Clove</span>
-            </button>
-          </div>
-
-          <div class="wheel-actions-bar">
-            <button class="btn-open-wheel-modal" id="btn-open-flavor-wheel-modal" aria-label="Open Fullscreen Flavor Wheel Visualizer">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 2a10 10 0 0 1 10 10M12 12 19 5M12 12l5 7M12 12l-7 5M12 12l-5-7"></path>
-              </svg>
-              <span>Full-Screen Wheel Visualizer</span>
-            </button>
-            <div class="active-flavor-indicator" id="active-flavor-status" style="display:none;">
-              <span id="active-flavor-text">Filtering by <strong>Floral</strong></span>
-              <button class="btn-clear-wheel-filter" id="btn-clear-wheel-filter" title="Reset Flavor Filter">✕ Clear Filter</button>
-            </div>
-          </div>
+      <!-- Filter Tabs -->
+      <div class="filter-container">
+        <div class="category-tabs" id="category-tabs-container">
+          <button class="category-tab active" data-category="all">All Roasts</button>
+          <button class="category-tab" data-category="indian-estates">Indian Micro-Lots</button>
+          <button class="category-tab" data-category="international">International Origins</button>
+          <button class="category-tab" data-category="signature-blends">Signature House Blends</button>
+          <button class="category-tab" data-category="espresso-profiles">Espresso Roasts</button>
+          <button class="category-tab" data-category="cold-brew">Cold Brew Steep</button>
         </div>
 
-        <div class="flavor-wheel-visual-card">
-          <div class="svg-wheel-container" id="svg-wheel-container">
-            <!-- Interactive SVG SCA Wheel -->
-            <svg class="sca-wheel-svg" viewBox="0 0 340 340" id="sca-main-wheel" aria-label="SCA Flavor Wheel Graphic">
-              <g transform="translate(170, 170)" id="wheel-sectors-group">
-                <!-- Segments will be rendered and hooked dynamically -->
-              </g>
-              <!-- Center Hub -->
-              <circle cx="170" cy="170" r="46" fill="#1b1614" stroke="#c9933b" stroke-width="2" />
-              <text x="170" y="165" text-anchor="middle" fill="#c9933b" font-size="10" font-weight="700" letter-spacing="1">SCA WHEEL</text>
-              <text x="170" y="180" text-anchor="middle" fill="#fdfaf6" font-size="8.5" opacity="0.85">Tap Category</text>
-            </svg>
-          </div>
+        <div class="tasting-note-pills" id="flavor-pills-container">
+          <button class="note-pill active" data-note="all">All Tasting Notes</button>
+          <button class="note-pill" data-note="Jasmine">Jasmine & Floral</button>
+          <button class="note-pill" data-note="Caramel">Jaggery & Caramel</button>
+          <button class="note-pill" data-note="Peach">Peach & Tropical</button>
+          <button class="note-pill" data-note="Chocolate">Dark Chocolate & Cacao</button>
+          <button class="note-pill" data-note="Hazelnut">Roasted Hazelnut</button>
         </div>
+      </div>
+
+      <!-- Live Product Grid -->
+      <div class="product-grid" id="product-grid-container">
+        <!-- Rendered dynamically with live Currency format -->
       </div>
     </section>
 
@@ -382,38 +336,79 @@
       </div>
     </section>
 
-    <!-- Coffee Catalog Section -->
-    <section class="catalog-section" id="catalog">
-      <div class="section-header">
-        <span class="section-label">FRESH FROM THE ROASTERY</span>
-        <h2 class="section-title">Specialty Lots & Signature Blends</h2>
-        <p class="section-subtitle">Roasted to order in Bangalore. Custom grind size ground fresh right before sealing.</p>
-      </div>
+    <!-- Interactive SCA Coffee Flavor Wheel Section (Positioned for Sensory Exploration after viewing roasts) -->
+    <section class="flavor-wheel-section" id="flavor-wheel">
+      <div class="flavor-wheel-wrapper">
+        <div class="flavor-wheel-intro">
+          <span class="wheel-badge">🌸 🍓 🍯 🍫 🌶️ SCA SENSORY MATRIX</span>
+          <h2 class="wheel-title">Interactive Coffee Flavor Wheel</h2>
+          <p class="wheel-subtitle">
+            Explore our roasts by sensory families. Click any category on the wheel or cards below to immediately filter matching Bangalore micro-lots and origin profiles.
+          </p>
 
-      <!-- Filter Tabs -->
-      <div class="filter-container">
-        <div class="category-tabs" id="category-tabs-container">
-          <button class="category-tab active" data-category="all">All Roasts</button>
-          <button class="category-tab" data-category="indian-estates">Indian Micro-Lots</button>
-          <button class="category-tab" data-category="international">International Origins</button>
-          <button class="category-tab" data-category="signature-blends">Signature House Blends</button>
-          <button class="category-tab" data-category="espresso-profiles">Espresso Roasts</button>
-          <button class="category-tab" data-category="cold-brew">Cold Brew Steep</button>
+          <div class="wheel-categories-list" id="flavor-wheel-pills">
+            <button class="wheel-cat-btn active" data-category="all" id="wheel-pill-all">
+              <span class="cat-dot" style="background: #a89a91;"></span>
+              <span class="cat-name">All Profiles</span>
+              <span class="cat-notes">All freshly roasted Bangalore lots</span>
+              <span class="cat-count" id="count-wheel-all">8 Roasts</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="floral" id="wheel-pill-floral">
+              <span class="cat-dot" style="background: #b85d94;"></span>
+              <span class="cat-name">🌸 Floral</span>
+              <span class="cat-notes">Jasmine · Bergamot · Blossom · Honey</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="fruity" id="wheel-pill-fruity">
+              <span class="cat-dot" style="background: #e0533b;"></span>
+              <span class="cat-name">🍓 Fruity</span>
+              <span class="cat-notes">Jackfruit · Red Apple · Peach · Citrus</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="sweet" id="wheel-pill-sweet">
+              <span class="cat-dot" style="background: #d97706;"></span>
+              <span class="cat-name">🍯 Sweet</span>
+              <span class="cat-notes">Jaggery · Wild Honey · Caramel · Toffee</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="chocolate_nutty" id="wheel-pill-chocolate_nutty">
+              <span class="cat-dot" style="background: #6e3922;"></span>
+              <span class="cat-name">🍫 Chocolate & Nutty</span>
+              <span class="cat-notes">Dark Cacao · Hazelnut · Cashew · Fudge</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="spiced" id="wheel-pill-spiced">
+              <span class="cat-dot" style="background: #991b1b;"></span>
+              <span class="cat-name">🌶️ Spiced</span>
+              <span class="cat-notes">Cardamom · Cinnamon · Spiced Rum · Clove</span>
+            </button>
+          </div>
+
+          <div class="wheel-actions-bar">
+            <button class="btn-open-wheel-modal" id="btn-open-flavor-wheel-modal" aria-label="Open Fullscreen Flavor Wheel Visualizer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10M12 12 19 5M12 12l5 7M12 12l-7 5M12 12l-5-7"></path>
+              </svg>
+              <span>Full-Screen Wheel Visualizer</span>
+            </button>
+            <div class="active-flavor-indicator" id="active-flavor-status" style="display:none;">
+              <span id="active-flavor-text">Filtering by <strong>Floral</strong></span>
+              <button class="btn-clear-wheel-filter" id="btn-clear-wheel-filter" title="Reset Flavor Filter">✕ Clear Filter</button>
+            </div>
+          </div>
         </div>
 
-        <div class="tasting-note-pills" id="flavor-pills-container">
-          <button class="note-pill active" data-note="all">All Tasting Notes</button>
-          <button class="note-pill" data-note="Jasmine">Jasmine & Floral</button>
-          <button class="note-pill" data-note="Caramel">Jaggery & Caramel</button>
-          <button class="note-pill" data-note="Peach">Peach & Tropical</button>
-          <button class="note-pill" data-note="Chocolate">Dark Chocolate & Cacao</button>
-          <button class="note-pill" data-note="Hazelnut">Roasted Hazelnut</button>
+        <div class="flavor-wheel-visual-card">
+          <div class="svg-wheel-container" id="svg-wheel-container">
+            <!-- Interactive SVG SCA Wheel -->
+            <svg class="sca-wheel-svg" viewBox="0 0 340 340" id="sca-main-wheel" aria-label="SCA Flavor Wheel Graphic">
+              <g transform="translate(170, 170)" id="wheel-sectors-group">
+                <!-- Segments will be rendered and hooked dynamically -->
+              </g>
+              <!-- Center Hub -->
+              <circle cx="170" cy="170" r="46" fill="#1b1614" stroke="#c9933b" stroke-width="2" />
+              <text x="170" y="165" text-anchor="middle" fill="#c9933b" font-size="10" font-weight="700" letter-spacing="1">SCA WHEEL</text>
+              <text x="170" y="180" text-anchor="middle" fill="#fdfaf6" font-size="8.5" opacity="0.85">Tap Category</text>
+            </svg>
+          </div>
         </div>
-      </div>
-
-      <!-- Live Product Grid -->
-      <div class="product-grid" id="product-grid-container">
-        <!-- Rendered dynamically with live Currency format -->
       </div>
     </section>
 
@@ -806,23 +801,6 @@
       <span>Direct-Trade Specialty Coffee · Roasted Fresh to Order</span>
     </div>
   </footer>
-
-  <!-- PWA Mobile-Native Install Banner -->
-  <aside class="pwa-install-banner" id="pwa-install-banner" aria-label="Install Mobile App" style="display:none;">
-    <div class="pwa-banner-content">
-      <div class="pwa-app-icon">
-        <img src="/favicon.svg" alt="The Daily Grind App" width="36" height="36">
-      </div>
-      <div class="pwa-text-content">
-        <div class="pwa-title">The Daily Grind App</div>
-        <div class="pwa-subtitle">Offline brew guide & instant roast drops</div>
-      </div>
-      <div class="pwa-actions">
-        <button class="btn-pwa-install" id="btn-pwa-install" aria-label="Install App">Install</button>
-        <button class="btn-pwa-dismiss" id="btn-pwa-dismiss" aria-label="Dismiss Install Banner">✕</button>
-      </div>
-    </div>
-  </aside>
 
   <!-- Interactive SCA Coffee Flavor Wheel Fullscreen Modal -->
   <div class="flavor-wheel-modal-overlay" id="flavor-wheel-modal" aria-hidden="true" role="dialog" aria-label="Interactive SCA Coffee Flavor Wheel">
