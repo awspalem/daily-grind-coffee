@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Daily Grind — Roastery Command & Admin Operations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles/admin.css" />
+</head>
+<body>
+  <div id="admin-app">
+    <!-- Admin Top Bar with Zero Trust Badge -->
+    <header class="admin-header">
+      <div class="admin-header-inner container">
+        <div class="admin-brand">
+          <span class="brand-icon">☕</span>
+          <div>
+            <strong>THE DAILY GRIND</strong>
+            <span class="portal-badge">Master Roaster Command</span>
+          </div>
+        </div>
+
+        <div class="zero-trust-indicator">
+          <span class="zt-status-dot"></span>
+          <span>Guarded by <strong>Cloudflare Zero Trust Access</strong> (Identity: <code>roaster@dailygrind.coffee</code>)</span>
+        </div>
+
+        <div class="admin-user-nav">
+          <button class="btn btn-outline btn-sm" id="btn-trigger-backup">💾 Run D1 R2 Backup</button>
+          <a href="http://localhost:5173" target="_blank" class="btn-storefront-link">View Public Storefront ↗</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="admin-nav-bar">
+      <div class="container admin-tabs">
+        <button class="admin-tab active" data-tab="dashboard">📊 Operations Dashboard</button>
+        <button class="admin-tab" data-tab="inventory">📦 Stock & Inventory</button>
+        <button class="admin-tab" data-tab="movements">📜 Movement Ledger</button>
+        <button class="admin-tab" data-tab="orders">🚚 Order Fulfillment</button>
+        <button class="admin-tab" data-tab="funnel">📈 Funnel Analytics</button>
+        <button class="admin-tab" data-tab="quotas">🛡️ Quota Telemetry</button>
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="container admin-content">
+      <!-- 1. Dashboard View -->
+      <section class="tab-panel active" id="tab-dashboard">
+        <!-- AI Morning Operational Briefing -->
+        <div class="ai-briefing-card" id="ai-ops-card">
+          <div class="briefing-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.2rem;">✨</span>
+              <strong>AI Master Roaster Morning Briefing (Groq Reasoning)</strong>
+            </div>
+            <button class="btn btn-outline btn-sm" id="btn-refresh-ai-summary">Regenerate</button>
+          </div>
+          <div class="briefing-body" id="ai-ops-text">
+            Generating real-time operational briefing from D1 inventory & order movements...
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="kpi-cards">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div class="dashboard-split">
+          <div class="panel-card">
+            <h3>Recent Store Orders</h3>
+            <div id="recent-orders-list"></div>
+          </div>
+
+          <div class="panel-card">
+            <h3>Inventory Velocity & Status</h3>
+            <div id="quick-stock-alerts"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Inventory View -->
+      <section class="tab-panel" id="tab-inventory">
+        <div class="panel-header">
+          <div>
+            <h2>Roastery Inventory Grid</h2>
+            <p class="panel-subtitle">Manage batch stocks, review reserved amounts, and perform ledger-audited restocks.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-open-restock-modal">+ Quick Restock Batch</button>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table" id="inventory-table">
+            <thead>
+              <tr>
+                <th>Coffee & Bag Size</th>
+                <th>SKU</th>
+                <th>Available</th>
+                <th>Reserved</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 3. Movement Ledger View -->
+      <section class="tab-panel" id="tab-movements">
+        <div class="panel-header">
+          <div>
+            <h2>Immutable Inventory Movements Ledger</h2>
+            <p class="panel-subtitle">Every reservation, fulfillment, restock, and cycle adjustment recorded permanently in Cloudflare D1.</p>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table" id="movements-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Item & SKU</th>
+                <th>Movement Type</th>
+                <th>Delta</th>
+                <th>Stock After</th>
+                <th>Actor / Reference</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody id="movements-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 4. Orders View -->
+      <section class="tab-panel" id="tab-orders">
+        <div class="panel-header">
+          <div>
+            <h2>Order Fulfillment Queue</h2>
+            <p class="panel-subtitle">Track payments, advance roasting batches, attach tracking codes, or process refunds.</p>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table" id="orders-table">
+            <thead>
+              <tr>
+                <th>Order Number</th>
+                <th>Customer</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Date</th>
+                <th>Fulfillment Action</th>
+                <th>Refund</th>
+              </tr>
+            </thead>
+            <tbody id="orders-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 5. Funnel Analytics View -->
+      <section class="tab-panel" id="tab-funnel">
+        <div class="panel-header">
+          <div>
+            <h2>Storefront Funnel & Conversion Telemetry</h2>
+            <p class="panel-subtitle">Tracking customer drop-off across edge-stored events in Cloudflare D1.</p>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="funnel-kpi-grid">
+          <!-- Rendered via JS -->
+        </div>
+
+        <div class="panel-card">
+          <h3>Conversion Rate Breakdown</h3>
+          <div id="funnel-rates-display" style="font-size: 0.95rem; line-height: 1.8;"></div>
+        </div>
+      </section>
+
+      <!-- 6. Free-Tier Quota Telemetry View -->
+      <section class="tab-panel" id="tab-quotas">
+        <div class="panel-header">
+          <div>
+            <h2>Cloudflare Free-Tier Quota & Guardrails</h2>
+            <p class="panel-subtitle">Live daily budget monitoring ensuring operations remain strictly at $0/month.</p>
+          </div>
+        </div>
+
+        <div class="quota-grid" id="quota-cards-container">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+    </main>
+
+    <!-- Restock / Adjust Stock Modal -->
+    <div class="modal-backdrop hidden" id="adjust-modal">
+      <div class="admin-modal-card">
+        <div class="modal-header">
+          <h3>Record Inventory Movement</h3>
+          <button class="close-modal-btn" id="btn-close-adjust">&times;</button>
+        </div>
+        <form id="adjust-stock-form">
+          <div class="form-group">
+            <label for="adjust-variant">Coffee Variant</label>
+            <select id="adjust-variant" required class="admin-input"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="adjust-type">Movement Type</label>
+            <select id="adjust-type" required class="admin-input">
+              <option value="RESTOCK">RESTOCK (Batch Roast Addition)</option>
+              <option value="DAMAGE_ADJUSTMENT">DAMAGE_ADJUSTMENT (Spill / Quality Reject)</option>
+              <option value="INITIAL_STOCK">INITIAL_STOCK</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="adjust-qty">Quantity Delta (Units)</label>
+            <input type="number" id="adjust-qty" required value="25" class="admin-input" />
+          </div>
+
+          <div class="form-group">
+            <label for="adjust-reason">Reason / Batch Code</label>
+            <input type="text" id="adjust-reason" placeholder="e.g. Batch #2026-08A fresh roast" required class="admin-input" />
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" id="btn-cancel-adjust">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-adjust">Commit to D1 Ledger</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

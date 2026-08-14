@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Daily Grind — Artisanal Specialty Coffee Roastery</title>
+  <meta name="description" content="Single-origin specialty coffees, small-batch roasted at the edge. Explore rare varieties, artisanal blends, precise brewing recipes, and real-time AI barista recommendations." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles/index.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Main Top Navigation -->
+    <header class="site-header" id="main-header">
+      <div class="header-inner container">
+        <a href="/" class="brand-logo" id="brand-logo">
+          <span class="logo-mark">☕</span>
+          <span class="logo-text">THE DAILY GRIND</span>
+          <span class="logo-sub">ROASTERS · EST. 2026</span>
+        </a>
+
+        <nav class="nav-links" id="desktop-nav">
+          <a href="#catalog" class="nav-link active" id="nav-coffees">All Coffees</a>
+          <a href="#roast-styles" class="nav-link" id="nav-roasts">Roast Profiles</a>
+          <a href="#brew-guides" class="nav-link" id="nav-guides">Brewing Guides</a>
+          <a href="#order-lookup" class="nav-link" id="nav-orders">Track Order</a>
+        </nav>
+
+        <div class="header-actions">
+          <button class="btn-ai-barista" id="btn-open-ai" aria-label="Open AI Barista Assistant">
+            <span class="ai-sparkle">✨</span>
+            <span class="ai-label">AI Barista</span>
+          </button>
+
+          <button class="cart-trigger-btn" id="btn-open-cart" aria-label="View Shopping Cart">
+            <span class="cart-icon">🛒</span>
+            <span class="cart-count-badge" id="cart-badge-count">0</span>
+            <span class="cart-total-preview" id="cart-nav-total">$0.00</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Announcement & Banner -->
+    <section class="hero-section" id="hero-banner">
+      <div class="container hero-grid">
+        <div class="hero-content">
+          <div class="hero-pill">
+            <span class="pill-dot"></span>
+            <span class="pill-text">Fresh Roasts Shipped Within 24h</span>
+          </div>
+          <h1 class="hero-title">
+            Exceptional Origin Coffees. <br />
+            <span class="highlight-title">Crafted for Pure Extraction.</span>
+          </h1>
+          <p class="hero-subtitle">
+            Ethically sourced from high-altitude micro-farms across Ethiopia, Colombia, Guatemala, and Sumatra. Small-batch roasted to highlight natural sweetness, vibrant florals, and heavy crema.
+          </p>
+          <div class="hero-actions">
+            <a href="#catalog" class="btn btn-primary" id="btn-hero-shop">Explore Fresh Roasts</a>
+            <button class="btn btn-secondary" id="btn-hero-quiz">
+              <span>Find My Ideal Roast</span>
+            </button>
+          </div>
+          
+          <div class="roastery-perks">
+            <div class="perk-item">
+              <span class="perk-icon">🏔️</span>
+              <div class="perk-text">
+                <strong>1,600m–2,150m</strong>
+                <span>High-Altitude Sourcing</span>
+              </div>
+            </div>
+            <div class="perk-item">
+              <span class="perk-icon">🔥</span>
+              <div class="perk-text">
+                <strong>Small Batch Roasted</strong>
+                <span>Dialed for Peak Flavor</span>
+              </div>
+            </div>
+            <div class="perk-item">
+              <span class="perk-icon">📦</span>
+              <div class="perk-text">
+                <strong>Free Shipping $50+</strong>
+                <span>Direct to Your Door</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-featured-card" id="hero-spotlight">
+          <!-- Populated dynamically with featured single origin -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Category & Roast Filter Bar -->
+    <section class="catalog-section container" id="catalog">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <span class="section-eyebrow">CURATED SELECTION</span>
+          <h2 class="section-title">Fresh Roastery Catalog</h2>
+        </div>
+        <div class="catalog-filters" id="category-filters">
+          <!-- Category Pills -->
+          <button class="filter-chip active" data-category="all">All Coffees</button>
+          <button class="filter-chip" data-category="single-origin">Single Origin</button>
+          <button class="filter-chip" data-category="signature-blends">Blends</button>
+          <button class="filter-chip" data-category="espresso-roasts">Espresso</button>
+          <button class="filter-chip" data-category="cold-brew">Cold Brew</button>
+        </div>
+      </div>
+
+      <!-- Roast Level Sub-filter -->
+      <div class="sub-filter-bar">
+        <span class="sub-filter-label">Roast Level:</span>
+        <div class="roast-chips" id="roast-filters">
+          <button class="roast-chip active" data-roast="ALL">Any Roast</button>
+          <button class="roast-chip" data-roast="LIGHT">Light</button>
+          <button class="roast-chip" data-roast="MEDIUM_LIGHT">Medium-Light</button>
+          <button class="roast-chip" data-roast="MEDIUM">Medium</button>
+          <button class="roast-chip" data-roast="MEDIUM_DARK">Medium-Dark</button>
+          <button class="roast-chip" data-roast="DARK">Dark</button>
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <div class="products-grid" id="products-container">
+        <!-- Rendered via main.ts -->
+      </div>
+    </section>
+
+    <!-- Brewing Guides Section -->
+    <section class="brew-guides-section" id="brew-guides">
+      <div class="container">
+        <div class="section-header center-header">
+          <span class="section-eyebrow">BARISTA EXTRACTION GUIDE</span>
+          <h2 class="section-title">Master the Art of the Extraction</h2>
+          <p class="section-desc">Unlock tasting notes of jasmine, stone fruit, and dark cocoa with verified brew ratios and temperature curves.</p>
+        </div>
+
+        <div class="guides-grid" id="guides-container">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Order Tracking Modal / Anchor -->
+    <section class="order-lookup-section container" id="order-lookup">
+      <div class="lookup-card">
+        <div class="lookup-info">
+          <span class="section-eyebrow">REAL-TIME ORDER STATUS</span>
+          <h3>Track Your Fresh Roast</h3>
+          <p>Enter your 6-digit order number (e.g. <code>TDG-123456</code>) to inspect roast stage, packing status, and courier tracking.</p>
+        </div>
+        <form class="lookup-form" id="order-lookup-form">
+          <input type="text" id="lookup-input" placeholder="e.g. TDG-102938" required />
+          <button type="submit" class="btn btn-primary" id="btn-lookup-order">Inspect Status</button>
+        </form>
+      </div>
+      <div id="order-status-result" class="order-result-box hidden"></div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-col brand-col">
+          <div class="brand-logo">
+            <span class="logo-mark">☕</span>
+            <span class="logo-text">THE DAILY GRIND</span>
+          </div>
+          <p class="footer-tagline">Crafting world-class origin coffees with zero compromise on quality or sustainability. Powered entirely by Cloudflare Edge Architecture.</p>
+          <div class="footer-badges">
+            <span class="badge-tag">Cloudflare D1 & Pages</span>
+            <span class="badge-tag">Groq AI Reasoning</span>
+            <span class="badge-tag">Stripe Secure</span>
+          </div>
+        </div>
+
+        <div class="footer-col">
+          <h4>Explore</h4>
+          <ul>
+            <li><a href="#catalog">Single Origin Coffees</a></li>
+            <li><a href="#catalog">Espresso Blends</a></li>
+            <li><a href="#brew-guides">Brewing Recipes</a></li>
+            <li><a href="/admin.html" target="_blank">Staff Admin Portal</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>Roastery Location</h4>
+          <p>The Daily Grind Micro-Roastery<br/>742 Bean Blossom Way<br/>Seattle, WA 98101</p>
+          <p><strong>Roast Days:</strong> Mon, Wed, Fri</p>
+        </div>
+      </div>
+      <div class="footer-bottom container">
+        <p>© 2026 The Daily Grind Roasting Co. All rights reserved.</p>
+        <p class="edge-credit">⚡ Ultra-low latency edge edge-rendered on Cloudflare</p>
+      </div>
+    </footer>
+
+    <!-- Slide-in Cart Drawer -->
+    <div class="drawer-backdrop hidden" id="cart-backdrop"></div>
+    <aside class="side-drawer cart-drawer hidden" id="cart-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title-wrap">
+          <h3>Your Fresh Roast Cart</h3>
+          <span class="drawer-item-count" id="cart-drawer-count">(0 items)</span>
+        </div>
+        <button class="close-drawer-btn" id="btn-close-cart" aria-label="Close Cart">&times;</button>
+      </div>
+
+      <div class="drawer-body" id="cart-items-container">
+        <!-- Cart Items rendered dynamically -->
+      </div>
+
+      <div class="drawer-footer" id="cart-drawer-footer">
+        <div class="coupon-row">
+          <input type="text" id="coupon-input" placeholder="Promo code (e.g. WELCOME10)" />
+          <button type="button" class="btn btn-sm btn-outline" id="btn-apply-coupon">Apply</button>
+        </div>
+        <div id="coupon-message" class="coupon-msg"></div>
+
+        <div class="cart-summary-lines">
+          <div class="summary-line">
+            <span>Subtotal</span>
+            <span id="cart-subtotal">$0.00</span>
+          </div>
+          <div class="summary-line discount-line hidden" id="cart-discount-row">
+            <span>Discount</span>
+            <span id="cart-discount">-$0.00</span>
+          </div>
+          <div class="summary-line">
+            <span>Shipping</span>
+            <span id="cart-shipping">Calculated at checkout</span>
+          </div>
+          <div class="summary-line total-line">
+            <strong>Total</strong>
+            <strong id="cart-total">$0.00</strong>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-block" id="btn-proceed-checkout">
+          <span>Proceed to Secure Checkout</span>
+          <span class="checkout-arrow">→</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Checkout Modal -->
+    <div class="modal-backdrop hidden" id="checkout-modal">
+      <div class="checkout-modal-content">
+        <div class="modal-header">
+          <h3>Secure Checkout</h3>
+          <button class="close-modal-btn" id="btn-close-checkout">&times;</button>
+        </div>
+        <form class="checkout-form" id="checkout-form">
+          <div class="form-section">
+            <h4>1. Contact Details</h4>
+            <div class="form-group">
+              <label for="checkout-email">Email Address (for order tracking & receipt)</label>
+              <input type="email" id="checkout-email" required placeholder="barista@example.com" />
+            </div>
+            <div class="form-group">
+              <label for="checkout-name">Full Name</label>
+              <input type="text" id="checkout-name" required placeholder="Elena Rostova" />
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h4>2. Shipping Address</h4>
+            <div class="form-group">
+              <label for="checkout-address">Street Address</label>
+              <input type="text" id="checkout-address" required placeholder="123 Coffee Creek Lane" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="checkout-city">City</label>
+                <input type="text" id="checkout-city" required placeholder="Portland" />
+              </div>
+              <div class="form-group">
+                <label for="checkout-state">State / Province</label>
+                <input type="text" id="checkout-state" required placeholder="OR" />
+              </div>
+              <div class="form-group">
+                <label for="checkout-zip">Postal Code</label>
+                <input type="text" id="checkout-zip" required placeholder="97201" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Bot Shield Indicator -->
+          <div class="turnstile-badge-box">
+            <span class="shield-icon">🛡️</span>
+            <span>Cloudflare Turnstile Bot Defense Active</span>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-outline" id="btn-cancel-checkout">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-order">
+              <span>Pay with Stripe Checkout</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- AI Barista Assistant Drawer -->
+    <div class="drawer-backdrop hidden" id="ai-backdrop"></div>
+    <aside class="side-drawer ai-drawer hidden" id="ai-drawer">
+      <div class="drawer-header ai-header">
+        <div class="ai-header-left">
+          <div class="ai-avatar">☕</div>
+          <div>
+            <h3>Roastery AI Barista</h3>
+            <span class="ai-status">Groq Ultra-Fast Reasoning Online</span>
+          </div>
+        </div>
+        <button class="close-drawer-btn" id="btn-close-ai">&times;</button>
+      </div>
+
+      <div class="ai-quick-prompts">
+        <button class="prompt-pill" data-prompt="What coffee do you recommend for a fruity, bright V60 pour over?">✨ Fruity V60 Beans</button>
+        <button class="prompt-pill" data-prompt="What is the exact ratio and water temp for AeroPress?">⏱️ AeroPress Recipe</button>
+        <button class="prompt-pill" data-prompt="I love dark chocolate and heavy body for espresso. What should I get?">🍫 Heavy Body Espresso</button>
+      </div>
+
+      <div class="ai-chat-messages" id="ai-messages">
+        <!-- Messages appended dynamically -->
+      </div>
+
+      <form class="ai-input-bar" id="ai-chat-form">
+        <input type="text" id="ai-user-input" placeholder="Ask about roast profiles, origins, brew recipes..." autocomplete="off" />
+        <button type="submit" class="btn-send-ai" id="btn-send-chat">Send</button>
+      </form>
+    </aside>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "@daily-grind/api",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "build": "tsc -b",
+    "test": "tsx --test test/e2e.test.ts"
+  },
+  "dependencies": {
+    "@daily-grind/db": "*",
+    "@daily-grind/shared-types": "*",
+    "hono": "^4.6.14"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250204.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.111.0"
+  }
+}

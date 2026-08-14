@@ -1,0 +1,16 @@
+{
+  "name": "@daily-grind/admin",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite --port 5174",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@daily-grind/shared-types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.1.0"
+  }
+}

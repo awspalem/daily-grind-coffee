@@ -1,0 +1,70 @@
+export function generateOrderConfirmationEmail(params) {
+    const { orderNumber, customerName, customerEmail, totalCents, items, storefrontUrl } = params;
+    const itemsHtml = items.map((it) => `
+    <tr style="border-bottom: 1px solid #eee;">
+      <td style="padding: 12px 0;">
+        <strong style="color: #1e1b18;">${it.name}</strong><br/>
+        <span style="font-size: 13px; color: #777;">${it.weightGrams}g · ${it.grindType.replace('_', ' ')}</span>
+      </td>
+      <td style="padding: 12px 0; text-align: center; color: #555;">${it.quantity}</td>
+      <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #1e1b18;">$${((it.priceCents * it.quantity) / 100).toFixed(2)}</td>
+    </tr>
+  `).join('');
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>Order Confirmation #${orderNumber}</title>
+    </head>
+    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fcf9f5; margin: 0; padding: 24px;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #ede5dc; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+        <div style="text-align: center; border-bottom: 2px solid #d4883b; padding-bottom: 20px; margin-bottom: 24px;">
+          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY GRIND</h1>
+          <p style="color: #8c7e72; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 2px;">Small Batch Specialty Roastery</p>
+        </div>
+
+        <h2 style="color: #1c1512; font-size: 20px;">Thank you for your order, ${customerName || 'Coffee Lover'}!</h2>
+        <p style="color: #554a41; line-height: 1.6; font-size: 15px;">
+          We have received your order <strong>#${orderNumber}</strong>. Your beans will be roasted to order on our next scheduled roast day to ensure peak aromatic profile and degassing freshness.
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #1c1512; text-align: left;">
+              <th style="padding-bottom: 8px;">Coffee</th>
+              <th style="padding-bottom: 8px; text-align: center;">Qty</th>
+              <th style="padding-bottom: 8px; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+
+        <div style="text-align: right; font-size: 18px; margin-bottom: 30px;">
+          <span style="color: #8c7e72; font-size: 14px;">Total Paid: </span>
+          <strong style="color: #1c1512;">$${(totalCents / 100).toFixed(2)}</strong>
+        </div>
+
+        <div style="background: #fdf8f0; border-radius: 8px; padding: 16px; border: 1px dashed #d4883b; margin-bottom: 28px; text-align: center;">
+          <p style="margin: 0; font-size: 14px; color: #7a4b1b;">
+            💡 <strong>Barista Tip:</strong> For light and medium roasts, allow 5 to 7 days from roast date for optimum degassing before brewing!
+          </p>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${storefrontUrl}/#order-lookup" style="background: #1c1512; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">
+            Track Order Live at the Edge
+          </a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+    return {
+        to: customerEmail,
+        subject: `☕ Order Confirmation #${orderNumber} — The Daily Grind Roastery`,
+        html,
+    };
+}
