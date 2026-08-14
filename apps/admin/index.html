@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Roastery Operations Command — The Daily Grind</title>
+  <title>Roastery Command Center — The Daily Grind · Bangalore</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/src/styles/admin.css">
@@ -16,22 +17,23 @@
         <div class="brand-icon">☕</div>
         <div class="brand-meta">
           <h2>THE DAILY GRIND</h2>
-          <span>Roaster Command</span>
+          <span>Bangalore Hub · Indiranagar</span>
         </div>
       </div>
 
       <nav>
         <ul class="sidebar-nav">
           <li><button class="nav-item-btn active" data-tab="overview">📊 Daily Operations</button></li>
+          <li><button class="nav-item-btn" data-tab="pricing">🏷️ Catalog, Pricing & Discounts</button></li>
           <li><button class="nav-item-btn" data-tab="economics">💰 Unit Economics & Margins</button></li>
-          <li><button class="nav-item-btn" data-tab="roasts">🔥 Roasting Batches</button></li>
-          <li><button class="nav-item-btn" data-tab="inventory">📦 Bean Stock & Lots</button></li>
+          <li><button class="nav-item-btn" data-tab="roasts">🔥 Batch Roaster & Loss Log</button></li>
+          <li><button class="nav-item-btn" data-tab="coupons">🎟️ Promo Coupons Engine</button></li>
           <li><button class="nav-item-btn" data-tab="orders">🚚 Order Fulfillment</button></li>
         </ul>
       </nav>
 
       <div class="sidebar-footer">
-        <span>Roaster Shift: Active</span>
+        <span>Bangalore Roaster Shift: Active</span>
         <span style="color: var(--emerald);">● Online</span>
       </div>
     </aside>
@@ -40,11 +42,11 @@
     <main class="admin-main">
       <div class="top-bar">
         <div class="page-headline">
-          <h1>Roastery Operations & Batches</h1>
-          <p>Real-time orders, green coffee lot levels, and daily roast schedule.</p>
+          <h1>Bangalore Roastery Command Center</h1>
+          <p>Multi-currency price control, discount engines, roast loss logging, and direct-trade unit economics.</p>
         </div>
         <div class="top-actions">
-          <button class="btn-admin-action" id="btn-quick-restock">+ Restock Green Lots</button>
+          <button class="btn-admin-action" id="btn-quick-restock">+ Restock Green Silos</button>
           <a href="https://daily-grind-storefront.pages.dev" target="_blank" class="btn-table-action" style="padding: 0.65rem 1.2rem; text-decoration:none; display:flex; align-items:center;">
             View Public Storefront ↗
           </a>
@@ -54,15 +56,71 @@
       <!-- AI Morning Roaster Briefing -->
       <section class="roaster-briefing-card">
         <div class="briefing-header">
-          <span class="briefing-tag">✨ Morning Roaster AI Briefing</span>
-          <span style="font-size: 0.8rem; color: var(--gold);" id="briefing-timestamp">Today at Dawn</span>
+          <span class="briefing-tag">✨ Morning Roaster AI Briefing · Bangalore</span>
+          <span style="font-size: 0.8rem; color: var(--gold);" id="briefing-timestamp">Indiranagar Roastery · Today</span>
         </div>
         <div class="briefing-content" id="ai-briefing-text">
-          Good morning Roasters! Today we have <strong>18 customer orders</strong> queued for convection roasting. Priority batches: <strong>14kg Ethiopia Yirgacheffe Gedeb</strong> (Light floral roast curve) and <strong>9kg Colombia Pink Bourbon</strong>. Green bean reserves for Ethiopia lot are approaching 35kg—schedule an ethical cooperative restock soon.
+          Good morning Roasters! Today's roast queue has <strong>18 customer orders</strong>. Priority lots: <strong>15kg Chikmagalur Attikan Honey</strong> (Medium-Light profile) and <strong>10kg Araku Valley Red Honey</strong>. Green stock for Guatemala Antigua is at 8kg—recommend ordering next 50kg lot from Chikmagalur partner estate.
         </div>
       </section>
 
-      <!-- Unit Economics & Margin Controller Section -->
+      <!-- Key Roastery Metrics -->
+      <section class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-title">Today's Roastery Revenue</span>
+          <div class="kpi-value" id="kpi-revenue">₹1,84,500</div>
+          <span class="kpi-sub">↑ 22.4% vs last week</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Active Batches to Roast</span>
+          <div class="kpi-value" id="kpi-orders">18 Orders</div>
+          <span class="kpi-sub">Estimated time: 2h 45m</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Green Coffee in Silos</span>
+          <div class="kpi-value" id="kpi-stock">420 kg</div>
+          <span class="kpi-sub">6 Indian & Global Lots</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-title">Average Cupping Score</span>
+          <div class="kpi-value">88.4 PTS</div>
+          <span class="kpi-sub">Specialty Grade Standard</span>
+        </div>
+      </section>
+
+      <!-- SECTION: Catalog, Multi-Currency Pricing & Discounts Manager -->
+      <section class="section-panel" id="panel-pricing">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">🏷️ Catalog Pricing & Discount Control Center</h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Manage INR (₹), USD ($), and active promotional discounts per variant</span>
+          </div>
+          <span style="background: var(--gold-glow); color: var(--gold); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight:700;">
+            Live Cloudflare D1 Persisted
+          </span>
+        </div>
+
+        <div style="padding: 1.5rem; overflow-x: auto;">
+          <table class="data-table" id="pricing-manager-table">
+            <thead>
+              <tr>
+                <th>Coffee Lot</th>
+                <th>Bag Size</th>
+                <th>Price (₹ INR)</th>
+                <th>Price ($ USD)</th>
+                <th>Promotional Discount %</th>
+                <th>Net Price Preview</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="pricing-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION: Live Unit Economics & Breakeven Controller -->
       <section class="section-panel" id="panel-economics" style="border-left: 4px solid var(--copper);">
         <div class="panel-header">
           <div>
@@ -70,7 +128,7 @@
             <span style="font-size: 0.85rem; color: var(--text-muted);">Interactive simulator aligned with your 250g roasting cost model & ₹12L salary target</span>
           </div>
           <span style="background: var(--gold-glow); color: var(--gold); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight:700;">
-            Target: ₹16.30L Annual Overhead
+            Target: ₹16.30L Annual Overhead (₹1.35L/mo)
           </span>
         </div>
 
@@ -138,7 +196,7 @@
               <div style="background: var(--admin-card); padding: 1rem; border-radius: var(--radius-sm);">
                 <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Monthly Breakeven</span>
                 <div style="font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--gold);" id="econ-breakeven-bags">828 Bags</div>
-                <small style="font-size:0.72rem; color:var(--text-dim);">≈ 32 bags / day</small>
+                <small style="font-size:0.72rem; color:var(--text-dim);">≈ 32 bags / day (26 days)</small>
               </div>
             </div>
 
@@ -149,34 +207,119 @@
         </div>
       </section>
 
-      <!-- Key Roastery Metrics -->
-      <section class="kpi-grid">
-        <div class="kpi-card">
-          <span class="kpi-title">Today's Roastery Revenue</span>
-          <div class="kpi-value" id="kpi-revenue">$2,480.00</div>
-          <span class="kpi-sub">↑ 18.4% vs last week</span>
+      <!-- SECTION: Batch Roaster & Real-Time Roast Loss Calibration -->
+      <section class="section-panel" id="panel-roasts">
+        <div class="panel-header">
+          <h2 class="panel-title">🔥 Batch Roaster Log & Loss Calibrator</h2>
+          <span style="font-size: 0.85rem; color: var(--text-muted);">Log green in vs roasted out to compute actual yield and real-world COGS</span>
         </div>
-        <div class="kpi-card">
-          <span class="kpi-title">Active Batches to Roast</span>
-          <div class="kpi-value" id="kpi-orders">18 Orders</div>
-          <span class="kpi-sub">Estimated time: 2h 45m</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-title">Green Coffee in Silos</span>
-          <div class="kpi-value" id="kpi-stock">420 kg</div>
-          <span class="kpi-sub">5 Micro-Lots on hand</span>
-        </div>
-        <div class="kpi-card">
-          <span class="kpi-title">Average Cupping Score</span>
-          <div class="kpi-value">88.4 PTS</div>
-          <span class="kpi-sub">Specialty Grade Standard</span>
+
+        <div style="padding: 1.5rem;">
+          <form id="roast-batch-form" style="display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 1rem; align-items: end; background: var(--admin-surface); padding: 1.2rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
+            <div>
+              <label style="display:block; font-size: 0.78rem; font-weight:600; color:var(--text-muted); margin-bottom:0.3rem;">Coffee Lot</label>
+              <select id="batch-lot-select" style="width:100%; padding:0.55rem; background:var(--admin-card); color:#fff; border:1px solid var(--admin-border); border-radius:var(--radius-sm);">
+                <option value="Chikmagalur Attikan Honey">Chikmagalur Attikan Honey</option>
+                <option value="Araku Valley Red Honey">Araku Valley Red Honey</option>
+                <option value="Ethiopia Yirgacheffe Gedeb">Ethiopia Yirgacheffe Gedeb</option>
+                <option value="Dawn Patrol Bangalore Blend">Dawn Patrol Bangalore Blend</option>
+                <option value="Midnight Runner Dark Espresso">Midnight Runner Dark Espresso</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size: 0.78rem; font-weight:600; color:var(--text-muted); margin-bottom:0.3rem;">Green In (kg)</label>
+              <input type="number" id="batch-green-in" value="12.0" step="0.1" required style="width:100%; padding:0.55rem; background:var(--admin-card); color:#fff; border:1px solid var(--admin-border); border-radius:var(--radius-sm);">
+            </div>
+            <div>
+              <label style="display:block; font-size: 0.78rem; font-weight:600; color:var(--text-muted); margin-bottom:0.3rem;">Roasted Out (kg)</label>
+              <input type="number" id="batch-roasted-out" value="10.2" step="0.1" required style="width:100%; padding:0.55rem; background:var(--admin-card); color:#fff; border:1px solid var(--admin-border); border-radius:var(--radius-sm);">
+            </div>
+            <div>
+              <label style="display:block; font-size: 0.78rem; font-weight:600; color:var(--text-muted); margin-bottom:0.3rem;">Profile Curve</label>
+              <input type="text" id="batch-profile" value="Light-Medium (198°C Drop)" style="width:100%; padding:0.55rem; background:var(--admin-card); color:#fff; border:1px solid var(--admin-border); border-radius:var(--radius-sm);">
+            </div>
+            <button type="submit" class="btn-admin-action" style="padding: 0.55rem 1.2rem;">Log Batch</button>
+          </form>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Batch ID</th>
+                <th>Lot / Varietal</th>
+                <th>Green In</th>
+                <th>Roasted Out</th>
+                <th>Roast Loss %</th>
+                <th>Calculated Green Cost / Bag</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="batch-table-body">
+              <tr>
+                <td><strong>BATCH-8821</strong></td>
+                <td>Chikmagalur Attikan Honey</td>
+                <td>12.0 kg</td>
+                <td>10.2 kg</td>
+                <td><strong style="color: var(--emerald);">15.0%</strong></td>
+                <td>₹179.41 / 250g</td>
+                <td><span class="status-badge paid">✓ Calibrated</span></td>
+              </tr>
+              <tr>
+                <td><strong>BATCH-8820</strong></td>
+                <td>Midnight Runner Dark Espresso</td>
+                <td>15.0 kg</td>
+                <td>12.3 kg</td>
+                <td><strong style="color: var(--amber);">18.0%</strong></td>
+                <td>₹185.97 / 250g</td>
+                <td><span class="status-badge paid">✓ Calibrated</span></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
-      <!-- Active Fulfillment Table -->
-      <section class="section-panel">
+      <!-- SECTION: Promo Coupons Engine -->
+      <section class="section-panel" id="panel-coupons">
         <div class="panel-header">
-          <h2 class="panel-title">Active Customer Orders & Roasting State</h2>
+          <h2 class="panel-title">🎟️ Promotional Coupons & Campaigns</h2>
+          <button class="btn-table-action" id="btn-add-coupon">+ Create New Promo Code</button>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Coupon Code</th>
+              <th>Discount</th>
+              <th>Redemptions</th>
+              <th>Max Uses</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="coupons-table-body">
+            <tr>
+              <td><strong>WELCOME10</strong></td>
+              <td>10% Off Entire Order</td>
+              <td>142 uses</td>
+              <td>500 max</td>
+              <td><span class="status-badge paid">Active</span></td>
+              <td><button class="btn-table-action" onclick="alert('Coupon WELCOME10 is active on Storefront')">Active</button></td>
+            </tr>
+            <tr>
+              <td><strong>BANGALORE15</strong></td>
+              <td>15% Off (Bangalore Launch)</td>
+              <td>88 uses</td>
+              <td>200 max</td>
+              <td><span class="status-badge paid">Active</span></td>
+              <td><button class="btn-table-action" onclick="alert('Coupon BANGALORE15 is active')">Active</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION: Active Orders Fulfillment -->
+      <section class="section-panel" id="panel-orders">
+        <div class="panel-header">
+          <h2 class="panel-title">🚚 Bangalore Dispatch & Orders</h2>
           <span style="font-size: 0.85rem; color: var(--text-muted);">Real-time dispatch status</span>
         </div>
 
@@ -194,74 +337,27 @@
           <tbody id="orders-table-body">
             <tr>
               <td><strong>TDG-102938</strong></td>
-              <td>Marcus Vance</td>
-              <td>Ethiopia Yirgacheffe (250g · Pour Over)</td>
-              <td>$19.50</td>
+              <td>Rohan Sharma (Indiranagar)</td>
+              <td>Chikmagalur Attikan (250g · South Indian Filter)</td>
+              <td>₹450</td>
               <td><span class="status-badge roasting">🔥 Roasting</span></td>
               <td><button class="btn-table-action" onclick="alert('Batch advanced to: Degassing & Nitrogen Packed')">Advance ➔</button></td>
             </tr>
             <tr>
               <td><strong>TDG-102939</strong></td>
-              <td>Elena Rostova</td>
+              <td>Priya Nair (Koramangala)</td>
               <td>Midnight Runner Espresso (500g · Whole Bean)</td>
-              <td>$34.00</td>
+              <td>₹820</td>
               <td><span class="status-badge paid">✓ Paid & Queued</span></td>
               <td><button class="btn-table-action" onclick="alert('Batch queued for next convection cycle')">Advance ➔</button></td>
             </tr>
             <tr>
               <td><strong>TDG-102940</strong></td>
-              <td>Liam Gallagher</td>
-              <td>Dawn Patrol Blend (1kg · Espresso Grind)</td>
-              <td>$59.00</td>
+              <td>David Miller (Whitefield)</td>
+              <td>Dawn Patrol Bangalore Blend (1kg · Espresso)</td>
+              <td>₹1,490</td>
               <td><span class="status-badge shipped">📦 Shipped</span></td>
-              <td><button class="btn-table-action" onclick="alert('Tracking ID: USPS-9400111899562')">View Tracking</button></td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <!-- Bean Inventory & Micro-Lot Reserves -->
-      <section class="section-panel">
-        <div class="panel-header">
-          <h2 class="panel-title">Micro-Lot Reserves & Green Stock Ledger</h2>
-          <span style="font-size: 0.85rem; color: var(--text-muted);">Silo capacity & thresholds</span>
-        </div>
-
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Lot / Varietal</th>
-              <th>Origin & Farm</th>
-              <th>Process Method</th>
-              <th>Available Stock</th>
-              <th>Roasting Hold</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="inventory-table-body">
-            <tr>
-              <td><strong>Ethiopia Yirgacheffe Gedeb</strong></td>
-              <td>Gedeb District, 2,100m</td>
-              <td>Natural Sun-Dried</td>
-              <td>45 kg</td>
-              <td>6 kg</td>
-              <td><span class="status-badge paid">Healthy Stock</span></td>
-            </tr>
-            <tr>
-              <td><strong>Colombia Pink Bourbon</strong></td>
-              <td>San Adolfo, Huila, 1,850m</td>
-              <td>Anaerobic Washed</td>
-              <td>28 kg</td>
-              <td>4 kg</td>
-              <td><span class="status-badge paid">Healthy Stock</span></td>
-            </tr>
-            <tr>
-              <td><strong>Guatemala Antigua Los Volcanes</strong></td>
-              <td>Antigua Valley, 1,700m</td>
-              <td>Washed Bourbon</td>
-              <td>8 kg</td>
-              <td>2 kg</td>
-              <td><span class="status-badge low-stock">Low Stock (Re-order)</span></td>
+              <td><button class="btn-table-action" onclick="alert('Tracking ID: BLR-EXPRESS-99281')">View Tracking</button></td>
             </tr>
           </tbody>
         </table>

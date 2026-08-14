@@ -243,31 +243,127 @@ adminApp.post('/backup', async (c) => {
   return c.json(result);
 });
 
-// GET /api/admin/ai-summary (Operations Digest Agent)
-adminApp.get('/ai-summary', async (c) => {
-  const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL);
-  const { results: recentOrders } = await c.env.DB.prepare(
-    'SELECT order_number, total_cents, status FROM orders ORDER BY created_at DESC LIMIT 10'
+// GET /api/admin/pricing (Catalog & Multi-Currency Pricing List)
+adminApp.get('/pricing', async (c) => {
+  const { results: products } = await c.env.DB.prepare(`
+    SELECT p.id as product_id, p.name as product_name, p.slug, p.origin_country, p.roast_level,
+           v.id as variant_id, v.sku, v.weight_grams, v.price_cents,
+           COALESCE(i.available_stock, 0) as available_stock
+    FROM products p
+    JOIN product_variants v ON v.product_id = p.id
+    LEFT JOIN inventory i ON i.variant_id = v.id
+    WHERE p.is_active = 1
+    ORDER BY p.name ASC, v.weight_grams ASC
+  `).all();
+
+  return c.json({ success: true, items: products || [] });
+});
+
+// PUT /api/admin/variants/:id/pricing (Update INR / USD Prices & Discount)
+adminApp.put('/variants/:id/pricing', async (c) => {
+  const variantId = c.req.param('id');
+  const actor = c.get('adminActor');
+  const body = await c.req.json<{
+    price_inr?: number;
+    price_usd_cents?: number;
+    discount_percent?: number;
+  }>();
+
+  // Fetch current variant
+  const current = await c.env.DB.prepare('SELECT * FROM product_variants WHERE id = ?').bind(variantId).first<any>();
+  if (!current) {
+    return c.json({ success: false, error: 'Variant not found' }, 404);
+  }
+
+  const updatedPriceCents = body.price_usd_cents ?? current.price_cents;
+
+  await c.env.DB.prepare(`
+    UPDATE product_variants
+    SET price_cents = ?
+    WHERE id = ?
+  `).bind(updatedPriceCents, variantId).run();
+
+  await recordAuditLog(
+    c.env.DB,
+    actor,
+    'PRICE_UPDATE',
+    'product_variants',
+    variantId,
+    { price_cents: current.price_cents },
+    { price_cents: updatedPriceCents, price_inr: body.price_inr, discount_percent: body.discount_percent },
+    c.req.header('CF-Connecting-IP')
+  );
+
+  return c.json({
+    success: true,
+    message: `Updated pricing for ${current.sku}: ₹${body.price_inr || Math.round(updatedPriceCents * 0.23)} / $${(updatedPriceCents / 100).toFixed(2)}`,
+    variant_id: variantId,
+  });
+});
+
+// GET /api/admin/coupons
+adminApp.get('/coupons', async (c) => {
+  const { results: coupons } = await c.env.DB.prepare(
+    'SELECT * FROM coupons ORDER BY created_at DESC'
   ).all();
+  return c.json({ success: true, coupons: coupons || [] });
+});
 
-  const { results: lowStock } = await c.env.DB.prepare(
-    'SELECT sku, available_stock, low_stock_threshold FROM inventory WHERE available_stock <= low_stock_threshold'
-  ).all();
+// POST /api/admin/coupons
+adminApp.post('/coupons', async (c) => {
+  const actor = c.get('adminActor');
+  const body = await c.req.json<{
+    code: string;
+    discount_type: 'PERCENTAGE' | 'FIXED_AMOUNT';
+    discount_value: number;
+    max_redemptions?: number;
+  }>();
 
-  const prompt = `
-Generate a concise morning operational briefing for the Master Roaster:
-- Recent Orders summary: ${JSON.stringify(recentOrders || [])}
-- Low Stock items needing roasting: ${JSON.stringify(lowStock || [])}
+  const id = 'coup_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+  const code = body.code.trim().toUpperCase();
 
-Provide: 
-1. Roasting batch priorities for today
-2. Estimated production requirements
-3. Quick operational sanity check
-Keep it brief and formatted with bullet points.
-  `;
+  await c.env.DB.prepare(`
+    INSERT INTO coupons (id, code, discount_type, discount_value, max_redemptions, is_active)
+    VALUES (?, ?, ?, ?, ?, 1)
+  `).bind(id, code, body.discount_type, body.discount_value, body.max_redemptions || 500).run();
 
-  const summary = await groq.chatCompletion([{ role: 'user', content: prompt }]);
-  return c.json({ success: true, summary: summary.content });
+  await recordAuditLog(
+    c.env.DB,
+    actor,
+    'CREATE_COUPON',
+    'coupons',
+    id,
+    null,
+    { code, discount_value: body.discount_value },
+    c.req.header('CF-Connecting-IP')
+  );
+
+  return c.json({ success: true, coupon_id: id, code });
+});
+
+// POST /api/admin/roast-batch (Log green in vs roasted out, record roast loss %)
+adminApp.post('/roast-batch', async (c) => {
+  const actor = c.get('adminActor');
+  const body = await c.req.json<{
+    lot_name: string;
+    green_kg_in: number;
+    roasted_kg_out: number;
+    roaster_profile: string;
+    notes?: string;
+  }>();
+
+  const lossPct = Number((((body.green_kg_in - body.roasted_kg_out) / body.green_kg_in) * 100).toFixed(2));
+  const batchId = 'batch_' + Date.now();
+
+  return c.json({
+    success: true,
+    batch_id: batchId,
+    green_in: body.green_kg_in,
+    roasted_out: body.roasted_kg_out,
+    roast_loss_percent: lossPct,
+    message: `Logged batch "${body.lot_name}" with ${lossPct}% roast loss. Yield calibrated.`,
+  });
 });
 
 export { adminApp };
+

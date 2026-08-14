@@ -1,7 +1,7 @@
 export class GroqService {
     apiKey;
     model;
-    constructor(apiKey, model = 'llama-3.3-70b-versatile') {
+    constructor(apiKey, model = 'openai/gpt-oss-120b') {
         this.apiKey = apiKey;
         this.model = model;
     }
