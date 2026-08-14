@@ -901,39 +901,41 @@
             <button type="submit" class="btn-admin-action" style="padding: 0.55rem 1.2rem;">Log Batch</button>
           </form>
 
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Batch ID</th>
-                <th>Lot / Varietal</th>
-                <th>Green In</th>
-                <th>Roasted Out</th>
-                <th>Roast Loss %</th>
-                <th>Calculated Green Cost / Bag</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="batch-table-body">
-              <tr>
-                <td><strong>BATCH-8821</strong></td>
-                <td>Chikmagalur Attikan Honey</td>
-                <td>12.0 kg</td>
-                <td>10.2 kg</td>
-                <td><strong style="color: var(--emerald);">15.0%</strong></td>
-                <td>₹179.41 / 250g</td>
-                <td><span class="status-badge paid">✓ Calibrated</span></td>
-              </tr>
-              <tr>
-                <td><strong>BATCH-8820</strong></td>
-                <td>Midnight Runner Dark Espresso</td>
-                <td>15.0 kg</td>
-                <td>12.3 kg</td>
-                <td><strong style="color: var(--amber);">18.0%</strong></td>
-                <td>₹185.97 / 250g</td>
-                <td><span class="status-badge paid">✓ Calibrated</span></td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Batch ID</th>
+                  <th>Lot / Varietal</th>
+                  <th>Green In</th>
+                  <th>Roasted Out</th>
+                  <th>Roast Loss %</th>
+                  <th>Calculated Green Cost / Bag</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="batch-table-body">
+                <tr>
+                  <td><strong>BATCH-8821</strong></td>
+                  <td>Chikmagalur Attikan Honey</td>
+                  <td>12.0 kg</td>
+                  <td>10.2 kg</td>
+                  <td><strong style="color: var(--emerald);">15.0%</strong></td>
+                  <td>₹179.41 / 250g</td>
+                  <td><span class="status-badge paid">✓ Calibrated</span></td>
+                </tr>
+                <tr>
+                  <td><strong>BATCH-8820</strong></td>
+                  <td>Midnight Runner Dark Espresso</td>
+                  <td>15.0 kg</td>
+                  <td>12.3 kg</td>
+                  <td><strong style="color: var(--amber);">18.0%</strong></td>
+                  <td>₹185.97 / 250g</td>
+                  <td><span class="status-badge paid">✓ Calibrated</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -944,36 +946,38 @@
           <button class="btn-table-action" id="btn-add-coupon">+ Create New Promo Code</button>
         </div>
 
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Coupon Code</th>
-              <th>Discount</th>
-              <th>Redemptions</th>
-              <th>Max Uses</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="coupons-table-body">
-            <tr>
-              <td><strong>WELCOME10</strong></td>
-              <td>10% Off Entire Order</td>
-              <td>142 uses</td>
-              <td>500 max</td>
-              <td><span class="status-badge paid">Active</span></td>
-              <td><button class="btn-table-action" onclick="alert('Coupon WELCOME10 is active on Storefront')">Active</button></td>
-            </tr>
-            <tr>
-              <td><strong>BANGALORE15</strong></td>
-              <td>15% Off (Bangalore Launch)</td>
-              <td>88 uses</td>
-              <td>200 max</td>
-              <td><span class="status-badge paid">Active</span></td>
-              <td><button class="btn-table-action" onclick="alert('Coupon BANGALORE15 is active')">Active</button></td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Coupon Code</th>
+                <th>Discount</th>
+                <th>Redemptions</th>
+                <th>Max Uses</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="coupons-table-body">
+              <tr>
+                <td><strong>WELCOME10</strong></td>
+                <td>10% Off Entire Order</td>
+                <td>142 uses</td>
+                <td>500 max</td>
+                <td><span class="status-badge paid">Active</span></td>
+                <td><button class="btn-table-action" onclick="alert('Coupon WELCOME10 is active on Storefront')">Active</button></td>
+              </tr>
+              <tr>
+                <td><strong>BANGALORE15</strong></td>
+                <td>15% Off (Bangalore Launch)</td>
+                <td>88 uses</td>
+                <td>200 max</td>
+                <td><span class="status-badge paid">Active</span></td>
+                <td><button class="btn-table-action" onclick="alert('Coupon BANGALORE15 is active')">Active</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <!-- SECTION: Active Orders Fulfillment -->
@@ -988,7 +992,8 @@
           </span>
         </div>
 
-        <table class="data-table">
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+          <table class="data-table">
           <thead>
             <tr>
               <th>Order ID</th>
@@ -1044,6 +1049,7 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </section>
     </main>
   </div>
