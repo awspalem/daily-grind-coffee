@@ -35,6 +35,11 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
 }
 
 body {
@@ -43,6 +48,7 @@ body {
   color: var(--text-main);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* Layout */
@@ -69,14 +75,15 @@ body {
 }
 
 .brand-icon {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   background: var(--copper);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
+  font-size: 1.2rem;
 }
 
 .brand-meta h2 {
@@ -106,6 +113,7 @@ body {
   align-items: center;
   gap: 0.8rem;
   width: 100%;
+  min-height: 48px;
   padding: 0.75rem 1rem;
   background: transparent;
   border: 1px solid transparent;
@@ -149,6 +157,7 @@ body {
   flex-direction: column;
   gap: 2.5rem;
   max-width: 1500px;
+  width: 100%;
 }
 
 /* Top Bar */
@@ -156,36 +165,41 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .page-headline h1 {
   font-family: var(--font-serif);
-  font-size: 2rem;
+  font-size: clamp(1.6rem, 4.5vw, 2.2rem);
   font-weight: 700;
 }
 
 .page-headline p {
-  font-size: 0.9rem;
+  font-size: clamp(0.85rem, 2.5vw, 0.95rem);
   color: var(--text-muted);
 }
 
 .top-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.8rem;
+  flex-wrap: wrap;
 }
 
 .btn-admin-action {
+  min-height: 48px;
   background: var(--copper);
   color: #fff;
   border: none;
-  padding: 0.65rem 1.3rem;
+  padding: 0.75rem 1.4rem;
   border-radius: var(--radius-pill);
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
 }
 
@@ -194,13 +208,17 @@ body {
   transform: translateY(-1px);
 }
 
+.btn-admin-action:active {
+  transform: scale(0.96);
+}
+
 /* AI Morning Roaster Briefing Card */
 .roaster-briefing-card {
   background: linear-gradient(135deg, rgba(39, 33, 30, 0.9), rgba(27, 22, 20, 0.95));
   border: 1px solid var(--admin-border);
   border-left: 4px solid var(--gold);
   border-radius: var(--radius-lg);
-  padding: 1.8rem 2.2rem;
+  padding: 1.6rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
@@ -211,6 +229,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .briefing-tag {
@@ -225,7 +245,7 @@ body {
 }
 
 .briefing-content {
-  font-size: 0.98rem;
+  font-size: clamp(0.9rem, 2.5vw, 0.98rem);
   color: #e4d8d1;
   line-height: 1.6;
 }
@@ -241,14 +261,19 @@ body {
   background: var(--admin-card);
   border: 1px solid var(--admin-border);
   border-radius: var(--radius-md);
-  padding: 1.5rem;
+  padding: 1.4rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  transition: var(--transition);
+}
+
+.kpi-card:hover {
+  border-color: rgba(212, 167, 84, 0.3);
 }
 
 .kpi-title {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
@@ -257,7 +282,7 @@ body {
 
 .kpi-value {
   font-family: var(--font-serif);
-  font-size: 2rem;
+  font-size: clamp(1.6rem, 4vw, 2rem);
   font-weight: 700;
   color: var(--text-main);
 }
@@ -268,7 +293,7 @@ body {
   font-weight: 500;
 }
 
-/* Operational Tables */
+/* Operational Tables & Panels */
 .section-panel {
   background: var(--admin-card);
   border: 1px solid var(--admin-border);
@@ -277,16 +302,18 @@ body {
 }
 
 .panel-header {
-  padding: 1.4rem 1.8rem;
+  padding: 1.3rem 1.6rem;
   border-bottom: 1px solid var(--admin-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
 }
 
 .panel-title {
   font-family: var(--font-serif);
-  font-size: 1.25rem;
+  font-size: clamp(1.15rem, 3.5vw, 1.3rem);
   font-weight: 700;
 }
 
@@ -298,27 +325,29 @@ body {
 }
 
 .data-table th {
-  padding: 1rem 1.5rem;
-  background: rgba(0, 0, 0, 0.15);
+  padding: 1rem 1.4rem;
+  background: rgba(0, 0, 0, 0.2);
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--admin-border);
+  white-space: nowrap;
 }
 
 .data-table td {
-  padding: 1.1rem 1.5rem;
+  padding: 1rem 1.4rem;
   border-bottom: 1px solid rgba(56, 47, 42, 0.6);
   color: var(--text-main);
+  vertical-align: middle;
 }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.25rem 0.7rem;
+  padding: 0.3rem 0.75rem;
   border-radius: var(--radius-pill);
   font-size: 0.78rem;
   font-weight: 700;
@@ -326,7 +355,7 @@ body {
 }
 
 .status-badge.roasting {
-  background: rgba(217, 119, 70, 0.15);
+  background: rgba(217, 119, 70, 0.18);
   color: var(--copper);
 }
 
@@ -336,25 +365,29 @@ body {
 }
 
 .status-badge.shipped {
-  background: rgba(212, 167, 84, 0.15);
+  background: rgba(212, 167, 84, 0.18);
   color: var(--gold);
 }
 
 .status-badge.low-stock {
-  background: rgba(214, 93, 93, 0.15);
+  background: rgba(214, 93, 93, 0.18);
   color: var(--rose);
 }
 
 .btn-table-action {
+  min-height: 44px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--admin-border);
   color: var(--text-main);
-  padding: 0.35rem 0.8rem;
+  padding: 0.5rem 1rem;
   border-radius: var(--radius-sm);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-table-action:hover {
@@ -362,14 +395,168 @@ body {
   border-color: var(--copper);
 }
 
+.btn-table-action:active {
+  transform: scale(0.96);
+}
+
+/* Touch Ranges & Sliders */
+input[type="range"] {
+  height: 36px;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+/* Mobile-Native Bottom Command Bar */
+.mobile-admin-bar {
+  display: none;
+}
+
 @media (max-width: 1024px) {
   .admin-layout {
     grid-template-columns: 1fr;
   }
+
   .admin-sidebar {
     display: none;
   }
+
+  .admin-main {
+    padding: 1.5rem 1.2rem calc(84px + env(safe-area-inset-bottom, 0px));
+    gap: 1.8rem;
+  }
+
+  /* Fixed Mobile Command Bar */
+  .mobile-admin-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 950;
+    height: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(30, 25, 23, 0.96);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-top: 1px solid var(--admin-border);
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .admin-cmd-item {
+    flex: 1;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: var(--transition);
+    padding: 4px 0;
+  }
+
+  .admin-cmd-item:active {
+    transform: scale(0.92);
+  }
+
+  .admin-cmd-item.active {
+    color: var(--copper);
+  }
+
+  .admin-cmd-item.active .cmd-icon-wrap svg {
+    color: var(--copper);
+    stroke-width: 2.3;
+  }
+
+  .cmd-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Horizontal Snap Carousel for KPI Cards on Mobile */
   .kpi-grid {
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 1rem;
+    padding-bottom: 0.6rem;
+    scrollbar-width: none;
+  }
+
+  .kpi-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .kpi-card {
+    scroll-snap-align: start;
+    min-width: 70vw;
+    flex-shrink: 0;
+  }
+
+  /* Economics Simulator Stack */
+  #panel-economics > div {
+    grid-template-columns: 1fr !important;
+    padding: 1.2rem !important;
+  }
+
+  /* Batch Roaster Form Wrap */
+  #roast-batch-form {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  #roast-batch-form > div:first-child {
+    grid-column: 1 / -1;
+  }
+
+  #roast-batch-form button {
+    grid-column: 1 / -1;
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-main {
+    padding: 1.2rem 0.9rem calc(84px + env(safe-area-inset-bottom, 0px));
+    gap: 1.5rem;
+  }
+
+  .top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .top-actions {
+    width: 100%;
+  }
+
+  .btn-admin-action, .top-actions a {
+    flex: 1;
+    text-align: center;
+  }
+
+  .kpi-card {
+    min-width: 80vw;
+  }
+
+  #roast-batch-form {
+    grid-template-columns: 1fr !important;
   }
 }

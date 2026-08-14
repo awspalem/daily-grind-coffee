@@ -36,29 +36,62 @@ class AdminPortal {
     await this.loadDashboardData();
   }
 
+  private triggerHaptic() {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(10);
+      } catch {
+        // Ignore vibration errors on unsupported platforms
+      }
+    }
+  }
+
   private setupNavigation() {
+    const handleTabChange = (tab: string | null) => {
+      if (!tab) return;
+      this.triggerHaptic();
+
+      // Sync active state on desktop sidebar and mobile command bar
+      document.querySelectorAll('.nav-item-btn').forEach((b) => {
+        b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+      });
+      document.querySelectorAll('.admin-cmd-item').forEach((b) => {
+        b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+      });
+
+      if (tab === 'overview') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (tab === 'pricing') {
+        document.getElementById('panel-pricing')?.scrollIntoView({ behavior: 'smooth' });
+      } else if (tab === 'economics') {
+        document.getElementById('panel-economics')?.scrollIntoView({ behavior: 'smooth' });
+      } else if (tab === 'roasts') {
+        document.getElementById('panel-roasts')?.scrollIntoView({ behavior: 'smooth' });
+      } else if (tab === 'coupons') {
+        document.getElementById('panel-coupons')?.scrollIntoView({ behavior: 'smooth' });
+      } else if (tab === 'orders') {
+        document.getElementById('panel-orders')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    };
+
+    // Sidebar navigation
     document.querySelectorAll('.nav-item-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.nav-item-btn').forEach((b) => b.classList.remove('active'));
-        const target = e.currentTarget as HTMLElement;
-        target.classList.add('active');
+        const tab = (e.currentTarget as HTMLElement).getAttribute('data-tab');
+        handleTabChange(tab);
+      });
+    });
 
-        const tab = target.getAttribute('data-tab');
-        if (tab === 'pricing') {
-          document.getElementById('panel-pricing')?.scrollIntoView({ behavior: 'smooth' });
-        } else if (tab === 'economics') {
-          document.getElementById('panel-economics')?.scrollIntoView({ behavior: 'smooth' });
-        } else if (tab === 'roasts') {
-          document.getElementById('panel-roasts')?.scrollIntoView({ behavior: 'smooth' });
-        } else if (tab === 'coupons') {
-          document.getElementById('panel-coupons')?.scrollIntoView({ behavior: 'smooth' });
-        } else if (tab === 'orders') {
-          document.getElementById('panel-orders')?.scrollIntoView({ behavior: 'smooth' });
-        }
+    // Mobile Bottom Command Bar
+    document.querySelectorAll('.admin-cmd-item').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const tab = (e.currentTarget as HTMLElement).getAttribute('data-tab');
+        handleTabChange(tab);
       });
     });
 
     document.getElementById('btn-quick-restock')?.addEventListener('click', () => {
+      this.triggerHaptic();
       const lot = prompt('Enter Green Coffee Lot to restock (e.g. Chikmagalur Attikan):', 'Chikmagalur Attikan Estate Honey');
       const kg = prompt('Enter restock amount in kg:', '60');
       if (lot && kg) {
@@ -121,6 +154,7 @@ class AdminPortal {
           previewEl.innerHTML = `<strong>₹${netInr}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">($${netUsd})</span>`;
         }
 
+        this.triggerHaptic();
         try {
           await fetch(`/api/admin/variants/${item.variant_id}/pricing`, {
             method: 'PUT',
@@ -222,6 +256,7 @@ class AdminPortal {
     const form = document.getElementById('roast-batch-form') as HTMLFormElement;
     form?.addEventListener('submit', (e) => {
       e.preventDefault();
+      this.triggerHaptic();
       const lotSelect = document.getElementById('batch-lot-select') as HTMLSelectElement;
       const greenInput = document.getElementById('batch-green-in') as HTMLInputElement;
       const roastedInput = document.getElementById('batch-roasted-out') as HTMLInputElement;
@@ -254,6 +289,7 @@ class AdminPortal {
 
   private setupCouponsManager() {
     document.getElementById('btn-add-coupon')?.addEventListener('click', () => {
+      this.triggerHaptic();
       const code = prompt('Enter new Promo Coupon Code (e.g. MONSOON20):', 'MONSOON20');
       const discount = prompt('Enter Discount Percentage (e.g. 20):', '20');
 

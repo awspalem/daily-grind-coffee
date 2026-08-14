@@ -24,31 +24,63 @@ class AdminPortal {
         this.setupCouponsManager();
         await this.loadDashboardData();
     }
+    triggerHaptic() {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+            try {
+                navigator.vibrate(10);
+            }
+            catch {
+                // Ignore vibration errors on unsupported platforms
+            }
+        }
+    }
     setupNavigation() {
+        const handleTabChange = (tab) => {
+            if (!tab)
+                return;
+            this.triggerHaptic();
+            // Sync active state on desktop sidebar and mobile command bar
+            document.querySelectorAll('.nav-item-btn').forEach((b) => {
+                b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+            });
+            document.querySelectorAll('.admin-cmd-item').forEach((b) => {
+                b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+            });
+            if (tab === 'overview') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            else if (tab === 'pricing') {
+                document.getElementById('panel-pricing')?.scrollIntoView({ behavior: 'smooth' });
+            }
+            else if (tab === 'economics') {
+                document.getElementById('panel-economics')?.scrollIntoView({ behavior: 'smooth' });
+            }
+            else if (tab === 'roasts') {
+                document.getElementById('panel-roasts')?.scrollIntoView({ behavior: 'smooth' });
+            }
+            else if (tab === 'coupons') {
+                document.getElementById('panel-coupons')?.scrollIntoView({ behavior: 'smooth' });
+            }
+            else if (tab === 'orders') {
+                document.getElementById('panel-orders')?.scrollIntoView({ behavior: 'smooth' });
+            }
+        };
+        // Sidebar navigation
         document.querySelectorAll('.nav-item-btn').forEach((btn) => {
             btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.nav-item-btn').forEach((b) => b.classList.remove('active'));
-                const target = e.currentTarget;
-                target.classList.add('active');
-                const tab = target.getAttribute('data-tab');
-                if (tab === 'pricing') {
-                    document.getElementById('panel-pricing')?.scrollIntoView({ behavior: 'smooth' });
-                }
-                else if (tab === 'economics') {
-                    document.getElementById('panel-economics')?.scrollIntoView({ behavior: 'smooth' });
-                }
-                else if (tab === 'roasts') {
-                    document.getElementById('panel-roasts')?.scrollIntoView({ behavior: 'smooth' });
-                }
-                else if (tab === 'coupons') {
-                    document.getElementById('panel-coupons')?.scrollIntoView({ behavior: 'smooth' });
-                }
-                else if (tab === 'orders') {
-                    document.getElementById('panel-orders')?.scrollIntoView({ behavior: 'smooth' });
-                }
+                const tab = e.currentTarget.getAttribute('data-tab');
+                handleTabChange(tab);
+            });
+        });
+        // Mobile Bottom Command Bar
+        document.querySelectorAll('.admin-cmd-item').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                const tab = e.currentTarget.getAttribute('data-tab');
+                handleTabChange(tab);
             });
         });
         document.getElementById('btn-quick-restock')?.addEventListener('click', () => {
+            this.triggerHaptic();
             const lot = prompt('Enter Green Coffee Lot to restock (e.g. Chikmagalur Attikan):', 'Chikmagalur Attikan Estate Honey');
             const kg = prompt('Enter restock amount in kg:', '60');
             if (lot && kg) {

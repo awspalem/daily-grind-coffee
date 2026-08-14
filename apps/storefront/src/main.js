@@ -415,8 +415,19 @@ class StorefrontApp {
     saveCart() {
         localStorage.setItem('tdg_cart', JSON.stringify(this.cartItems));
     }
+    triggerHaptic() {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+            try {
+                navigator.vibrate(10);
+            }
+            catch {
+                // Ignore vibration errors on unsupported platforms
+            }
+        }
+    }
     updateCartUI() {
         const headerBadge = document.getElementById('header-cart-count');
+        const mobBadge = document.getElementById('mob-cart-count');
         const drawerCount = document.getElementById('cart-items-count');
         const container = document.getElementById('cart-items-container');
         const subtotalEl = document.getElementById('cart-subtotal');
@@ -427,6 +438,8 @@ class StorefrontApp {
         const totalQty = this.cartItems.reduce((acc, it) => acc + it.quantity, 0);
         if (headerBadge)
             headerBadge.textContent = `${totalQty}`;
+        if (mobBadge)
+            mobBadge.textContent = `${totalQty}`;
         if (drawerCount)
             drawerCount.textContent = `${totalQty}`;
         if (!container)
@@ -493,6 +506,7 @@ class StorefrontApp {
         // Attach quantity adjustments
         container.querySelectorAll('[data-action="inc"]').forEach((b) => {
             b.addEventListener('click', (e) => {
+                this.triggerHaptic();
                 const idx = parseInt(e.currentTarget.getAttribute('data-index') || '0', 10);
                 this.cartItems[idx].quantity += 1;
                 this.saveCart();
@@ -501,6 +515,7 @@ class StorefrontApp {
         });
         container.querySelectorAll('[data-action="dec"]').forEach((b) => {
             b.addEventListener('click', (e) => {
+                this.triggerHaptic();
                 const idx = parseInt(e.currentTarget.getAttribute('data-index') || '0', 10);
                 if (this.cartItems[idx].quantity > 1) {
                     this.cartItems[idx].quantity -= 1;
@@ -514,6 +529,7 @@ class StorefrontApp {
         });
         container.querySelectorAll('[data-action="del"]').forEach((b) => {
             b.addEventListener('click', (e) => {
+                this.triggerHaptic();
                 const idx = parseInt(e.currentTarget.getAttribute('data-index') || '0', 10);
                 this.cartItems.splice(idx, 1);
                 this.saveCart();
@@ -523,18 +539,72 @@ class StorefrontApp {
     }
     setupEventListeners() {
         // Currency Switcher
-        document.getElementById('btn-currency-inr')?.addEventListener('click', () => this.setCurrency('INR'));
-        document.getElementById('btn-currency-usd')?.addEventListener('click', () => this.setCurrency('USD'));
-        // Open & Close Drawers
-        document.getElementById('btn-open-cart')?.addEventListener('click', () => this.openCart());
+        document.getElementById('btn-currency-inr')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.setCurrency('INR');
+        });
+        document.getElementById('btn-currency-usd')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.setCurrency('USD');
+        });
+        // Open & Close Drawers / Bottom Sheets
+        document.getElementById('btn-open-cart')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.openCart();
+        });
         document.getElementById('btn-close-cart')?.addEventListener('click', () => this.closeCart());
         document.getElementById('cart-drawer-overlay')?.addEventListener('click', () => this.closeCart());
-        document.getElementById('btn-open-agent')?.addEventListener('click', () => this.openAgent());
+        document.getElementById('btn-open-agent')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.openAgent();
+        });
         document.getElementById('btn-close-agent')?.addEventListener('click', () => this.closeAgent());
         document.getElementById('agent-drawer-overlay')?.addEventListener('click', () => this.closeAgent());
+        // Mobile Bottom Navigation Bar Items
+        const mobNavExplore = document.getElementById('mob-nav-explore');
+        const mobNavRoasts = document.getElementById('mob-nav-roasts');
+        const mobNavCalc = document.getElementById('mob-nav-calc');
+        const mobNavAgent = document.getElementById('mob-nav-agent');
+        const mobNavCart = document.getElementById('mob-nav-cart');
+        const updateActiveMobNav = (activeId) => {
+            document.querySelectorAll('.mobile-nav-item').forEach((item) => item.classList.remove('active'));
+            document.getElementById(activeId)?.classList.add('active');
+        };
+        mobNavExplore?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.triggerHaptic();
+            updateActiveMobNav('mob-nav-explore');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        mobNavRoasts?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.triggerHaptic();
+            updateActiveMobNav('mob-nav-roasts');
+            document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+        });
+        mobNavCalc?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.triggerHaptic();
+            updateActiveMobNav('mob-nav-calc');
+            document.getElementById('brew-guide')?.scrollIntoView({ behavior: 'smooth' });
+        });
+        mobNavAgent?.addEventListener('click', () => {
+            this.triggerHaptic();
+            updateActiveMobNav('mob-nav-agent');
+            this.openAgent();
+        });
+        mobNavCart?.addEventListener('click', () => {
+            this.triggerHaptic();
+            updateActiveMobNav('mob-nav-cart');
+            this.openCart();
+        });
+        // Touch Drag-to-Dismiss on Bottom Sheets (Mobile Gesture)
+        this.setupSheetDragDismiss('cart-drawer', 'cart-drag-handle', () => this.closeCart());
+        this.setupSheetDragDismiss('agent-drawer', 'agent-drag-handle', () => this.closeAgent());
         // Category Tabs
         document.querySelectorAll('#category-tabs-container .category-tab').forEach((tab) => {
             tab.addEventListener('click', (e) => {
+                this.triggerHaptic();
                 document.querySelectorAll('#category-tabs-container .category-tab').forEach((t) => t.classList.remove('active'));
                 const target = e.currentTarget;
                 target.classList.add('active');
@@ -844,23 +914,86 @@ class StorefrontApp {
             });
         });
     }
+    setupSheetDragDismiss(drawerId, handleId, closeCallback) {
+        const drawer = document.getElementById(drawerId);
+        const handle = document.getElementById(handleId);
+        if (!drawer || !handle)
+            return;
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+        handle.addEventListener('touchstart', (e) => {
+            if (window.innerWidth > 768)
+                return;
+            startY = e.touches[0].clientY;
+            currentY = startY;
+            isDragging = true;
+            drawer.style.transition = 'none';
+        }, { passive: true });
+        handle.addEventListener('touchmove', (e) => {
+            if (!isDragging || window.innerWidth > 768)
+                return;
+            currentY = e.touches[0].clientY;
+            const deltaY = Math.max(0, currentY - startY);
+            drawer.style.transform = `translateY(${deltaY}px)`;
+        }, { passive: true });
+        handle.addEventListener('touchend', () => {
+            if (!isDragging || window.innerWidth > 768)
+                return;
+            isDragging = false;
+            drawer.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+            const deltaY = currentY - startY;
+            if (deltaY > 80) {
+                this.triggerHaptic();
+                closeCallback();
+            }
+            else {
+                drawer.style.transform = 'translateY(0)';
+            }
+        });
+    }
     openCart() {
-        document.getElementById('cart-drawer')?.classList.add('open');
+        this.triggerHaptic();
+        const drawer = document.getElementById('cart-drawer');
+        if (drawer) {
+            drawer.style.transform = '';
+            drawer.style.transition = '';
+            drawer.classList.add('open');
+        }
         document.getElementById('cart-drawer-overlay')?.classList.add('open');
+        document.querySelectorAll('.mobile-nav-item').forEach((i) => i.classList.remove('active'));
+        document.getElementById('mob-nav-cart')?.classList.add('active');
     }
     closeCart() {
-        document.getElementById('cart-drawer')?.classList.remove('open');
+        const drawer = document.getElementById('cart-drawer');
+        if (drawer) {
+            drawer.classList.remove('open');
+            drawer.style.transform = '';
+        }
         document.getElementById('cart-drawer-overlay')?.classList.remove('open');
     }
     openAgent() {
-        document.getElementById('agent-drawer')?.classList.add('open');
+        this.triggerHaptic();
+        const drawer = document.getElementById('agent-drawer');
+        if (drawer) {
+            drawer.style.transform = '';
+            drawer.style.transition = '';
+            drawer.classList.add('open');
+        }
         document.getElementById('agent-drawer-overlay')?.classList.add('open');
+        document.querySelectorAll('.mobile-nav-item').forEach((i) => i.classList.remove('active'));
+        document.getElementById('mob-nav-agent')?.classList.add('active');
     }
     closeAgent() {
-        document.getElementById('agent-drawer')?.classList.remove('open');
+        const drawer = document.getElementById('agent-drawer');
+        if (drawer) {
+            drawer.classList.remove('open');
+            drawer.style.transform = '';
+        }
         document.getElementById('agent-drawer-overlay')?.classList.remove('open');
     }
     resetFilters() {
+        this.triggerHaptic();
         this.activeCategory = 'all';
         this.activeTastingNote = 'all';
         document.querySelectorAll('#category-tabs-container .category-tab').forEach((t) => t.classList.remove('active'));
