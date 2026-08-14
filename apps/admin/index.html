@@ -23,10 +23,10 @@
       <nav>
         <ul class="sidebar-nav">
           <li><button class="nav-item-btn active" data-tab="overview">📊 Daily Operations</button></li>
+          <li><button class="nav-item-btn" data-tab="economics">💰 Unit Economics & Margins</button></li>
           <li><button class="nav-item-btn" data-tab="roasts">🔥 Roasting Batches</button></li>
           <li><button class="nav-item-btn" data-tab="inventory">📦 Bean Stock & Lots</button></li>
           <li><button class="nav-item-btn" data-tab="orders">🚚 Order Fulfillment</button></li>
-          <li><button class="nav-item-btn" data-tab="cupping">☕ Cupping & Notes</button></li>
         </ul>
       </nav>
 
@@ -59,6 +59,93 @@
         </div>
         <div class="briefing-content" id="ai-briefing-text">
           Good morning Roasters! Today we have <strong>18 customer orders</strong> queued for convection roasting. Priority batches: <strong>14kg Ethiopia Yirgacheffe Gedeb</strong> (Light floral roast curve) and <strong>9kg Colombia Pink Bourbon</strong>. Green bean reserves for Ethiopia lot are approaching 35kg—schedule an ethical cooperative restock soon.
+        </div>
+      </section>
+
+      <!-- Unit Economics & Margin Controller Section -->
+      <section class="section-panel" id="panel-economics" style="border-left: 4px solid var(--copper);">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">💰 Live Unit Economics & Breakeven Controller</h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Interactive simulator aligned with your 250g roasting cost model & ₹12L salary target</span>
+          </div>
+          <span style="background: var(--gold-glow); color: var(--gold); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight:700;">
+            Target: ₹16.30L Annual Overhead
+          </span>
+        </div>
+
+        <div style="padding: 1.8rem; display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem;">
+          <!-- Left Controls -->
+          <div style="display: flex; flex-direction: column; gap: 1.2rem;">
+            <div>
+              <label style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 600; margin-bottom: 0.4rem;">
+                <span>Retail Selling Price (₹ / 250g bag)</span>
+                <strong id="econ-price-lbl" style="color: var(--copper);">₹450</strong>
+              </label>
+              <input type="range" id="econ-price-slider" min="300" max="650" value="450" step="10" style="width:100%; accent-color: var(--copper);">
+            </div>
+
+            <div>
+              <label style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 600; margin-bottom: 0.4rem;">
+                <span>Landed Green Bean Cost (₹ / kg)</span>
+                <strong id="econ-green-lbl" style="color: var(--gold);">₹610</strong>
+              </label>
+              <input type="range" id="econ-green-slider" min="400" max="900" value="610" step="10" style="width:100%; accent-color: var(--gold);">
+            </div>
+
+            <div>
+              <label style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 600; margin-bottom: 0.4rem;">
+                <span>Roast Loss % (Weight loss during roast)</span>
+                <strong id="econ-loss-lbl">15%</strong>
+              </label>
+              <input type="range" id="econ-loss-slider" min="10" max="22" value="15" step="1" style="width:100%; accent-color: var(--emerald);">
+            </div>
+
+            <div>
+              <label style="display: flex; justify-content: space-between; font-size: 0.88rem; font-weight: 600; margin-bottom: 0.4rem;">
+                <span>Sales Channel & Marketplace Commission</span>
+                <strong id="econ-channel-lbl" style="color: var(--emerald);">Direct Storefront (0%)</strong>
+              </label>
+              <select id="econ-channel-select" style="width:100%; background: var(--admin-surface); color: var(--text-main); border: 1px solid var(--admin-border); padding: 0.6rem; border-radius: var(--radius-sm); font-family: inherit;">
+                <option value="0">Own Direct Storefront (0% Commission, 2% Gateway)</option>
+                <option value="15" selected>Blended Channel Mix (15% Commission, 2% Gateway)</option>
+                <option value="25">Third-Party Marketplace Only (25% Commission, 2% Gateway)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Right Live Output Summary -->
+          <div style="background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: var(--radius-md); padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; text-align: center;">
+              <div style="background: var(--admin-card); padding: 1rem; border-radius: var(--radius-sm);">
+                <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">COGS / Bag</span>
+                <div style="font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--rose);" id="econ-cogs-val">₹209.41</div>
+                <small style="font-size:0.72rem; color:var(--text-dim);">Green + Pouch + Seal</small>
+              </div>
+
+              <div style="background: var(--admin-card); padding: 1rem; border-radius: var(--radius-sm);">
+                <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Gross Margin %</span>
+                <div style="font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--emerald);" id="econ-margin-val">36.5%</div>
+                <small style="font-size:0.72rem; color:var(--text-dim);">Realisation vs COGS</small>
+              </div>
+
+              <div style="background: var(--admin-card); padding: 1rem; border-radius: var(--radius-sm);">
+                <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Gross Profit / Bag</span>
+                <div style="font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--copper);" id="econ-profit-val">₹164.09</div>
+                <small style="font-size:0.72rem; color:var(--text-dim);">Net take per unit</small>
+              </div>
+
+              <div style="background: var(--admin-card); padding: 1rem; border-radius: var(--radius-sm);">
+                <span style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">Monthly Breakeven</span>
+                <div style="font-family: var(--font-serif); font-size: 1.5rem; font-weight: 700; color: var(--gold);" id="econ-breakeven-bags">828 Bags</div>
+                <small style="font-size:0.72rem; color:var(--text-dim);">≈ 32 bags / day</small>
+              </div>
+            </div>
+
+            <div style="margin-top: 1rem; background: rgba(0,0,0,0.2); padding: 0.8rem 1rem; border-radius: var(--radius-sm); font-size: 0.82rem; color: var(--text-muted);">
+              💡 <strong>Margin Optimization Insight:</strong> <span id="econ-insight-text">Moving 100% of sales to your Direct Storefront saves ₹67.50/bag in marketplace commissions, lowering breakeven by 241 bags/month.</span>
+            </div>
+          </div>
         </div>
       </section>
 
