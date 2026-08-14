@@ -89,7 +89,9 @@ jobs:
         run: npm ci
 
       - name: Build Storefront
-        run: npm run build --workspace=apps/storefront
+        run: |
+          npm run build --workspace=packages/shared-types
+          npm run build --workspace=apps/storefront
 
       - name: Deploy Pages to Cloudflare
         env:
@@ -117,7 +119,9 @@ jobs:
         run: npm ci
 
       - name: Build Admin Portal
-        run: npm run build --workspace=apps/admin
+        run: |
+          npm run build --workspace=packages/shared-types
+          npm run build --workspace=apps/admin
 
       - name: Deploy Admin Pages to Cloudflare
         env:
