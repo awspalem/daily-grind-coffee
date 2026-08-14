@@ -29,34 +29,30 @@ jobs:
       - name: Run Tests
         run: npm test
 
-      - name: Provision D1, R2, Queues & KV
+      - name: Configure KV and Queues
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           cd apps/api
           
-          # 1. Provision Cloudflare Queue
+          # Create Queue if needed
           npx wrangler queues create daily-grind-jobs || true
 
-          # 2. Provision R2 Bucket
-          npx wrangler r2 bucket create daily-grind-media || true
-
-          # 3. Provision Cloudflare D1 Database
-          npx wrangler d1 create daily-grind-db || true
-          D1_ID=$(npx wrangler d1 list --json | jq -r '.[] | select(.name=="daily-grind-db") | .uuid')
-          echo "Discovered D1 Database UUID: $D1_ID"
-          if [ -n "$D1_ID" ] && [ "$D1_ID" != "null" ]; then
-            sed -i "s/database_id = \".*\"/database_id = \"$D1_ID\"/" wrangler.toml
+          # Discover or create KV namespace
+          KV_ID=$(npx wrangler kv:namespace list | jq -r '.[] | select(.title | contains("CONFIG_KV")) | .id' | head -n 1)
+          if [ -z "$KV_ID" ] || [ "$KV_ID" = "null" ]; then
+            npx wrangler kv:namespace create CONFIG_KV || true
+            KV_ID=$(npx wrangler kv:namespace list | jq -r '.[] | select(.title | contains("CONFIG_KV")) | .id' | head -n 1)
           fi
-
-          # 4. Provision Cloudflare KV Namespace
-          npx wrangler kv:namespace create CONFIG_KV || true
-          KV_ID=$(npx wrangler kv:namespace list --json | jq -r '.[] | select(.title | contains("CONFIG_KV")) | .id')
-          echo "Discovered KV ID: $KV_ID"
+          
+          echo "Discovered KV Namespace ID: $KV_ID"
           if [ -n "$KV_ID" ] && [ "$KV_ID" != "null" ]; then
             sed -i "s/id = \"local-kv-config-id\"/id = \"$KV_ID\"/" wrangler.toml
           fi
+
+          # Attempt R2 bucket creation (non-blocking if not yet enabled in UI)
+          npx wrangler r2 bucket create daily-grind-media || true
 
       - name: Apply D1 Database Migrations
         env:

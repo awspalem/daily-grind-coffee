@@ -14,7 +14,7 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 [[d1_databases]]
 binding = "DB"
 database_name = "daily-grind-db"
-database_id = "local-d1-daily-grind-id"
+database_id = "660152c1-a81d-433a-99e6-d3d99827da57"
 migrations_dir = "../../packages/db/migrations"
 
 # Cloudflare R2 Bucket Binding
