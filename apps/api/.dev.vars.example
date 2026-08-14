@@ -1,0 +1,11 @@
+# Copy to .dev.vars (gitignored) for local `wrangler dev` testing.
+STRIPE_SECRET_KEY=sk_test_mock
+STRIPE_WEBHOOK_SECRET=placeholder
+GROQ_API_KEY=
+ADMIN_TOKEN=
+TURNSTILE_SECRET_KEY=
+
+# Shiprocket
+SHIPROCKET_EMAIL=
+SHIPROCKET_PASSWORD=
+SHIPROCKET_WEBHOOK_TOKEN=dev-local-shiprocket-webhook-token

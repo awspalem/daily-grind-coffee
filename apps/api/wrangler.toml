@@ -9,6 +9,20 @@ STOREFRONT_URL = "http://localhost:5173"
 ADMIN_URL = "http://localhost:5174"
 CURRENCY = "usd"
 GROQ_MODEL = "llama-3.3-70b-versatile"
+SHIPROCKET_PICKUP_LOCATION = "Primary"
+
+# Shiprocket secrets (set via `wrangler secret put <NAME>`, not committed here):
+#   SHIPROCKET_EMAIL             — Shiprocket account login email
+#   SHIPROCKET_PASSWORD          — Shiprocket account login password
+#   SHIPROCKET_WEBHOOK_TOKEN     — required in production; also entered as the webhook
+#                                   secret in Shiprocket dashboard > Settings > API > Webhooks
+#   SHIPROCKET_USD_TO_INR_RATE   — optional, defaults to 83. Shiprocket order values are
+#                                   always INR; orders billed in USD are converted using this
+#                                   rate. Auto-push only fires for India-bound shipments
+#                                   (shipping_address.country === 'IN'); everything else falls
+#                                   back to the existing manual tracking_number/carrier flow.
+# Without SHIPROCKET_EMAIL/PASSWORD, ShiprocketService runs in mock mode outside production
+# so order fulfillment keeps working; in production it fails loudly instead of faking data.
 
 # Cloudflare D1 Database Binding
 [[d1_databases]]
@@ -45,3 +59,35 @@ binding = "AI"
 # Scheduled Cron Triggers
 [triggers]
 crons = ["0 4 * * *"] # Daily 4:00 AM UTC stock audit & backup
+
+# Production environment overrides — deploy with `wrangler deploy --env production`.
+# Without this, `ENVIRONMENT` stays "development" even on a live deploy, which keeps
+# ShiprocketService in mock mode (fake tracking numbers reach real customers).
+[env.production.vars]
+ENVIRONMENT = "production"
+STOREFRONT_URL = "https://dailygrind.coffee" # placeholder — replace with your real domain
+ADMIN_URL = "https://admin.dailygrind.coffee" # placeholder — replace with your real domain
+CURRENCY = "usd"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+SHIPROCKET_PICKUP_LOCATION = "Primary"
+
+# Named environments do NOT inherit top-level bindings in Wrangler — each one needs its
+# own copy, confirmed via `wrangler deploy --env production --dry-run`.
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "daily-grind-db"
+database_id = "660152c1-a81d-433a-99e6-d3d99827da57"
+migrations_dir = "../../packages/db/migrations"
+
+[[env.production.kv_namespaces]]
+binding = "CONFIG_KV"
+id = "local-kv-config-id" # placeholder — replace with your real production KV namespace id
+
+[env.production.ai]
+binding = "AI"
+
+[env.production.triggers]
+crons = ["0 4 * * *"]
+
+# Secrets are per-environment too: `wrangler secret put SHIPROCKET_EMAIL --env production`
+# (repeat for SHIPROCKET_PASSWORD and SHIPROCKET_WEBHOOK_TOKEN).

@@ -2,6 +2,33 @@ import { Hono } from 'hono';
 import { StripeService } from '../services/stripe';
 import { InventoryLedgerService } from '../services/inventoryLedger';
 const webhooksApp = new Hono();
+// Maps Shiprocket's known courier status strings onto our internal order lifecycle.
+// Exact matches only — substring checks misclassify statuses like "UNDELIVERED" as delivered.
+const SHIPROCKET_STATUS_MAP = {
+    'PICKUP SCHEDULED': 'PACKED',
+    'PICKED UP': 'SHIPPED',
+    'SHIPPED': 'SHIPPED',
+    'IN TRANSIT': 'SHIPPED',
+    'OUT FOR DELIVERY': 'SHIPPED',
+    'DELIVERED': 'DELIVERED',
+};
+// Forward-only lifecycle so a delayed/out-of-order webhook can't regress a later status.
+const ORDER_STATUS_RANK = {
+    PENDING_PAYMENT: 0,
+    PAID: 1,
+    ROASTING: 2,
+    PACKED: 3,
+    SHIPPED: 4,
+    DELIVERED: 5,
+    CANCELLED: 5,
+    REFUNDED: 5,
+};
+function mapShiprocketStatus(currentStatus) {
+    const status = (currentStatus || '').trim().toUpperCase();
+    if (!status)
+        return null;
+    return SHIPROCKET_STATUS_MAP[status] || null;
+}
 // POST /api/stripe/webhook
 webhooksApp.post('/stripe', async (c) => {
     const rawBody = await c.req.text();
@@ -104,5 +131,67 @@ webhooksApp.post('/stripe', async (c) => {
     `).bind(eventId, eventType, rawBody).run();
     }
     return c.json({ received: true }, 200);
+});
+// POST /api/webhooks/shiprocket
+// Configure this URL (STOREFRONT/API domain + /api/webhooks/shiprocket) in the Shiprocket
+// dashboard under Settings > API > Webhooks, along with a secret token matching
+// SHIPROCKET_WEBHOOK_TOKEN, sent back on every call as the `x-api-key` header.
+webhooksApp.post('/shiprocket', async (c) => {
+    // Fail closed unconditionally — this mutates order status by order_number,
+    // so it must never depend on an env string. Set SHIPROCKET_WEBHOOK_TOKEN in
+    // .dev.vars for local testing (see .dev.vars.example).
+    const expectedToken = c.env.SHIPROCKET_WEBHOOK_TOKEN;
+    const providedToken = c.req.header('x-api-key');
+    if (!expectedToken || providedToken !== expectedToken) {
+        console.error('Invalid or missing Shiprocket webhook token');
+        return c.json({ error: 'Invalid webhook token' }, 401);
+    }
+    let event;
+    try {
+        event = await c.req.json();
+    }
+    catch (err) {
+        return c.json({ error: 'Invalid JSON payload' }, 400);
+    }
+    const shipmentId = event.shipment_id || event.shipment_id_1 ? String(event.shipment_id || event.shipment_id_1) : undefined;
+    const orderNumber = event.order_id ? String(event.order_id) : undefined;
+    const awb = event.awb || event.awb_code || undefined;
+    const courierName = event.courier_name || undefined;
+    const currentStatus = event.current_status || event.shipment_status || undefined;
+    let order = shipmentId
+        ? await c.env.DB.prepare('SELECT * FROM orders WHERE shiprocket_shipment_id = ?').bind(shipmentId).first()
+        : null;
+    // Fall back to order_number — covers the case where our Shiprocket order-create call
+    // failed after the order was created on Shiprocket's side, so shiprocket_shipment_id
+    // was never persisted locally.
+    if (!order && orderNumber) {
+        order = await c.env.DB.prepare('SELECT * FROM orders WHERE order_number = ?').bind(orderNumber).first();
+    }
+    if (!order) {
+        console.log('Shiprocket webhook: no matching order for shipment', shipmentId, orderNumber);
+        return c.json({ received: true, matched: false }, 200);
+    }
+    if (shipmentId && !order.shiprocket_shipment_id) {
+        await c.env.DB.prepare('UPDATE orders SET shiprocket_shipment_id = ? WHERE id = ?').bind(shipmentId, order.id).run();
+    }
+    let mappedStatus = mapShiprocketStatus(currentStatus);
+    if (order.status === 'CANCELLED' || order.status === 'REFUNDED') {
+        // Terminal states — a courier update should never override a cancellation/refund.
+        mappedStatus = null;
+    }
+    else if (mappedStatus && ORDER_STATUS_RANK[mappedStatus] < ORDER_STATUS_RANK[order.status]) {
+        // Don't let a delayed/out-of-order webhook regress an already-later status.
+        mappedStatus = null;
+    }
+    await c.env.DB.prepare(`
+    UPDATE orders SET
+      status = COALESCE(?, status),
+      tracking_number = COALESCE(?, tracking_number),
+      carrier = COALESCE(?, carrier),
+      shiprocket_status = COALESCE(?, shiprocket_status),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(mappedStatus, awb || null, courierName || null, currentStatus || null, order.id).run();
+    return c.json({ received: true, matched: true }, 200);
 });
 export { webhooksApp };

@@ -18,4 +18,9 @@ export interface Env {
   GROQ_MODEL?: string;
   ADMIN_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;
+  SHIPROCKET_EMAIL?: string;
+  SHIPROCKET_PASSWORD?: string;
+  SHIPROCKET_PICKUP_LOCATION?: string;
+  SHIPROCKET_WEBHOOK_TOKEN?: string;
+  SHIPROCKET_USD_TO_INR_RATE?: string;
 }

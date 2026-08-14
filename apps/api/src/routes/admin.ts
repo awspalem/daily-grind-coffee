@@ -5,6 +5,7 @@ import { zeroTrustAdminGuard, recordAuditLog, type AdminActor } from '../middlew
 import { FreeTierQuotaMonitor } from '../services/quotaMonitor';
 import { D1BackupService } from '../services/backupService';
 import { GroqService } from '../services/groq';
+import { ShiprocketService } from '../services/shiprocket';
 import type { InventoryMovementType, OrderStatus } from '@daily-grind/shared-types';
 
 const adminApp = new Hono<{ Bindings: Env; Variables: { adminActor: AdminActor } }>();
@@ -166,16 +167,107 @@ adminApp.post('/orders/:id/status', async (c) => {
     return c.json({ success: false, error: 'Status is required' }, 400);
   }
 
-  const oldOrder = await c.env.DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first();
+  const oldOrder = await c.env.DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first<any>();
+
+  if (!oldOrder) {
+    return c.json({ success: false, error: 'Order not found' }, 404);
+  }
+
+  let trackingNumber = body.tracking_number || null;
+  let carrier = body.carrier || null;
+  let shiprocketOrderId: string | null = null;
+  let shiprocketShipmentId: string | null = null;
+  let shiprocketStatus: string | null = null;
+  let shiprocketPushError: string | null = null;
+  let shiprocketSkipReason: string | null = null;
+
+  // Auto-push newly packed orders to Shiprocket for fulfillment, once per order.
+  // Shiprocket only ships within India — gate on destination, not on the order's
+  // billing currency (the storefront can charge in USD for an India-bound parcel).
+  const shippingAddressForGate = (() => {
+    try {
+      return JSON.parse(oldOrder.shipping_address_json);
+    } catch {
+      return {};
+    }
+  })();
+  const normalizedCountry = String(shippingAddressForGate.country || '').trim().toUpperCase();
+  const shipsToIndia = normalizedCountry === 'IN' || normalizedCountry === 'IND' || normalizedCountry === 'INDIA';
+
+  if (body.status === 'PACKED' && !oldOrder.shiprocket_shipment_id && !shipsToIndia) {
+    shiprocketSkipReason = `Shipping address country is "${shippingAddressForGate.country}", not IN — Shiprocket only ships within India, enter tracking manually`;
+  } else if (body.status === 'PACKED' && !oldOrder.shiprocket_shipment_id) {
+    try {
+      const { results: items } = await c.env.DB.prepare(
+        'SELECT * FROM order_items WHERE order_id = ?'
+      ).bind(orderId).all();
+
+      const shippingAddress = shippingAddressForGate;
+      const shiprocket = new ShiprocketService(
+        c.env.SHIPROCKET_EMAIL,
+        c.env.SHIPROCKET_PASSWORD,
+        c.env.SHIPROCKET_PICKUP_LOCATION,
+        c.env.CONFIG_KV,
+        c.env.ENVIRONMENT,
+        Number(c.env.SHIPROCKET_USD_TO_INR_RATE) || undefined
+      );
+
+      const result = await shiprocket.createOrder({
+        orderId,
+        orderNumber: oldOrder.order_number,
+        orderDateISO: (oldOrder.created_at || new Date().toISOString()).slice(0, 19).replace('T', ' '),
+        customerName: shippingAddress.name,
+        customerEmail: oldOrder.customer_email,
+        customerPhone: shippingAddress.phone,
+        shippingAddress,
+        items: (items || []).map((item: any) => ({
+          name: item.product_name,
+          sku: item.variant_id,
+          units: item.quantity,
+          unitPriceCents: item.unit_price_cents,
+        })),
+        subtotalCents: oldOrder.subtotal_cents,
+        shippingCents: oldOrder.shipping_cents,
+        currency: oldOrder.currency,
+      });
+
+      shiprocketOrderId = result.shiprocketOrderId;
+      shiprocketShipmentId = result.shipmentId;
+      shiprocketStatus = result.status;
+
+      // Best-effort: pull tracking immediately in case a courier/AWB was auto-assigned.
+      try {
+        const tracking = await shiprocket.trackShipment(result.shipmentId);
+        if (tracking.awbCode) trackingNumber = tracking.awbCode;
+        if (tracking.courierName) carrier = tracking.courierName;
+      } catch (trackErr) {
+        console.error('Shiprocket tracking lookup failed:', trackErr);
+      }
+    } catch (srErr: any) {
+      console.error('Shiprocket order creation failed:', srErr);
+      shiprocketPushError = srErr.message || 'Shiprocket order creation failed';
+    }
+  }
 
   await c.env.DB.prepare(`
     UPDATE orders SET
       status = ?,
       tracking_number = COALESCE(?, tracking_number),
       carrier = COALESCE(?, carrier),
+      shiprocket_order_id = COALESCE(?, shiprocket_order_id),
+      shiprocket_shipment_id = COALESCE(?, shiprocket_shipment_id),
+      shiprocket_status = COALESCE(?, shiprocket_status),
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).bind(body.status, body.tracking_number || null, body.carrier || null, orderId).run();
+  `).bind(
+    body.status,
+    trackingNumber,
+    carrier,
+    shiprocketOrderId,
+    shiprocketShipmentId,
+    shiprocketStatus,
+    orderId
+  ).run();
 
   // Audit Log
   await recordAuditLog(
@@ -185,11 +277,55 @@ adminApp.post('/orders/:id/status', async (c) => {
     'orders',
     orderId,
     { status: (oldOrder as any)?.status },
-    { status: body.status, tracking: body.tracking_number },
+    { status: body.status, tracking: trackingNumber, shiprocket_shipment_id: shiprocketShipmentId },
     c.req.header('CF-Connecting-IP')
   );
 
-  return c.json({ success: true, message: `Order ${orderId} updated to ${body.status}` });
+  return c.json({
+    success: true,
+    message: `Order ${orderId} updated to ${body.status}`,
+    shiprocket_pushed: shiprocketShipmentId ? true : shiprocketPushError ? false : undefined,
+    shiprocket_error: shiprocketPushError || undefined,
+    shiprocket_skipped_reason: shiprocketSkipReason || undefined,
+  });
+});
+
+// POST /api/admin/orders/:id/shiprocket/sync — pull latest courier/tracking status on demand
+adminApp.post('/orders/:id/shiprocket/sync', async (c) => {
+  const orderId = c.req.param('id');
+  const order = await c.env.DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first<any>();
+
+  if (!order) {
+    return c.json({ success: false, error: 'Order not found' }, 404);
+  }
+  if (!order.shiprocket_shipment_id) {
+    return c.json({ success: false, error: 'Order has not been pushed to Shiprocket yet' }, 400);
+  }
+
+  const shiprocket = new ShiprocketService(
+    c.env.SHIPROCKET_EMAIL,
+    c.env.SHIPROCKET_PASSWORD,
+    c.env.SHIPROCKET_PICKUP_LOCATION,
+    c.env.CONFIG_KV,
+    c.env.ENVIRONMENT
+  );
+
+  try {
+    const tracking = await shiprocket.trackShipment(order.shiprocket_shipment_id);
+
+    await c.env.DB.prepare(`
+      UPDATE orders SET
+        tracking_number = COALESCE(?, tracking_number),
+        carrier = COALESCE(?, carrier),
+        shiprocket_status = COALESCE(?, shiprocket_status),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(tracking.awbCode || null, tracking.courierName || null, tracking.currentStatus || null, orderId).run();
+
+    return c.json({ success: true, tracking });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 502);
+  }
 });
 
 // POST /api/admin/orders/:id/refund

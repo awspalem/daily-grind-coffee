@@ -199,6 +199,9 @@ export interface Order {
   stripe_payment_intent_id?: string;
   tracking_number?: string;
   carrier?: string;
+  shiprocket_order_id?: string;
+  shiprocket_shipment_id?: string;
+  shiprocket_status?: string;
   items: OrderItem[];
   notes?: string;
   created_at: string;
