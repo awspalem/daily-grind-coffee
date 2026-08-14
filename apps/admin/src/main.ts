@@ -1,4 +1,6 @@
 // The Daily Grind — Roastery Command Center Interactive Engine
+import { ROASTERY_LOT_PRESETS, generateThermalLabelHTML, BagLabelConfig } from './utils/thermalLabel';
+import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 
 interface PricingRow {
   variant_id: string;
@@ -33,6 +35,8 @@ class AdminPortal {
     this.setupEconomicsSimulator();
     this.setupBatchLogging();
     this.setupCouponsManager();
+    this.setupThermalLabelStudio();
+    this.setupGSTInvoicing();
     await this.loadDashboardData();
   }
 
@@ -61,6 +65,8 @@ class AdminPortal {
 
       if (tab === 'overview') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (tab === 'labels') {
+        document.getElementById('panel-labels')?.scrollIntoView({ behavior: 'smooth' });
       } else if (tab === 'pricing') {
         document.getElementById('panel-pricing')?.scrollIntoView({ behavior: 'smooth' });
       } else if (tab === 'economics') {
@@ -131,7 +137,6 @@ class AdminPortal {
       `;
     }).join('');
 
-    // Attach save event listeners
     tbody.querySelectorAll('.btn-table-action').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         const target = e.currentTarget as HTMLElement;
@@ -206,20 +211,16 @@ class AdminPortal {
       if (greenLbl) greenLbl.textContent = `₹${greenPerKg}`;
       if (lossLbl) lossLbl.textContent = `${lossSlider.value}%`;
 
-      // 1. COGS calculation
       const greenKgNeeded = 0.25 / (1 - roastLossPct);
       const greenCostPerBag = greenKgNeeded * greenPerKg;
       const packagingCost = 30; // ₹25 pouch/valve/label + ₹5 sealing
       const totalCogs = greenCostPerBag + packagingCost;
 
-      // 2. Net Realisation
       const netRealisation = price * (1 - commissionPct - gatewayPct);
 
-      // 3. Gross Profit & Margin
       const grossProfit = netRealisation - totalCogs;
       const grossMarginPct = netRealisation > 0 ? (grossProfit / netRealisation) * 100 : 0;
 
-      // 4. Breakeven Volume
       const bagsNeeded = grossProfit > 0 ? Math.ceil(this.monthlyFixedCost / grossProfit) : 0;
       const dailyBags = Math.ceil(bagsNeeded / 26);
 
@@ -309,6 +310,292 @@ class AdminPortal {
         }
         alert(`🎟️ Coupon code "${code.toUpperCase()}" with ${discount}% discount created successfully!`);
       }
+    });
+  }
+
+  // ==========================================================================
+  // TASK 1: ROASTERY THERMAL BAG LABEL & QR CODE STUDIO
+  // ==========================================================================
+  private setupThermalLabelStudio() {
+    const lotPresetSelect = document.getElementById('label-lot-preset') as HTMLSelectElement;
+    const roastDateInput = document.getElementById('label-roast-date') as HTMLInputElement;
+    const batchIdInput = document.getElementById('label-batch-id') as HTMLInputElement;
+    const bagSizeSelect = document.getElementById('label-bag-size') as HTMLSelectElement;
+    const grindSelect = document.getElementById('label-grind-type') as HTMLSelectElement;
+
+    const customNameInput = document.getElementById('label-custom-name') as HTMLInputElement;
+    const customOriginInput = document.getElementById('label-custom-origin') as HTMLInputElement;
+    const customProcessInput = document.getElementById('label-custom-process') as HTMLInputElement;
+    const customNotesInput = document.getElementById('label-custom-notes') as HTMLInputElement;
+
+    const livePreviewEl = document.getElementById('live-thermal-label-preview');
+    const modalPreviewEl = document.getElementById('modal-thermal-label-preview');
+
+    // Default to today's date formatted as YYYY-MM-DD
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (roastDateInput) roastDateInput.value = todayStr;
+
+    const formatRoastDateDisplay = (dateVal: string): string => {
+      if (!dateVal) return new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+      const d = new Date(dateVal);
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+    };
+
+    const getActiveConfig = (): BagLabelConfig => {
+      const selectedPresetId = lotPresetSelect?.value || 'chikmagalur_attikan';
+      const preset = ROASTERY_LOT_PRESETS.find(p => p.id === selectedPresetId);
+
+      let lotName = preset?.name || customNameInput.value || 'Chikmagalur Attikan Estate Honey';
+      let lotSlug = preset?.slug || 'chikmagalur-attikan-estate-honey';
+      let region = preset?.region || customOriginInput.value || 'Baba Budan Giri, Karnataka';
+      let processMethod = preset?.processMethod || customProcessInput.value || 'Pulp Sun-Dried Honey';
+      let elevation = preset?.elevation || '1,750m MSL';
+      let roastLevel = preset?.roastLevel || 'Medium-Light';
+      let tastingNotes = preset?.tastingNotes || customNotesInput.value.split(',').map(s => s.trim()).filter(Boolean);
+
+      if (selectedPresetId === 'custom') {
+        lotName = customNameInput.value || 'Bangalore Roastery Special Reserve';
+        lotSlug = lotName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        region = customOriginInput.value || 'Chikmagalur, Karnataka';
+        processMethod = customProcessInput.value || 'Specialty Honey Process';
+        elevation = '1,650m MSL';
+        roastLevel = 'Medium-Light';
+        tastingNotes = customNotesInput.value ? customNotesInput.value.split(',').map(s => s.trim()).filter(Boolean) : ['Sweet Jaggery', 'Fruit Notes', 'Chocolate'];
+      }
+
+      return {
+        lotName,
+        lotSlug,
+        region,
+        elevation,
+        processMethod,
+        roastLevel,
+        tastingNotes,
+        roastDate: formatRoastDateDisplay(roastDateInput.value),
+        batchId: batchIdInput.value.trim() || 'BATCH-8821',
+        grindType: grindSelect.value,
+        bagSize: bagSizeSelect.value,
+        roasteryLocation: 'Indiranagar Roastery, Bangalore'
+      };
+    };
+
+    const updateLabelPreviews = () => {
+      const config = getActiveConfig();
+      const html = generateThermalLabelHTML(config);
+
+      if (livePreviewEl) livePreviewEl.innerHTML = html;
+      if (modalPreviewEl) modalPreviewEl.innerHTML = html;
+    };
+
+    // Listen to preset lot changes
+    lotPresetSelect?.addEventListener('change', () => {
+      this.triggerHaptic();
+      const preset = ROASTERY_LOT_PRESETS.find(p => p.id === lotPresetSelect.value);
+      if (preset) {
+        customNameInput.value = preset.name;
+        customOriginInput.value = preset.region;
+        customProcessInput.value = `${preset.processMethod} · ${preset.elevation}`;
+        customNotesInput.value = preset.tastingNotes.join(', ');
+        grindSelect.value = preset.recommendedGrind.includes('Filter') ? 'South Indian Filter' :
+                            preset.recommendedGrind.includes('Espresso') ? 'Espresso (9-Bar)' :
+                            preset.recommendedGrind.includes('V60') ? 'Hario V60 / Pour Over' : 'Whole Bean';
+      }
+      updateLabelPreviews();
+    });
+
+    [
+      roastDateInput, batchIdInput, bagSizeSelect, grindSelect,
+      customNameInput, customOriginInput, customProcessInput, customNotesInput
+    ].forEach(el => el?.addEventListener('input', updateLabelPreviews));
+
+    // Batch ID Randomizer
+    document.getElementById('btn-gen-batch-id')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      const randomId = `BATCH-${Math.floor(1000 + Math.random() * 9000)}`;
+      batchIdInput.value = randomId;
+      const modalBatch = document.getElementById('modal-batch-id') as HTMLInputElement;
+      if (modalBatch) modalBatch.value = randomId;
+      updateLabelPreviews();
+    });
+
+    // Copy Maya Brew Link
+    document.getElementById('btn-copy-brew-link')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      const config = getActiveConfig();
+      const link = `https://daily-grind-storefront.pages.dev/#brew-guide?lot=${encodeURIComponent(config.lotSlug)}&grind=${encodeURIComponent(config.grindType.toLowerCase().replace(/[^a-z0-9]/g, '-'))}&batch=${encodeURIComponent(config.batchId)}`;
+      
+      navigator.clipboard?.writeText(link).then(() => {
+        const btn = document.getElementById('btn-copy-brew-link');
+        if (btn) {
+          btn.textContent = '✓ Copied Maya Link!';
+          setTimeout(() => { btn.textContent = '📋 Copy Maya\'s Brew Link'; }, 1500);
+        }
+      }).catch(() => {
+        prompt('Copy Maya\'s Brew Guide Direct URL:', link);
+      });
+    });
+
+    // Reset button
+    document.getElementById('btn-reset-label-form')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      lotPresetSelect.value = 'chikmagalur_attikan';
+      lotPresetSelect.dispatchEvent(new Event('change'));
+      batchIdInput.value = 'BATCH-8821';
+      bagSizeSelect.value = '250g';
+      roastDateInput.value = todayStr;
+      updateLabelPreviews();
+    });
+
+    // Print Thermal Bag Label Handler
+    const handlePrintLabel = () => {
+      this.triggerHaptic();
+      document.body.classList.remove('print-gst-invoice');
+      document.body.classList.add('print-thermal-label');
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('print-thermal-label');
+      }, 1000);
+    };
+
+    document.getElementById('btn-print-thermal-label')?.addEventListener('click', handlePrintLabel);
+    document.getElementById('modal-label-print')?.addEventListener('click', handlePrintLabel);
+
+    // Initial render
+    updateLabelPreviews();
+
+    // Setup Quick Modal trigger & close
+    const modalLabel = document.getElementById('modal-bag-label');
+    document.getElementById('btn-open-label-modal')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      if (modalLabel) modalLabel.classList.add('active');
+      updateLabelPreviews();
+    });
+
+    document.getElementById('modal-label-close')?.addEventListener('click', () => {
+      modalLabel?.classList.remove('active');
+    });
+    document.getElementById('modal-label-cancel')?.addEventListener('click', () => {
+      modalLabel?.classList.remove('active');
+    });
+
+    // Modal Lot Select syncing
+    const modalLotSelect = document.getElementById('modal-lot-select') as HTMLSelectElement;
+    const modalDateInput = document.getElementById('modal-roast-date') as HTMLInputElement;
+    const modalBatchInput = document.getElementById('modal-batch-id') as HTMLInputElement;
+    const modalGrindSelect = document.getElementById('modal-grind-select') as HTMLSelectElement;
+    const modalSizeSelect = document.getElementById('modal-bag-size') as HTMLSelectElement;
+
+    if (modalDateInput) modalDateInput.value = todayStr;
+
+    const syncFromModal = () => {
+      if (lotPresetSelect && modalLotSelect) lotPresetSelect.value = modalLotSelect.value;
+      if (batchIdInput && modalBatchInput) batchIdInput.value = modalBatchInput.value;
+      if (grindSelect && modalGrindSelect) grindSelect.value = modalGrindSelect.value;
+      if (bagSizeSelect && modalSizeSelect) bagSizeSelect.value = modalSizeSelect.value;
+      lotPresetSelect?.dispatchEvent(new Event('change'));
+      updateLabelPreviews();
+    };
+
+    modalLotSelect?.addEventListener('change', syncFromModal);
+    modalDateInput?.addEventListener('input', () => {
+      if (roastDateInput) roastDateInput.value = modalDateInput.value;
+      updateLabelPreviews();
+    });
+    modalBatchInput?.addEventListener('input', syncFromModal);
+    modalGrindSelect?.addEventListener('change', syncFromModal);
+    modalSizeSelect?.addEventListener('change', syncFromModal);
+
+    // Order table label triggers
+    document.querySelectorAll('.btn-order-label').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        this.triggerHaptic();
+        const target = e.currentTarget as HTMLElement;
+        const lot = target.getAttribute('data-lot') || 'chikmagalur_attikan';
+        const grind = target.getAttribute('data-grind') || 'South Indian Filter';
+        const size = target.getAttribute('data-size') || '250g';
+        const batch = target.getAttribute('data-batch') || 'BATCH-8821';
+
+        if (lotPresetSelect) lotPresetSelect.value = lot;
+        if (grindSelect) grindSelect.value = grind;
+        if (bagSizeSelect) bagSizeSelect.value = size;
+        if (batchIdInput) batchIdInput.value = batch;
+        lotPresetSelect?.dispatchEvent(new Event('change'));
+        updateLabelPreviews();
+
+        if (modalLabel) modalLabel.classList.add('active');
+      });
+    });
+  }
+
+  // ==========================================================================
+  // TASK 2: INDIAN GST TAX INVOICING (HSN 0901)
+  // ==========================================================================
+  private setupGSTInvoicing() {
+    const modalInvoice = document.getElementById('modal-gst-invoice');
+    const invoiceContentEl = document.getElementById('modal-invoice-content');
+
+    const openInvoiceModalForOrder = (orderData: {
+      orderId: string;
+      customerName: string;
+      customerLocation?: string;
+      productDescription: string;
+      totalAmountInr: number;
+    }) => {
+      this.triggerHaptic();
+      const invoiceData = buildGSTInvoiceFromOrder({
+        orderId: orderData.orderId,
+        customerName: orderData.customerName,
+        customerLocation: orderData.customerLocation,
+        productDescription: orderData.productDescription,
+        totalAmountInr: orderData.totalAmountInr
+      });
+
+      if (invoiceContentEl) {
+        invoiceContentEl.innerHTML = renderGSTInvoiceHTML(invoiceData);
+      }
+
+      if (modalInvoice) {
+        modalInvoice.classList.add('active');
+      }
+    };
+
+    // Attach listeners to Order table GST Invoice buttons
+    document.querySelectorAll('.btn-order-invoice').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const orderId = target.getAttribute('data-order') || 'TDG-102938';
+        const customerName = target.getAttribute('data-customer') || 'Rohan Sharma';
+        const customerLocation = target.getAttribute('data-loc') || 'Indiranagar, Bangalore';
+        const productDescription = target.getAttribute('data-item') || 'Chikmagalur Attikan Estate Honey (250g · South Indian Filter)';
+        const totalAmountInr = parseFloat(target.getAttribute('data-total') || '450');
+
+        openInvoiceModalForOrder({
+          orderId,
+          customerName,
+          customerLocation,
+          productDescription,
+          totalAmountInr
+        });
+      });
+    });
+
+    // Close buttons
+    document.getElementById('modal-invoice-close')?.addEventListener('click', () => {
+      modalInvoice?.classList.remove('active');
+    });
+    document.getElementById('modal-invoice-cancel')?.addEventListener('click', () => {
+      modalInvoice?.classList.remove('active');
+    });
+
+    // Print GST Tax Invoice
+    document.getElementById('modal-invoice-print')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      document.body.classList.remove('print-thermal-label');
+      document.body.classList.add('print-gst-invoice');
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('print-gst-invoice');
+      }, 1000);
     });
   }
 

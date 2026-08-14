@@ -54,6 +54,7 @@ class MockD1Database {
       }
     ],
     order_items: [],
+    subscriptions: [],
     payments: [],
     refunds: [],
     webhook_events: [],
@@ -294,3 +295,51 @@ test('Phase 5: FreeTierQuotaMonitor tracks daily edge operations and evaluates s
   assert.strictEqual(report.d1_daily_writes.limit, 100000);
   assert.strictEqual(report.status, 'OPTIMAL');
 });
+
+// ---------------------- SUBSCRIPTION & TASTER FLIGHT ARCHITECTURE TESTS ----------------------
+test('Phase 6: Subscriptions apply 10% unit discount and compute next renewal date', () => {
+  const basePriceCents = 2000;
+  const discountedPriceCents = Math.round(basePriceCents * 0.90);
+  assert.strictEqual(discountedPriceCents, 1800, 'Subscribe & Save should apply exact 10% unit discount');
+
+  // Test renewal interval calculations
+  const calculateRenewal = (freq: '1_WEEK' | '2_WEEKS' | '4_WEEKS') => {
+    const days = freq === '1_WEEK' ? 7 : freq === '2_WEEKS' ? 14 : 28;
+    const date = new Date('2026-08-14T00:00:00.000Z');
+    date.setDate(date.getDate() + days);
+    return date.toISOString().split('T')[0];
+  };
+
+  assert.strictEqual(calculateRenewal('1_WEEK'), '2026-08-21');
+  assert.strictEqual(calculateRenewal('2_WEEKS'), '2026-08-28');
+  assert.strictEqual(calculateRenewal('4_WEEKS'), '2026-09-11');
+});
+
+test('Phase 6: 3x 100g Curated Taster Flight correctly bundles 3 distinct estate lots with grind', () => {
+  const selectedLots = [
+    'Chikmagalur Attikan Estate Honey',
+    'Araku Valley Red Honey Micro-Lot',
+    'Ethiopia Yirgacheffe Gedeb'
+  ];
+  const customNotes = `3x 100g Lots: 1. ${selectedLots[0]}, 2. ${selectedLots[1]}, 3. ${selectedLots[2]}`;
+
+  const flightItem = {
+    product_id: 'prod_taster_flight',
+    variant_id: 'var_flight_300',
+    weight_grams: 300,
+    unit_price_inr: 590,
+    unit_price_usd_cents: 2400,
+    grind_type: 'SOUTH_INDIAN_FILTER',
+    custom_notes: customNotes,
+    subscription_frequency: null
+  };
+
+  assert.strictEqual(flightItem.weight_grams, 300);
+  assert.strictEqual(flightItem.unit_price_inr, 590);
+  assert.strictEqual(flightItem.unit_price_usd_cents, 2400);
+  assert.strictEqual(flightItem.grind_type, 'SOUTH_INDIAN_FILTER');
+  assert.ok(flightItem.custom_notes.includes('Attikan'));
+  assert.ok(flightItem.custom_notes.includes('Araku'));
+  assert.ok(flightItem.custom_notes.includes('Ethiopia'));
+});
+

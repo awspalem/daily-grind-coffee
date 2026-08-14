@@ -1,0 +1,56 @@
+{
+  "name": "The Daily Grind — Artisanal Bangalore Roastery",
+  "short_name": "Daily Grind",
+  "description": "Small-batch specialty coffee roastery in Bangalore, India. Direct-trade Indian estate micro-lots & rare international origins, roasted fresh to order.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1b1614",
+  "background_color": "#1b1614",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "shopping",
+    "food",
+    "lifestyle"
+  ],
+  "shortcuts": [
+    {
+      "name": "Fresh Roasts",
+      "short_name": "Roasts",
+      "description": "Browse freshly roasted Bangalore micro-lots",
+      "url": "/#catalog"
+    },
+    {
+      "name": "Flavor Wheel",
+      "short_name": "Flavor Wheel",
+      "description": "Interactive SCA Coffee Flavor Wheel",
+      "url": "/#flavor-wheel"
+    },
+    {
+      "name": "Brew Guides",
+      "short_name": "Brew Guide",
+      "description": "South Indian Filter & Pour-Over Golden Ratio",
+      "url": "/#brew-guide"
+    }
+  ]
+}

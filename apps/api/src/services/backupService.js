@@ -16,6 +16,7 @@ export class D1BackupService {
             'inventory_movements',
             'orders',
             'order_items',
+            'subscriptions',
             'payments',
             'refunds',
             'coupons',

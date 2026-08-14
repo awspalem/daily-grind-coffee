@@ -138,9 +138,10 @@ CREATE TABLE IF NOT EXISTS cart_items (
     grind_type TEXT NOT NULL,
     quantity INTEGER NOT NULL CHECK(quantity > 0),
     unit_price_cents INTEGER NOT NULL,
+    subscription_frequency TEXT, -- 1_WEEK, 2_WEEKS, 4_WEEKS
+    custom_notes TEXT,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(cart_id, variant_id, grind_type)
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 8. Orders, Items & Payments
@@ -178,10 +179,35 @@ CREATE TABLE IF NOT EXISTS order_items (
     grind_type TEXT NOT NULL,
     unit_price_cents INTEGER NOT NULL,
     quantity INTEGER NOT NULL,
-    total_price_cents INTEGER NOT NULL
+    total_price_cents INTEGER NOT NULL,
+    subscription_frequency TEXT, -- 1_WEEK, 2_WEEKS, 4_WEEKS
+    custom_notes TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+
+-- 8b. Recurring Roastery Subscriptions ("The Daily Club")
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id TEXT PRIMARY KEY,
+    customer_email TEXT NOT NULL,
+    customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL,
+    order_id TEXT REFERENCES orders(id) ON DELETE SET NULL,
+    variant_id TEXT NOT NULL REFERENCES product_variants(id) ON DELETE RESTRICT,
+    product_name TEXT NOT NULL,
+    grind_type TEXT NOT NULL,
+    frequency TEXT NOT NULL, -- 1_WEEK, 2_WEEKS, 4_WEEKS
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit_price_cents INTEGER NOT NULL,
+    discount_percent INTEGER NOT NULL DEFAULT 10,
+    status TEXT NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, PAUSED, CANCELLED
+    next_renewal_date DATETIME NOT NULL,
+    shipping_address_json TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_email ON subscriptions(customer_email);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
 
 CREATE TABLE IF NOT EXISTS payments (
     id TEXT PRIMARY KEY,

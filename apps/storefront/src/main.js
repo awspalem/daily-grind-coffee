@@ -1,5 +1,27 @@
+import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 // Curated Bangalore & Global Specialty Catalog
 const FALLBACK_PRODUCTS = [
+    {
+        id: 'prod_taster_flight',
+        slug: 'curated-taster-flight-3x100g',
+        name: 'Curated 3x 100g Roastery Taster Flight',
+        tagline: 'Pick 3 distinct 100g micro-lots from our Indian and global roastery',
+        description: 'Explore three rare micro-lot profiles in custom nitrogen-flushed 100g sample pouches. Choose your favorite trio from Chikmagalur Attikan, Araku Valley Red Honey, Ethiopia Yirgacheffe, Dawn Patrol, and more.',
+        category_id: 'indian-estates',
+        origin_country: 'India & Global',
+        region: 'Bangalore Roastery Selection',
+        process_method: 'WASHED',
+        roast_level: 'MEDIUM',
+        tasting_notes: ['Discovery Flight', '3x 100g Pouches', 'Custom Trio', 'Freshly Roasted'],
+        image_url: '/images/pour_over.jpg',
+        is_active: 1,
+        is_featured: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        variants: [
+            { id: 'var_flight_300', product_id: 'prod_taster_flight', sku: 'TDG-FLIGHT-300G', weight_grams: 300, price_inr: 590, price_usd_cents: 2400, discount_percent: 0, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'SOUTH_INDIAN_FILTER', 'ESPRESSO', 'AEROPRESS', 'FRENCH_PRESS', 'COLD_BREW'], is_active: 1 }
+        ]
+    },
     {
         id: 'prod_chik_attikan',
         slug: 'chikmagalur-attikan-estate-honey',
@@ -123,7 +145,7 @@ const FALLBACK_PRODUCTS = [
         region: 'Western Ghats',
         process_method: 'NATURAL',
         roast_level: 'MEDIUM_DARK',
-        tasting_notes: ['Dark Cacao', 'Vanilla', 'Hazelnut'],
+        tasting_notes: ['Dark Cacao', 'Vanilla', 'Hazelnut', 'Bourbon Spice'],
         image_url: '/images/bag_ethiopia.jpg',
         is_active: 1,
         is_featured: 0,
@@ -133,16 +155,133 @@ const FALLBACK_PRODUCTS = [
             { id: 'var_gcb_500', product_id: 'prod_glacier_cb', sku: 'TDG-GCB-500G', weight_grams: 500, price_inr: 850, price_usd_cents: 3400, discount_percent: 0, grind_options: ['WHOLE_BEAN', 'COLD_BREW_COARSE'], is_active: 1 },
             { id: 'var_gcb_1000', product_id: 'prod_glacier_cb', sku: 'TDG-GCB-1KG', weight_grams: 1000, price_inr: 1550, price_usd_cents: 6000, discount_percent: 8, grind_options: ['WHOLE_BEAN', 'COLD_BREW_COARSE'], is_active: 1 }
         ]
+    },
+    {
+        id: 'prod_monsoon_malabar',
+        slug: 'monsoon-malabar-aa-special-reserve',
+        name: 'Monsoon Malabar AA Special Reserve',
+        tagline: 'Cardamom spice, warm cinnamon bark & dark baker’s cacao',
+        description: 'Naturally cured by monsoon sea winds along the Malabar Coast of Karnataka and Kerala. Ultra-low acidity, syrupy heavy body, and intense aromas of green cardamom, clove spice, and dark chocolate.',
+        category_id: 'indian-estates',
+        origin_country: 'India',
+        region: 'Malabar Coast & Chikmagalur',
+        process_method: 'MONSOONED',
+        roast_level: 'MEDIUM_DARK',
+        tasting_notes: ['Cardamom', 'Cinnamon Bark', 'Dark Cocoa', 'Spiced Wood'],
+        image_url: '/images/roaster.jpg',
+        is_active: 1,
+        is_featured: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        variants: [
+            { id: 'var_mon_250', product_id: 'prod_monsoon_malabar', sku: 'TDG-MON-250G', weight_grams: 250, price_inr: 470, price_usd_cents: 1900, discount_percent: 0, grind_options: ['WHOLE_BEAN', 'SOUTH_INDIAN_FILTER', 'POUR_OVER', 'MOKA_POT'], is_active: 1 },
+            { id: 'var_mon_500', product_id: 'prod_monsoon_malabar', sku: 'TDG-MON-500G', weight_grams: 500, price_inr: 880, price_usd_cents: 3500, discount_percent: 5, grind_options: ['WHOLE_BEAN', 'SOUTH_INDIAN_FILTER', 'POUR_OVER', 'MOKA_POT'], is_active: 1 }
+        ]
+    },
+    {
+        id: 'prod_col_geisha',
+        slug: 'colombia-huila-pink-bourbon',
+        name: 'Colombia Huila Pink Bourbon',
+        tagline: 'Pink guava, ripe papaya, sugarcane syrup & jasmine florals',
+        description: 'Rare Pink Bourbon varietal grown by master producers on volcanic slopes in Huila, Colombia. Crisp malic acidity, sparkling stone fruit notes, and crystalline honey sweetness.',
+        category_id: 'international',
+        origin_country: 'Colombia',
+        region: 'San Agustin, Huila',
+        process_method: 'WASHED',
+        roast_level: 'LIGHT_MEDIUM',
+        tasting_notes: ['Pink Guava', 'Papaya', 'Sugar Cane', 'Jasmine'],
+        image_url: '/images/bag_ethiopia.jpg',
+        is_active: 1,
+        is_featured: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        variants: [
+            { id: 'var_col_250', product_id: 'prod_col_geisha', sku: 'TDG-COL-250G', weight_grams: 250, price_inr: 590, price_usd_cents: 2300, discount_percent: 0, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'AEROPRESS'], is_active: 1 },
+            { id: 'var_col_500', product_id: 'prod_col_geisha', sku: 'TDG-COL-500G', weight_grams: 500, price_inr: 1120, price_usd_cents: 4300, discount_percent: 5, grind_options: ['WHOLE_BEAN', 'POUR_OVER', 'AEROPRESS'], is_active: 1 }
+        ]
     }
 ];
+export const SCA_FLAVOR_CATEGORIES = [
+    {
+        id: 'floral',
+        name: 'Floral',
+        color: '#b85d94',
+        icon: '🌸',
+        subNotes: ['Jasmine', 'Bergamot', 'Orange Blossom', 'Honeysuckle', 'Rose', 'Black Tea'],
+        keywords: ['jasmine', 'bergamot', 'blossom', 'floral', 'honeysuckle', 'rose', 'tea', 'verbena'],
+        description: 'Ethereal jasmine blossom, crisp bergamot citrus, and delicate tea-like honeysuckle sweetness.'
+    },
+    {
+        id: 'fruity',
+        name: 'Fruity',
+        color: '#e0533b',
+        icon: '🍓',
+        subNotes: ['Jackfruit', 'Red Apple', 'White Peach', 'Pink Guava', 'Papaya', 'Orange Peel', 'Black Cherry'],
+        keywords: ['jackfruit', 'apple', 'peach', 'guava', 'papaya', 'orange', 'cherry', 'fruit', 'citrus', 'plum', 'berry'],
+        description: 'Vibrant sun-ripened jackfruit, crisp red apple, sweet white peach, and sparkling tropical fruit.'
+    },
+    {
+        id: 'sweet',
+        name: 'Sweet',
+        color: '#d97706',
+        icon: '🍯',
+        subNotes: ['Sugarcane Jaggery', 'Wild Blossom Honey', 'Caramel Toffee', 'Vanilla Bean', 'Brown Sugar', 'Molasses'],
+        keywords: ['jaggery', 'honey', 'caramel', 'toffee', 'vanilla', 'sugar', 'molasses', 'sweet', 'cane'],
+        description: 'Rich Karnataka sugarcane jaggery, forest honey, butterscotch caramel, and soothing vanilla.'
+    },
+    {
+        id: 'chocolate_nutty',
+        name: 'Chocolate & Nutty',
+        color: '#6e3922',
+        icon: '🍫',
+        subNotes: ['Dark Cacao Nibs', 'Roasted Hazelnut', 'Toasted Cashew', 'Chocolate Fudge', 'Toasted Pecan'],
+        keywords: ['chocolate', 'hazelnut', 'cashew', 'cacao', 'cocoa', 'fudge', 'pecan', 'almond', 'nut', 'nibs'],
+        description: 'Silky dark Belgian cacao fudge, freshly toasted Western Ghats cashews, and roasted hazelnuts.'
+    },
+    {
+        id: 'spiced',
+        name: 'Spiced',
+        color: '#991b1b',
+        icon: '🌶️',
+        subNotes: ['Malabar Cardamom', 'Cinnamon Bark', 'Spiced Rum', 'Smoky Cedar', 'Clove', 'Brown Spice'],
+        keywords: ['cardamom', 'cinnamon', 'spice', 'spiced', 'rum', 'cedar', 'smoky', 'clove', 'pepper', 'wood'],
+        description: 'Aromatic Malabar green cardamom, warm cinnamon stick, smoky cured cedar, and spiced dark rum.'
+    }
+];
+function polarToCartesian(cx, cy, r, angleDeg) {
+    const rad = ((angleDeg - 90) * Math.PI) / 180.0;
+    return {
+        x: cx + r * Math.cos(rad),
+        y: cy + r * Math.sin(rad)
+    };
+}
+function describeWedgePath(cx, cy, rInner, rOuter, startDeg, endDeg) {
+    const p1 = polarToCartesian(cx, cy, rOuter, startDeg);
+    const p2 = polarToCartesian(cx, cy, rOuter, endDeg);
+    const p3 = polarToCartesian(cx, cy, rInner, endDeg);
+    const p4 = polarToCartesian(cx, cy, rInner, startDeg);
+    const largeArc = endDeg - startDeg > 180 ? 1 : 0;
+    return `M ${p1.x} ${p1.y} A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rInner} ${rInner} 0 ${largeArc} 0 ${p4.x} ${p4.y} Z`;
+}
 class StorefrontApp {
     products = [];
     cartItems = [];
     activeCategory = 'all';
     activeTastingNote = 'all';
+    activeFlavorWheelCategory = 'all';
     currentCurrency = 'INR';
     discountPercentage = 0;
     sessionId;
+    deferredInstallPrompt = null;
+    productSubState = {};
+    flightState = {
+        slot1: 'prod_chik_attikan',
+        slot2: 'prod_araku_honey',
+        slot3: 'prod_eth_yirg',
+        grind: 'WHOLE_BEAN',
+        isSub: false,
+        frequency: '2_WEEKS'
+    };
     constructor() {
         this.sessionId = localStorage.getItem('tdg_session_id') || `sess_${Math.random().toString(36).substring(2, 12)}`;
         localStorage.setItem('tdg_session_id', this.sessionId);
@@ -170,7 +309,12 @@ class StorefrontApp {
         this.setupEventListeners();
         this.setupBrewCalculator();
         this.setupQuiz();
+        this.setupPWA();
+        this.setupFlavorWheel();
+        this.setupFlightBuilder();
+        this.renderFlavorWheelSVGs();
         this.updateCartUI();
+        this.handleQRCodeDeepLink();
         await this.loadCatalog();
     }
     setCurrency(curr) {
@@ -178,6 +322,7 @@ class StorefrontApp {
         localStorage.setItem('tdg_currency', curr);
         this.updateCurrencyButtons();
         this.renderProducts();
+        this.updateFlightPricingUI();
         this.updateCartUI();
         // Update announcement banner threshold
         const badge = document.getElementById('announcement-shipping-badge');
@@ -245,7 +390,12 @@ class StorefrontApp {
         catch {
             this.products = FALLBACK_PRODUCTS;
         }
+        const countAllEl = document.getElementById('count-wheel-all');
+        if (countAllEl) {
+            countAllEl.textContent = `${this.products.length} Roasts`;
+        }
         this.renderProducts();
+        this.renderFlavorWheelSVGs();
     }
     renderProducts() {
         const container = document.getElementById('product-grid-container');
@@ -258,10 +408,17 @@ class StorefrontApp {
         if (this.activeTastingNote !== 'all') {
             filtered = filtered.filter((p) => p.tasting_notes.some((n) => n.toLowerCase().includes(this.activeTastingNote.toLowerCase())));
         }
+        let activeWheelCatDef;
+        if (this.activeFlavorWheelCategory !== 'all') {
+            activeWheelCatDef = SCA_FLAVOR_CATEGORIES.find((c) => c.id === this.activeFlavorWheelCategory);
+            if (activeWheelCatDef) {
+                filtered = filtered.filter((p) => this.matchesFlavorCategory(p, activeWheelCatDef));
+            }
+        }
         if (filtered.length === 0) {
             container.innerHTML = `
         <div style="grid-column: 1/-1; text-align:center; padding: 4rem 1rem; color: var(--text-muted);">
-          <p style="font-size: 1.2rem; font-family: var(--font-serif);">No roasts match your exact filter.</p>
+          <p style="font-size: 1.2rem; font-family: var(--font-serif);">No roasts match your exact flavor filter.</p>
           <button class="btn-secondary" style="margin-top:1rem;" onclick="window.storefrontApp.resetFilters()">View All Roasts</button>
         </div>
       `;
@@ -269,16 +426,36 @@ class StorefrontApp {
         }
         container.innerHTML = filtered.map((prod) => {
             const defaultVariant = prod.variants[0] || { id: 'v1', weight_grams: 250, price_inr: 450, price_usd_cents: 1850, discount_percent: 0 };
-            const notesHtml = prod.tasting_notes.map((n) => `<span class="taste-tag">${n}</span>`).join('');
-            const roastScore = prod.roast_level === 'LIGHT' ? 25 : prod.roast_level === 'LIGHT_MEDIUM' ? 45 : prod.roast_level === 'MEDIUM' ? 65 : 90;
+            const isWheelMatch = Boolean(activeWheelCatDef && this.matchesFlavorCategory(prod, activeWheelCatDef));
+            const subState = this.productSubState[prod.id] || { isSub: false, frequency: '2_WEEKS' };
+            this.productSubState[prod.id] = subState;
+            const isSub = subState.isSub;
+            const subFreq = subState.frequency;
+            const subPriceInr = Math.round(defaultVariant.price_inr * 0.90);
+            const subPriceUsd = Math.round(defaultVariant.price_usd_cents * 0.90);
+            const displayPriceInr = isSub ? subPriceInr : defaultVariant.price_inr;
+            const displayPriceUsd = isSub ? subPriceUsd : defaultVariant.price_usd_cents;
+            const formattedPrice = this.formatPrice(displayPriceInr, displayPriceUsd);
+            const originalFormattedPrice = this.formatPrice(defaultVariant.price_inr, defaultVariant.price_usd_cents);
+            const notesHtml = prod.tasting_notes.map((n) => {
+                let isNoteMatched = false;
+                if (activeWheelCatDef) {
+                    isNoteMatched = activeWheelCatDef.keywords.some((k) => n.toLowerCase().includes(k.toLowerCase())) ||
+                        activeWheelCatDef.subNotes.some((sn) => n.toLowerCase().includes(sn.toLowerCase()));
+                }
+                if (isNoteMatched && activeWheelCatDef) {
+                    return `<span class="taste-tag tag-match" style="background: ${activeWheelCatDef.color}; color:#fff;">${n}</span>`;
+                }
+                return `<span class="taste-tag">${n}</span>`;
+            }).join('');
+            const roastScore = prod.roast_level === 'LIGHT' ? 25 : prod.roast_level === 'LIGHT_MEDIUM' ? 45 : prod.roast_level === 'MEDIUM' ? 65 : prod.roast_level === 'MEDIUM_DARK' ? 78 : 90;
             const weightButtons = prod.variants.map((v, idx) => `
         <button class="weight-btn ${idx === 0 ? 'selected' : ''}" data-variant-id="${v.id}" data-price-inr="${v.price_inr}" data-price-usd="${v.price_usd_cents || v.price_cents}" data-discount="${v.discount_percent || 0}" data-weight="${v.weight_grams}">
           ${v.weight_grams >= 1000 ? `${v.weight_grams / 1000}kg` : `${v.weight_grams}g`}
         </button>
       `).join('');
-            const formattedPrice = this.formatPrice(defaultVariant.price_inr, defaultVariant.price_usd_cents);
             return `
-        <article class="product-card" data-product-id="${prod.id}">
+        <article class="product-card ${isWheelMatch ? 'wheel-match' : ''}" data-product-id="${prod.id}">
           <div class="card-media">
             <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" loading="lazy">
             <span class="origin-badge">${prod.origin_country}</span>
@@ -323,11 +500,40 @@ class StorefrontApp {
                   <option value="COLD_BREW">Cold Brew Coarse</option>
                 </select>
               </div>
+
+              <!-- One-Time Purchase vs Subscribe & Save 10% Toggle -->
+              <div class="selector-group">
+                <span class="selector-label">Purchase Option</span>
+                <div class="sub-toggle-container ${isSub ? 'active-sub' : ''}" id="sub-toggle-box-${prod.id}">
+                  <div class="sub-switch-row">
+                    <button class="sub-switch-btn ${!isSub ? 'selected' : ''}" data-action="toggle-sub" data-sub="false" data-prod-id="${prod.id}" type="button">
+                      🛒 One-Time
+                    </button>
+                    <button class="sub-switch-btn ${isSub ? 'selected' : ''}" data-action="toggle-sub" data-sub="true" data-prod-id="${prod.id}" type="button">
+                      ✨ Subscribe &amp; Save <span class="sub-save-tag">-10%</span>
+                    </button>
+                  </div>
+                  <div class="sub-frequency-row" id="sub-freq-row-${prod.id}" style="${isSub ? 'display: flex;' : 'display: none;'}">
+                    <div class="sub-freq-label">
+                      <span>Delivery Frequency</span>
+                      <span style="color:var(--accent-emerald);">10% Off Every Order</span>
+                    </div>
+                    <div class="sub-freq-pills" data-prod="${prod.id}">
+                      <button class="sub-freq-pill ${subFreq === '1_WEEK' ? 'selected' : ''}" data-action="select-freq" data-freq="1_WEEK" data-prod-id="${prod.id}" type="button">Every 1 Week</button>
+                      <button class="sub-freq-pill ${subFreq === '2_WEEKS' ? 'selected' : ''}" data-action="select-freq" data-freq="2_WEEKS" data-prod-id="${prod.id}" type="button">Every 2 Weeks</button>
+                      <button class="sub-freq-pill ${subFreq === '4_WEEKS' ? 'selected' : ''}" data-action="select-freq" data-freq="4_WEEKS" data-prod-id="${prod.id}" type="button">Every 4 Weeks</button>
+                    </div>
+                    <div class="sub-perk-caption">☕ Freshly roasted &amp; dispatched right before renewal. Swap or cancel anytime.</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="card-footer">
               <div class="card-price" id="price-display-${prod.id}">
-                ${formattedPrice}
+                ${isSub ? `<span class="price-original-struck">${originalFormattedPrice}</span>` : ''}
+                <span>${formattedPrice}</span>
+                ${isSub ? `<span class="price-discount-tag">-10% CLUB</span>` : ''}
                 <small>/ ${defaultVariant.weight_grams}g</small>
               </div>
               <button class="btn-add-cart" data-action="add-to-cart" data-prod-id="${prod.id}">
@@ -347,15 +553,62 @@ class StorefrontApp {
                     return;
                 parent.querySelectorAll('.weight-btn').forEach((b) => b.classList.remove('selected'));
                 target.classList.add('selected');
-                const prodId = parent.getAttribute('data-prod');
+                const prodId = parent.getAttribute('data-prod') || '';
                 const priceInr = parseFloat(target.getAttribute('data-price-inr') || '450');
                 const priceUsd = parseInt(target.getAttribute('data-price-usd') || '1850', 10);
                 const weightGrams = parseInt(target.getAttribute('data-weight') || '250', 10);
-                const priceDisplay = document.getElementById(`price-display-${prodId}`);
-                if (priceDisplay) {
-                    const formatted = this.formatPrice(priceInr, priceUsd);
-                    priceDisplay.innerHTML = `${formatted} <small>/ ${weightGrams >= 1000 ? `${weightGrams / 1000}kg` : `${weightGrams}g`}</small>`;
+                this.updateCardPriceDisplay(prodId, priceInr, priceUsd, weightGrams);
+            });
+        });
+        // Attach Subscribe & Save toggles
+        document.querySelectorAll('[data-action="toggle-sub"]').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                this.triggerHaptic();
+                const target = e.currentTarget;
+                const prodId = target.getAttribute('data-prod-id') || '';
+                const isSub = target.getAttribute('data-sub') === 'true';
+                if (!this.productSubState[prodId]) {
+                    this.productSubState[prodId] = { isSub: false, frequency: '2_WEEKS' };
                 }
+                this.productSubState[prodId].isSub = isSub;
+                const card = target.closest('.product-card');
+                const toggleBox = card?.querySelector(`#sub-toggle-box-${prodId}`);
+                const freqRow = card?.querySelector(`#sub-freq-row-${prodId}`);
+                // Update button states
+                toggleBox?.querySelectorAll('[data-action="toggle-sub"]').forEach((b) => b.classList.remove('selected'));
+                target.classList.add('selected');
+                if (isSub) {
+                    toggleBox?.classList.add('active-sub');
+                    if (freqRow)
+                        freqRow.style.display = 'flex';
+                }
+                else {
+                    toggleBox?.classList.remove('active-sub');
+                    if (freqRow)
+                        freqRow.style.display = 'none';
+                }
+                // Recompute price display for selected weight
+                const selectedWeightBtn = card?.querySelector('.weight-btn.selected');
+                const priceInr = parseFloat(selectedWeightBtn?.getAttribute('data-price-inr') || '450');
+                const priceUsd = parseInt(selectedWeightBtn?.getAttribute('data-price-usd') || '1850', 10);
+                const weightGrams = parseInt(selectedWeightBtn?.getAttribute('data-weight') || '250', 10);
+                this.updateCardPriceDisplay(prodId, priceInr, priceUsd, weightGrams);
+            });
+        });
+        // Attach frequency selectors
+        document.querySelectorAll('[data-action="select-freq"]').forEach((pill) => {
+            pill.addEventListener('click', (e) => {
+                this.triggerHaptic();
+                const target = e.currentTarget;
+                const prodId = target.getAttribute('data-prod-id') || '';
+                const freq = target.getAttribute('data-freq') || '2_WEEKS';
+                if (!this.productSubState[prodId]) {
+                    this.productSubState[prodId] = { isSub: true, frequency: '2_WEEKS' };
+                }
+                this.productSubState[prodId].frequency = freq;
+                const parent = target.parentElement;
+                parent?.querySelectorAll('.sub-freq-pill').forEach((p) => p.classList.remove('selected'));
+                target.classList.add('selected');
             });
         });
         // Attach Add to Cart clicks
@@ -371,24 +624,29 @@ class StorefrontApp {
                 const card = target.closest('.product-card');
                 const selectedWeightBtn = card?.querySelector('.weight-btn.selected');
                 const variantId = selectedWeightBtn?.getAttribute('data-variant-id') || prod.variants[0]?.id || 'v1';
-                const priceInr = parseFloat(selectedWeightBtn?.getAttribute('data-price-inr') || `${prod.variants[0]?.price_inr || 450}`);
-                const priceUsd = parseInt(selectedWeightBtn?.getAttribute('data-price-usd') || `${prod.variants[0]?.price_usd_cents || 1850}`, 10);
+                const basePriceInr = parseFloat(selectedWeightBtn?.getAttribute('data-price-inr') || `${prod.variants[0]?.price_inr || 450}`);
+                const basePriceUsd = parseInt(selectedWeightBtn?.getAttribute('data-price-usd') || `${prod.variants[0]?.price_usd_cents || 1850}`, 10);
                 const discount = parseInt(selectedWeightBtn?.getAttribute('data-discount') || '0', 10);
                 const weightGrams = parseInt(selectedWeightBtn?.getAttribute('data-weight') || `${prod.variants[0]?.weight_grams || 250}`, 10);
                 const grindSelect = card?.querySelector('.grind-dropdown');
                 const grindType = grindSelect ? grindSelect.value : 'WHOLE_BEAN';
+                const subState = this.productSubState[prod.id] || { isSub: false, frequency: '2_WEEKS' };
+                const isSub = subState.isSub;
+                const unitPriceInr = isSub ? Math.round(basePriceInr * 0.90) : basePriceInr;
+                const unitPriceUsd = isSub ? Math.round(basePriceUsd * 0.90) : basePriceUsd;
                 this.addToCart({
                     id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
                     product_id: prod.id,
                     variant_id: variantId,
                     name: prod.name,
-                    unit_price_inr: priceInr,
-                    unit_price_usd_cents: priceUsd,
-                    discount_percent: discount,
+                    unit_price_inr: unitPriceInr,
+                    unit_price_usd_cents: unitPriceUsd,
+                    discount_percent: isSub ? 10 : discount,
                     weight_grams: weightGrams,
                     grind_type: grindType,
                     quantity: 1,
-                    image_url: prod.image_url || '/images/bag_ethiopia.jpg'
+                    image_url: prod.image_url || '/images/bag_ethiopia.jpg',
+                    subscription_frequency: isSub ? subState.frequency : null,
                 });
                 // Visual feedback
                 target.innerHTML = '<span>✓ Added!</span>';
@@ -400,8 +658,242 @@ class StorefrontApp {
             });
         });
     }
+    updateCardPriceDisplay(prodId, basePriceInr, basePriceUsd, weightGrams) {
+        const priceDisplay = document.getElementById(`price-display-${prodId}`);
+        if (!priceDisplay)
+            return;
+        const subState = this.productSubState[prodId] || { isSub: false, frequency: '2_WEEKS' };
+        const isSub = subState.isSub;
+        const subPriceInr = Math.round(basePriceInr * 0.90);
+        const subPriceUsd = Math.round(basePriceUsd * 0.90);
+        const displayPriceInr = isSub ? subPriceInr : basePriceInr;
+        const displayPriceUsd = isSub ? subPriceUsd : basePriceUsd;
+        const formattedPrice = this.formatPrice(displayPriceInr, displayPriceUsd);
+        const originalFormattedPrice = this.formatPrice(basePriceInr, basePriceUsd);
+        const weightLabel = weightGrams >= 1000 ? `${weightGrams / 1000}kg` : `${weightGrams}g`;
+        if (isSub) {
+            priceDisplay.innerHTML = `
+        <span class="price-original-struck">${originalFormattedPrice}</span>
+        <span>${formattedPrice}</span>
+        <span class="price-discount-tag">-10% CLUB</span>
+        <small>/ ${weightLabel}</small>
+      `;
+        }
+        else {
+            priceDisplay.innerHTML = `
+        <span>${formattedPrice}</span>
+        <small>/ ${weightLabel}</small>
+      `;
+        }
+    }
+    setupFlightBuilder() {
+        const slotSelects = [
+            document.getElementById('flight-select-slot1'),
+            document.getElementById('flight-select-slot2'),
+            document.getElementById('flight-select-slot3'),
+        ];
+        const availableCoffees = [
+            { id: 'prod_chik_attikan', name: 'Chikmagalur Attikan Estate Honey', origin: 'Chikmagalur, Karnataka', process: 'Honey Process', roast: 'Medium-Light', notes: '🍯 Sugarcane Jaggery · Red Apple · Roasted Hazelnut · Caramel' },
+            { id: 'prod_araku_honey', name: 'Araku Valley Red Honey Micro-Lot', origin: 'Araku Valley, Andhra Pradesh', process: 'Red Honey', roast: 'Light-Medium', notes: '🥭 Ripe Jackfruit · Wild Blossom Honey · Candied Orange Peel' },
+            { id: 'prod_eth_yirg', name: 'Ethiopia Yirgacheffe Gedeb', origin: 'Gedeb, Ethiopia', process: 'Natural Process', roast: 'Light Roast', notes: '🌸 Floral Jasmine · Crisp Bergamot Tea · Sweet White Peach' },
+            { id: 'prod_dawn_blend', name: 'Dawn Patrol Bangalore Roastery Blend', origin: 'Chikmagalur & Coorg', process: 'Washed & Natural', roast: 'Medium Roast', notes: '🍫 Dark Chocolate Fudge · Toasted Cashew · Caramel' },
+            { id: 'prod_mid_runner', name: 'Midnight Runner Dark Espresso', origin: 'Shevaroys / Antigua', process: 'Washed Process', roast: 'Dark Roast', notes: '🍫 Dark Dutch Cocoa · Molasses · Smoky Velvet Crema' },
+            { id: 'prod_monsoon_malabar', name: 'Monsoon Malabar AA Special Reserve', origin: 'Malabar Coast, Karnataka', process: 'Monsooned Cured', roast: 'Medium-Dark', notes: '🌶️ Malabar Cardamom · Cinnamon Bark · Dark Cocoa' },
+            { id: 'prod_col_geisha', name: 'Colombia Huila Pink Bourbon', origin: 'San Agustin, Huila', process: 'Washed Process', roast: 'Light-Medium', notes: '🍓 Pink Guava · Papaya · Sugarcane Syrup · Jasmine' },
+            { id: 'prod_glacier_cb', name: 'Glacier Steep Cold Brew Blend', origin: 'Western Ghats', process: 'Natural Immersion', roast: 'Medium-Dark', notes: '🧊 Dark Cacao · Vanilla Bean · Bourbon Undertones' }
+        ];
+        slotSelects.forEach((sel, idx) => {
+            if (!sel)
+                return;
+            sel.innerHTML = availableCoffees.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+            const slotKey = `slot${idx + 1}`;
+            sel.value = this.flightState[slotKey];
+            sel.addEventListener('change', (e) => {
+                this.triggerHaptic();
+                const val = e.target.value;
+                this.flightState[slotKey] = val;
+                this.updateFlightSlotCard(idx + 1, val, availableCoffees);
+                document.querySelectorAll('.flight-preset-btn').forEach((b) => b.classList.remove('active'));
+            });
+        });
+        // Initial slot card updates
+        slotSelects.forEach((_, idx) => {
+            const slotKey = `slot${idx + 1}`;
+            this.updateFlightSlotCard(idx + 1, this.flightState[slotKey], availableCoffees);
+        });
+        // Preset Buttons
+        document.querySelectorAll('.flight-preset-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                this.triggerHaptic();
+                document.querySelectorAll('.flight-preset-btn').forEach((b) => b.classList.remove('active'));
+                const target = e.currentTarget;
+                target.classList.add('active');
+                const preset = target.getAttribute('data-preset');
+                if (preset === 'india-estates') {
+                    this.flightState.slot1 = 'prod_chik_attikan';
+                    this.flightState.slot2 = 'prod_araku_honey';
+                    this.flightState.slot3 = 'prod_dawn_blend';
+                }
+                else if (preset === 'global-explorer') {
+                    this.flightState.slot1 = 'prod_eth_yirg';
+                    this.flightState.slot2 = 'prod_col_geisha';
+                    this.flightState.slot3 = 'prod_chik_attikan';
+                }
+                else if (preset === 'roasters-choice') {
+                    this.flightState.slot1 = 'prod_chik_attikan';
+                    this.flightState.slot2 = 'prod_araku_honey';
+                    this.flightState.slot3 = 'prod_eth_yirg';
+                }
+                else if (preset === 'dark-espresso') {
+                    this.flightState.slot1 = 'prod_mid_runner';
+                    this.flightState.slot2 = 'prod_dawn_blend';
+                    this.flightState.slot3 = 'prod_glacier_cb';
+                }
+                slotSelects.forEach((sel, idx) => {
+                    if (sel) {
+                        const slotKey = `slot${idx + 1}`;
+                        sel.value = this.flightState[slotKey];
+                        this.updateFlightSlotCard(idx + 1, this.flightState[slotKey], availableCoffees);
+                    }
+                });
+            });
+        });
+        // Flight Subscription Toggle
+        const btnOneTime = document.getElementById('flight-sub-btn-onetime');
+        const btnClub = document.getElementById('flight-sub-btn-club');
+        const freqRow = document.getElementById('flight-sub-freq-row');
+        const subContainer = document.getElementById('flight-sub-container');
+        btnOneTime?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.flightState.isSub = false;
+            btnOneTime.classList.add('selected');
+            btnClub?.classList.remove('selected');
+            subContainer?.classList.remove('active-sub');
+            if (freqRow)
+                freqRow.style.display = 'none';
+            this.updateFlightPricingUI();
+        });
+        btnClub?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.flightState.isSub = true;
+            btnClub.classList.add('selected');
+            btnOneTime?.classList.remove('selected');
+            subContainer?.classList.add('active-sub');
+            if (freqRow)
+                freqRow.style.display = 'flex';
+            this.updateFlightPricingUI();
+        });
+        freqRow?.querySelectorAll('.sub-freq-pill').forEach((pill) => {
+            pill.addEventListener('click', (e) => {
+                this.triggerHaptic();
+                freqRow.querySelectorAll('.sub-freq-pill').forEach((p) => p.classList.remove('selected'));
+                const target = e.currentTarget;
+                target.classList.add('selected');
+                this.flightState.frequency = target.getAttribute('data-freq') || '2_WEEKS';
+            });
+        });
+        // Universal Grind Selection
+        const grindSelect = document.getElementById('flight-universal-grind');
+        grindSelect?.addEventListener('change', () => {
+            this.flightState.grind = grindSelect.value;
+        });
+        // 1-Click "Add Taster Flight to Cart"
+        document.getElementById('btn-add-flight-to-cart')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            const coffee1 = availableCoffees.find((c) => c.id === this.flightState.slot1);
+            const coffee2 = availableCoffees.find((c) => c.id === this.flightState.slot2);
+            const coffee3 = availableCoffees.find((c) => c.id === this.flightState.slot3);
+            const baseInr = 590;
+            const baseUsdCents = 2400;
+            const unitPriceInr = this.flightState.isSub ? Math.round(baseInr * 0.90) : baseInr;
+            const unitPriceUsdCents = this.flightState.isSub ? Math.round(baseUsdCents * 0.90) : baseUsdCents;
+            const grindVal = grindSelect ? grindSelect.value : 'WHOLE_BEAN';
+            const notesSummary = `3x 100g Lots: 1. ${coffee1?.name || 'Attikan Honey'}, 2. ${coffee2?.name || 'Araku Red Honey'}, 3. ${coffee3?.name || 'Ethiopia Yirgacheffe'}`;
+            this.addToCart({
+                id: `flight_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                product_id: 'prod_taster_flight',
+                variant_id: 'var_flight_300',
+                name: 'Curated 3x 100g Taster Flight',
+                weight_grams: 300,
+                grind_type: grindVal,
+                unit_price_inr: unitPriceInr,
+                unit_price_usd_cents: unitPriceUsdCents,
+                discount_percent: this.flightState.isSub ? 10 : 0,
+                quantity: 1,
+                image_url: '/images/pour_over.jpg',
+                subscription_frequency: this.flightState.isSub ? this.flightState.frequency : null,
+                custom_notes: notesSummary,
+            });
+            const btn = document.getElementById('btn-add-flight-to-cart');
+            if (btn) {
+                const origHtml = btn.innerHTML;
+                btn.innerHTML = '<span>✓ Taster Flight Added!</span>';
+                btn.style.background = 'var(--accent-emerald)';
+                setTimeout(() => {
+                    btn.innerHTML = origHtml;
+                    btn.style.background = 'var(--accent-terracotta)';
+                }, 1500);
+            }
+        });
+        this.updateFlightPricingUI();
+    }
+    updateFlightSlotCard(slotNum, coffeeId, availableCoffees) {
+        const coffee = availableCoffees.find((c) => c.id === coffeeId);
+        if (!coffee)
+            return;
+        const titleEl = document.getElementById(`slot-name-${slotNum}`);
+        const metaEl = document.getElementById(`slot-meta-${slotNum}`);
+        const notesEl = document.getElementById(`slot-notes-${slotNum}`);
+        if (titleEl)
+            titleEl.textContent = coffee.name;
+        if (metaEl) {
+            metaEl.innerHTML = `
+        <span class="slot-meta-tag">${coffee.origin}</span>
+        <span class="slot-meta-tag">${coffee.process}</span>
+        <span class="slot-meta-tag">${coffee.roast}</span>
+      `;
+        }
+        if (notesEl) {
+            notesEl.textContent = coffee.notes;
+        }
+    }
+    updateFlightPricingUI() {
+        const priceDisplay = document.getElementById('flight-price-display');
+        const footerPrice = document.getElementById('flight-footer-price');
+        const subnote = document.getElementById('flight-price-subnote');
+        const baseInr = 590;
+        const baseUsd = 2400;
+        if (this.flightState.isSub) {
+            const subInr = Math.round(baseInr * 0.90); // 531
+            const subUsd = Math.round(baseUsd * 0.90); // 2160
+            const formatted = this.formatPrice(subInr, subUsd);
+            const origFormatted = this.formatPrice(baseInr, baseUsd);
+            if (priceDisplay) {
+                priceDisplay.innerHTML = `<span class="price-original-struck" style="color:rgba(255,255,255,0.6);">${origFormatted}</span> <span>${formatted}</span>`;
+            }
+            if (footerPrice) {
+                footerPrice.innerHTML = `<span class="price-original-struck">${origFormatted}</span> <span>${formatted} (300g · Save 10%)</span>`;
+            }
+            if (subnote) {
+                subnote.textContent = `${formatted} Recurring Roastery Club · Free Priority Shipping Across India`;
+            }
+        }
+        else {
+            const formatted = this.formatPrice(baseInr, baseUsd);
+            if (priceDisplay)
+                priceDisplay.textContent = formatted;
+            if (footerPrice)
+                footerPrice.textContent = `${formatted} (300g Total)`;
+            if (subnote) {
+                subnote.textContent = this.currentCurrency === 'INR' ? '₹590 (INR) / $24.00 (USD) · Free Priority Roastery Dispatch' : '$24.00 (USD) · Free Priority Roastery Dispatch';
+            }
+        }
+    }
     addToCart(item) {
-        const existing = this.cartItems.find((i) => i.variant_id === item.variant_id && i.grind_type === item.grind_type);
+        const existing = this.cartItems.find((i) => i.variant_id === item.variant_id &&
+            i.grind_type === item.grind_type &&
+            (i.subscription_frequency || null) === (item.subscription_frequency || null) &&
+            (i.custom_notes || null) === (item.custom_notes || null));
         if (existing) {
             existing.quantity += item.quantity;
         }
@@ -476,12 +968,20 @@ class StorefrontApp {
         const finalUsdCents = Math.max(0, subtotalUsdCents - discountAmountUsdCents + shippingUsdCents);
         container.innerHTML = this.cartItems.map((item, idx) => {
             const itemPriceStr = this.formatPrice(item.unit_price_inr, item.unit_price_usd_cents);
+            const subBadgeHtml = item.subscription_frequency
+                ? `<div class="cart-club-badge">🔄 The Daily Club (${item.subscription_frequency.replace('_', ' ')}) · 10% Off</div>`
+                : '';
+            const notesHtml = item.custom_notes
+                ? `<div class="cart-flight-detail">${item.custom_notes}</div>`
+                : '';
             return `
         <div class="cart-item-card">
           <img src="${item.image_url}" alt="${item.name}" class="cart-item-img">
           <div class="cart-item-info">
             <div class="cart-item-name">${item.name}</div>
             <div class="cart-item-variant">${item.weight_grams >= 1000 ? `${item.weight_grams / 1000}kg` : `${item.weight_grams}g`} · ${item.grind_type.replace(/_/g, ' ')}</div>
+            ${notesHtml}
+            ${subBadgeHtml}
             <div class="cart-item-price">${itemPriceStr}</div>
             <div class="cart-qty-ctrl">
               <button class="qty-btn" data-action="dec" data-index="${idx}">-</button>
@@ -648,8 +1148,11 @@ class StorefrontApp {
                         items: this.cartItems.map((i) => ({
                             variant_id: i.variant_id,
                             quantity: i.quantity,
+                            grind_type: i.grind_type,
                             unit_price_cents: this.currentCurrency === 'INR' ? Math.round(i.unit_price_inr * 100) : i.unit_price_usd_cents,
-                            product_name: i.name
+                            product_name: i.name,
+                            subscription_frequency: i.subscription_frequency || null,
+                            custom_notes: i.custom_notes || null
                         }))
                     })
                 });
@@ -733,27 +1236,116 @@ class StorefrontApp {
                 loadingBubble.textContent = "For traditional filter kaapi or pour over, try our Chikmagalur Attikan Estate. For a rich dark espresso with thick crema, Midnight Runner is phenomenal!";
             }
         });
-        // Order Lookup Form
+        // Order Lookup Form & Indian GST Tax Invoicing (HSN 0901)
         const orderForm = document.getElementById('order-lookup-form');
         orderForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
+            this.triggerHaptic();
             const input = document.getElementById('order-lookup-input');
-            const orderNum = input.value.trim();
+            const orderNum = input.value.trim().toUpperCase();
             const resultBox = document.getElementById('order-lookup-result');
             if (!resultBox)
                 return;
+            // Match known mock or dynamic order data
+            const orderLookupCatalog = {
+                'TDG-102938': {
+                    customer: 'Rohan Sharma',
+                    loc: 'Indiranagar, Bengaluru',
+                    item: 'Chikmagalur Attikan Estate Honey (250g · South Indian Filter)',
+                    total: 450,
+                    status: 'ROASTING IN PROGRESS',
+                    statusClass: 'accent-emerald',
+                    desc: 'Your batch is currently in convection roast cycle #04 at Indiranagar Roastery. It will degas for 12 hours and ship via express roastery courier across India.'
+                },
+                'TDG-102939': {
+                    customer: 'Priya Nair',
+                    loc: 'Koramangala, Bengaluru',
+                    item: 'Midnight Runner Dark Espresso (500g · Whole Bean)',
+                    total: 820,
+                    status: 'PAID & QUEUED',
+                    statusClass: 'accent-gold',
+                    desc: 'Queued for today\'s afternoon roasting batch. Nitrogen-sealed packaging ready for next-day Bangalore handoff.'
+                },
+                'TDG-102940': {
+                    customer: 'David Miller',
+                    loc: 'Whitefield, Bengaluru',
+                    item: 'Dawn Patrol Bangalore Roastery Blend (1kg · Espresso)',
+                    total: 1490,
+                    status: 'DISPATCHED · IN TRANSIT',
+                    statusClass: 'accent-terracotta',
+                    desc: 'Dispatched via Express Courier. Tracking ID: BLR-EXPRESS-99281. Estimated delivery: Today by 6:00 PM.'
+                }
+            };
+            const matched = orderLookupCatalog[orderNum] || {
+                customer: 'Specialty Coffee Connoisseur',
+                loc: 'Bengaluru, Karnataka',
+                item: 'Chikmagalur Attikan Estate Honey (250g · Fresh Roast)',
+                total: 450,
+                status: 'PAID & QUEUED FOR ROAST',
+                statusClass: 'accent-emerald',
+                desc: 'Your custom order is confirmed and queued at our Indiranagar roastery. Fresh micro-batch convection roasting starts shortly!'
+            };
             resultBox.style.display = 'block';
             resultBox.innerHTML = `
-        <div style="background: var(--bg-primary); padding: 1.5rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
-            <strong>Order: ${orderNum}</strong>
-            <span style="background: var(--accent-sage); color: var(--accent-emerald); padding: 0.2rem 0.6rem; border-radius: var(--radius-pill); font-size: 0.78rem; font-weight:700;">IN ROASTER</span>
+        <div style="background: var(--bg-primary); padding: 1.6rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <strong style="font-size: 1.1rem; color: var(--text-main);">Order: ${orderNum}</strong>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem;">Customer: ${matched.customer} (${matched.loc})</div>
+            </div>
+            <span style="background: var(--accent-sage); color: var(--accent-emerald); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.78rem; font-weight:700; letter-spacing: 0.04em;">${matched.status}</span>
           </div>
-          <p style="font-size:0.9rem; color: var(--text-muted); line-height:1.5;">
-            Your specialty batch is being convection-roasted in Indiranagar, Bangalore. It will degas for 12 hours and ship via express roastery courier across India!
+
+          <div style="margin: 0.8rem 0; padding: 0.8rem 1rem; background: #fff; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">${matched.item}</div>
+            <div style="font-size: 0.8rem; color: var(--accent-terracotta); font-weight: 700; margin-top: 0.2rem;">Total: ₹${matched.total} (Inclusive of 5.0% GST · HSN 0901)</div>
+          </div>
+
+          <p style="font-size:0.88rem; color: var(--text-muted); line-height:1.5; margin-bottom: 1.2rem;">
+            ${matched.desc}
           </p>
+
+          <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+            <button class="btn-primary" id="btn-view-order-gst-invoice" style="padding: 0.7rem 1.4rem; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+              🧾 View & Print GST Tax Invoice (HSN 0901)
+            </button>
+            <a href="#brew-guide" class="btn-secondary" style="padding: 0.7rem 1.2rem; font-size: 0.88rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; border-radius: var(--radius-pill);">
+              ☕ Maya's Brew Guide
+            </a>
+          </div>
         </div>
       `;
+            // Attach GST invoice modal trigger
+            document.getElementById('btn-view-order-gst-invoice')?.addEventListener('click', () => {
+                this.triggerHaptic();
+                const invoiceData = buildGSTInvoiceFromOrder({
+                    orderId: orderNum,
+                    customerName: matched.customer,
+                    customerLocation: matched.loc,
+                    productDescription: matched.item,
+                    totalAmountInr: matched.total
+                });
+                const invoiceContentEl = document.getElementById('modal-cust-invoice-content');
+                const modalCustInvoice = document.getElementById('modal-customer-invoice');
+                if (invoiceContentEl) {
+                    invoiceContentEl.innerHTML = renderGSTInvoiceHTML(invoiceData);
+                }
+                if (modalCustInvoice) {
+                    modalCustInvoice.classList.add('active');
+                }
+            });
+        });
+        // Customer Invoice Modal Close & Print
+        const modalCustInvoice = document.getElementById('modal-customer-invoice');
+        document.getElementById('modal-cust-invoice-close')?.addEventListener('click', () => {
+            modalCustInvoice?.classList.remove('active');
+        });
+        document.getElementById('modal-cust-invoice-cancel')?.addEventListener('click', () => {
+            modalCustInvoice?.classList.remove('active');
+        });
+        document.getElementById('modal-cust-invoice-print')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            window.print();
         });
     }
     appendMessage(role, text) {
@@ -992,18 +1584,338 @@ class StorefrontApp {
         }
         document.getElementById('agent-drawer-overlay')?.classList.remove('open');
     }
+    setupPWA() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.deferredInstallPrompt = e;
+            const banner = document.getElementById('pwa-install-banner');
+            const headerBtn = document.getElementById('btn-header-install');
+            const dismissedAt = localStorage.getItem('tdg_pwa_dismissed');
+            const isDismissedRecently = dismissedAt && (Date.now() - parseInt(dismissedAt, 10)) < 24 * 60 * 60 * 1000;
+            if (banner && !isDismissedRecently) {
+                banner.style.display = 'block';
+            }
+            if (headerBtn) {
+                headerBtn.style.display = 'flex';
+            }
+        });
+        document.getElementById('btn-pwa-install')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.installPWA();
+        });
+        document.getElementById('btn-header-install')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.installPWA();
+        });
+        document.getElementById('btn-pwa-dismiss')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            const banner = document.getElementById('pwa-install-banner');
+            if (banner) {
+                banner.style.display = 'none';
+            }
+            localStorage.setItem('tdg_pwa_dismissed', Date.now().toString());
+        });
+        window.addEventListener('appinstalled', () => {
+            console.log('[PWA] The Daily Grind installed successfully');
+            this.deferredInstallPrompt = null;
+            const banner = document.getElementById('pwa-install-banner');
+            const headerBtn = document.getElementById('btn-header-install');
+            if (banner)
+                banner.style.display = 'none';
+            if (headerBtn)
+                headerBtn.style.display = 'none';
+        });
+    }
+    async installPWA() {
+        if (this.deferredInstallPrompt) {
+            this.deferredInstallPrompt.prompt();
+            const choice = await this.deferredInstallPrompt.userChoice;
+            console.log(`[PWA] User choice: ${choice?.outcome}`);
+            this.deferredInstallPrompt = null;
+            const banner = document.getElementById('pwa-install-banner');
+            if (banner)
+                banner.style.display = 'none';
+        }
+        else {
+            alert('To install The Daily Grind Mobile App:\n\n• iOS Safari: Tap the Share button (⎋) → "Add to Home Screen"\n• Android Chrome: Tap Menu (⋮) → "Install app"\n• Desktop: Click the install icon in your address bar');
+        }
+    }
+    renderFlavorWheelSVGs() {
+        const mainGroup = document.getElementById('wheel-sectors-group');
+        const modalGroup = document.getElementById('modal-wheel-sectors-group');
+        const totalCategories = SCA_FLAVOR_CATEGORIES.length;
+        const sectorAngle = 360 / totalCategories;
+        if (mainGroup) {
+            mainGroup.innerHTML = SCA_FLAVOR_CATEGORIES.map((cat, idx) => {
+                const startDeg = idx * sectorAngle;
+                const endDeg = startDeg + sectorAngle;
+                const pathD = describeWedgePath(0, 0, 46, 148, startDeg, endDeg);
+                const midDeg = (startDeg + endDeg) / 2;
+                const textPos = polarToCartesian(0, 0, 96, midDeg);
+                const isActive = this.activeFlavorWheelCategory === cat.id;
+                return `
+          <g class="wheel-wedge-group" data-category="${cat.id}">
+            <path d="${pathD}" fill="${cat.color}" class="wheel-wedge ${isActive ? 'active' : ''}" data-category="${cat.id}">
+              <title>${cat.name}: ${cat.subNotes.slice(0, 3).join(', ')}</title>
+            </path>
+            <text x="${textPos.x}" y="${textPos.y}" text-anchor="middle" dominant-baseline="central" class="wedge-label">
+              ${cat.icon} ${cat.name}
+            </text>
+          </g>
+        `;
+            }).join('');
+        }
+        if (modalGroup) {
+            modalGroup.innerHTML = SCA_FLAVOR_CATEGORIES.map((cat, idx) => {
+                const startDeg = idx * sectorAngle;
+                const endDeg = startDeg + sectorAngle;
+                const pathD = describeWedgePath(0, 0, 54, 175, startDeg, endDeg);
+                const midDeg = (startDeg + endDeg) / 2;
+                const textPos = polarToCartesian(0, 0, 114, midDeg);
+                const isActive = this.activeFlavorWheelCategory === cat.id;
+                return `
+          <g class="modal-wheel-wedge-group" data-category="${cat.id}">
+            <path d="${pathD}" fill="${cat.color}" class="wheel-wedge ${isActive ? 'active' : ''}" data-category="${cat.id}">
+              <title>${cat.name}: ${cat.description}</title>
+            </path>
+            <text x="${textPos.x}" y="${textPos.y}" text-anchor="middle" dominant-baseline="central" class="wedge-label" font-size="12">
+              ${cat.icon} ${cat.name}
+            </text>
+          </g>
+        `;
+            }).join('');
+        }
+        document.querySelectorAll('.wheel-wedge').forEach((wedge) => {
+            wedge.addEventListener('click', (e) => {
+                const catId = e.currentTarget.getAttribute('data-category');
+                if (catId) {
+                    this.triggerHaptic();
+                    this.setFlavorCategory(catId === this.activeFlavorWheelCategory ? 'all' : catId, true);
+                }
+            });
+        });
+    }
+    setupFlavorWheel() {
+        document.querySelectorAll('#flavor-wheel-pills .wheel-cat-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                this.triggerHaptic();
+                const cat = e.currentTarget.getAttribute('data-category') || 'all';
+                this.setFlavorCategory(cat, true);
+            });
+        });
+        document.getElementById('btn-clear-wheel-filter')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.setFlavorCategory('all');
+        });
+        document.getElementById('btn-open-flavor-wheel-modal')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.openFlavorWheelModal();
+        });
+        document.getElementById('btn-close-wheel-modal')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.closeFlavorWheelModal();
+        });
+        document.getElementById('btn-apply-modal-filter')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            this.closeFlavorWheelModal();
+            document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+        });
+        document.getElementById('flavor-wheel-modal')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.closeFlavorWheelModal();
+            }
+        });
+    }
+    setFlavorCategory(category, scrollToCatalog = false) {
+        this.activeFlavorWheelCategory = category;
+        document.querySelectorAll('#flavor-wheel-pills .wheel-cat-btn').forEach((btn) => {
+            const cat = btn.getAttribute('data-category');
+            if (cat === category) {
+                btn.classList.add('active');
+            }
+            else {
+                btn.classList.remove('active');
+            }
+        });
+        document.querySelectorAll('.wheel-wedge').forEach((wedge) => {
+            const cat = wedge.getAttribute('data-category');
+            if (cat === category) {
+                wedge.classList.add('active');
+            }
+            else {
+                wedge.classList.remove('active');
+            }
+        });
+        const statusIndicator = document.getElementById('active-flavor-status');
+        const statusText = document.getElementById('active-flavor-text');
+        if (category !== 'all') {
+            const catDef = SCA_FLAVOR_CATEGORIES.find((c) => c.id === category);
+            if (statusIndicator && statusText && catDef) {
+                statusIndicator.style.display = 'inline-flex';
+                statusText.innerHTML = `Filtering by <strong style="color: ${catDef.color}">${catDef.icon} ${catDef.name}</strong>`;
+            }
+        }
+        else {
+            if (statusIndicator) {
+                statusIndicator.style.display = 'none';
+            }
+        }
+        this.updateModalFlavorDetails(category);
+        this.renderProducts();
+        if (scrollToCatalog && category !== 'all') {
+            const catalogEl = document.getElementById('catalog');
+            if (catalogEl) {
+                catalogEl.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    }
+    updateModalFlavorDetails(category) {
+        const iconEl = document.getElementById('detail-category-icon');
+        const titleEl = document.getElementById('detail-category-title');
+        const descEl = document.getElementById('detail-category-desc');
+        const subnotesEl = document.getElementById('detail-subnotes-container');
+        const matchedEl = document.getElementById('detail-matched-coffees');
+        const catDef = SCA_FLAVOR_CATEGORIES.find((c) => c.id === category);
+        if (!catDef || category === 'all') {
+            if (iconEl)
+                iconEl.textContent = '✨';
+            if (titleEl)
+                titleEl.textContent = 'All Flavor Families';
+            if (descEl)
+                descEl.textContent = 'Select any sector (Floral, Fruity, Sweet, Chocolate/Nutty, Spiced) to highlight matching cupping notes.';
+            if (subnotesEl) {
+                subnotesEl.innerHTML = `
+          <span class="taste-tag">Jasmine</span>
+          <span class="taste-tag">Jackfruit</span>
+          <span class="taste-tag">Jaggery</span>
+          <span class="taste-tag">Dark Chocolate</span>
+          <span class="taste-tag">Cardamom</span>
+        `;
+            }
+            if (matchedEl) {
+                matchedEl.innerHTML = this.products.slice(0, 3).map((p) => `
+          <div class="matched-coffee-pill">
+            <span class="matched-coffee-name">${p.name}</span>
+            <span class="matched-coffee-roast">${p.origin_country} · ${p.roast_level.replace('_', ' ')}</span>
+          </div>
+        `).join('');
+            }
+            return;
+        }
+        if (iconEl)
+            iconEl.textContent = catDef.icon;
+        if (titleEl)
+            titleEl.textContent = `${catDef.name} Profile`;
+        if (descEl)
+            descEl.textContent = catDef.description;
+        if (subnotesEl) {
+            subnotesEl.innerHTML = catDef.subNotes.map((sn) => `
+        <span class="taste-tag tag-match" style="background: ${catDef.color}; color: #fff;">${sn}</span>
+      `).join('');
+        }
+        if (matchedEl) {
+            const matched = this.products.filter((p) => this.matchesFlavorCategory(p, catDef));
+            if (matched.length === 0) {
+                matchedEl.innerHTML = `<p style="font-size:0.85rem; color: var(--text-muted);">No current roasts in this exact profile.</p>`;
+            }
+            else {
+                matchedEl.innerHTML = matched.map((p) => `
+          <div class="matched-coffee-pill">
+            <span class="matched-coffee-name">${p.name}</span>
+            <span class="matched-coffee-roast">${p.origin_country} · ${p.roast_level.replace('_', ' ')}</span>
+          </div>
+        `).join('');
+            }
+        }
+    }
+    matchesFlavorCategory(product, catDef) {
+        const notes = (product.tasting_notes || []).map((n) => n.toLowerCase());
+        const desc = (product.description || '').toLowerCase();
+        const tagline = (product.tagline || '').toLowerCase();
+        const fullText = `${notes.join(' ')} ${desc} ${tagline}`;
+        return catDef.keywords.some((kw) => fullText.includes(kw.toLowerCase())) ||
+            catDef.subNotes.some((sn) => fullText.includes(sn.toLowerCase()));
+    }
+    openFlavorWheelModal() {
+        const modal = document.getElementById('flavor-wheel-modal');
+        if (modal) {
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+            this.updateModalFlavorDetails(this.activeFlavorWheelCategory);
+        }
+    }
+    closeFlavorWheelModal() {
+        const modal = document.getElementById('flavor-wheel-modal');
+        if (modal) {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+    }
+    handleQRCodeDeepLink() {
+        try {
+            const hash = window.location.hash || '';
+            const search = window.location.search || '';
+            const fullUrl = window.location.href;
+            if (fullUrl.includes('lot=') || hash.includes('brew-guide') || fullUrl.includes('batch=')) {
+                const rawParamString = search ? search.slice(1) : (hash.includes('?') ? hash.split('?')[1] : '');
+                const params = new URLSearchParams(rawParamString);
+                const lotSlug = params.get('lot');
+                const grind = params.get('grind');
+                const batch = params.get('batch');
+                if (lotSlug || grind) {
+                    setTimeout(() => {
+                        document.getElementById('brew-guide')?.scrollIntoView({ behavior: 'smooth' });
+                        if (grind) {
+                            const cleanedGrind = grind.toLowerCase().replace(/[^a-z0-9]/g, '');
+                            const methodCard = Array.from(document.querySelectorAll('.brew-card')).find(c => {
+                                const title = c.querySelector('.brew-title')?.textContent?.toLowerCase() || '';
+                                return title.includes(cleanedGrind) || (cleanedGrind.includes('filter') && title.includes('filter')) ||
+                                    (cleanedGrind.includes('v60') && title.includes('v60')) ||
+                                    (cleanedGrind.includes('espresso') && title.includes('espresso')) ||
+                                    (cleanedGrind.includes('aeropress') && title.includes('aeropress'));
+                            });
+                            if (methodCard) {
+                                document.querySelectorAll('.brew-card').forEach((c) => c.classList.remove('active'));
+                                methodCard.classList.add('active');
+                                const r = methodCard.getAttribute('data-ratio');
+                                const ratioSlider = document.getElementById('brew-ratio-slider');
+                                if (r && ratioSlider) {
+                                    ratioSlider.value = r;
+                                    ratioSlider.dispatchEvent(new Event('input'));
+                                }
+                            }
+                        }
+                        if (lotSlug) {
+                            const prettyLot = lotSlug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                            this.appendMessage('agent', `✨ Namaskara! You scanned the thermal bag label for ${prettyLot}${batch ? ` (${batch})` : ''}. For this fresh Bangalore convection roast, I recommend 93°C water with a 1:16 ratio and 45s bloom for optimal jaggery sweetness. Ask me anything about dialing in your brew!`);
+                            this.openAgent();
+                        }
+                    }, 500);
+                }
+            }
+        }
+        catch {
+            // Graceful fallback for non-browser/test environments
+        }
+    }
     resetFilters() {
         this.triggerHaptic();
         this.activeCategory = 'all';
         this.activeTastingNote = 'all';
+        this.activeFlavorWheelCategory = 'all';
         document.querySelectorAll('#category-tabs-container .category-tab').forEach((t) => t.classList.remove('active'));
         document.querySelectorAll('#flavor-pills-container .note-pill').forEach((p) => p.classList.remove('active'));
+        document.querySelectorAll('#flavor-wheel-pills .wheel-cat-btn').forEach((p) => p.classList.remove('active'));
+        document.querySelectorAll('.wheel-wedge').forEach((w) => w.classList.remove('active'));
         document.querySelector('#category-tabs-container .category-tab[data-category="all"]')?.classList.add('active');
         document.querySelector('#flavor-pills-container .note-pill[data-note="all"]')?.classList.add('active');
+        document.querySelector('#flavor-wheel-pills .wheel-cat-btn[data-category="all"]')?.classList.add('active');
+        const statusIndicator = document.getElementById('active-flavor-status');
+        if (statusIndicator)
+            statusIndicator.style.display = 'none';
         this.renderProducts();
     }
 }
 const app = new StorefrontApp();
 window.storefrontApp = app;
 app.init();
-export {};

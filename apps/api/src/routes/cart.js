@@ -28,6 +28,8 @@ async function getOrCreateCart(db, sessionToken) {
       ci.grind_type,
       ci.quantity,
       ci.unit_price_cents,
+      ci.subscription_frequency,
+      ci.custom_notes,
       v.weight_grams,
       v.price_cents as current_price_cents,
       p.id as product_id,
@@ -53,6 +55,8 @@ async function getOrCreateCart(db, sessionToken) {
         price_cents: Number(row.unit_price_cents),
         quantity: Number(row.quantity),
         line_total_cents: Number(row.unit_price_cents) * Number(row.quantity),
+        subscription_frequency: row.subscription_frequency || null,
+        custom_notes: row.custom_notes || null,
     }));
     const subtotalCents = items.reduce((acc, it) => acc + it.line_total_cents, 0);
     const discountCents = Number(cart.discount_cents || 0);
@@ -90,17 +94,20 @@ cartApp.post('/items', async (c) => {
     if (!variant) {
         return c.json({ success: false, error: 'Invalid product variant' }, 404);
     }
-    // Insert or update existing cart item
-    const existingItem = await c.env.DB.prepare('SELECT id, quantity FROM cart_items WHERE cart_id = ? AND variant_id = ? AND grind_type = ?').bind(cart.id, body.variant_id, body.grind_type).first();
+    const subFreq = body.subscription_frequency || null;
+    // Apply 10% discount for recurring roastery subscription items
+    const unitPriceCents = subFreq ? Math.round(variant.price_cents * 0.90) : variant.price_cents;
+    // Insert or update existing cart item matching variant, grind, and subscription frequency
+    const existingItem = await c.env.DB.prepare('SELECT id, quantity FROM cart_items WHERE cart_id = ? AND variant_id = ? AND grind_type = ? AND (subscription_frequency = ? OR (subscription_frequency IS NULL AND ? IS NULL))').bind(cart.id, body.variant_id, body.grind_type, subFreq, subFreq).first();
     if (existingItem) {
         await c.env.DB.prepare('UPDATE cart_items SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(quantity, existingItem.id).run();
     }
     else {
         const itemId = 'ci_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
         await c.env.DB.prepare(`
-      INSERT INTO cart_items (id, cart_id, variant_id, grind_type, quantity, unit_price_cents)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(itemId, cart.id, body.variant_id, body.grind_type, quantity, variant.price_cents).run();
+      INSERT INTO cart_items (id, cart_id, variant_id, grind_type, quantity, unit_price_cents, subscription_frequency, custom_notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(itemId, cart.id, body.variant_id, body.grind_type, quantity, unitPriceCents, subFreq, body.custom_notes || null).run();
     }
     const updatedCart = await getOrCreateCart(c.env.DB, cart.session_token);
     return c.json({ success: true, cart: updatedCart });

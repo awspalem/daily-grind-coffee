@@ -5,7 +5,8 @@ INSERT OR IGNORE INTO categories (id, slug, name, description, display_order) VA
 ('cat_so', 'single-origin', 'Single Origin', 'Exceptional single-estate coffees sourced from distinct microclimates around the globe.', 1),
 ('cat_bl', 'signature-blends', 'Signature Blends', 'Masterfully balanced blends crafted for rich complexity, morning rituals, and milk drinks.', 2),
 ('cat_es', 'espresso-roasts', 'Espresso Roasts', 'Dense, aromatic profiles optimized for intense crema and balanced extraction.', 3),
-('cat_cb', 'cold-brew', 'Cold Brew & Steep', 'Heavy-bodied roasts highlighting cocoa, brown sugar, and stone fruit when slow-extracted.', 4);
+('cat_cb', 'cold-brew', 'Cold Brew & Steep', 'Heavy-bodied roasts highlighting cocoa, brown sugar, and stone fruit when slow-extracted.', 4),
+('cat_ie', 'indian-estates', 'Indian Micro-Lots', 'Exceptional shade-grown coffees from Chikmagalur, Coorg, and Araku Valley.', 5);
 
 -- Products
 INSERT OR IGNORE INTO products (
@@ -15,6 +16,48 @@ INSERT OR IGNORE INTO products (
     acidity_score, body_score, sweetness_score,
     image_url, is_featured, is_active
 ) VALUES
+(
+    'prod_chik_attikan',
+    'chikmagalur-attikan-estate-honey',
+    'Chikmagalur Attikan Estate Honey',
+    'Sweet sugarcane jaggery, red apple & roasted hazelnut.',
+    'Shade-grown at 1,750m in the Baba Budan Giri range of Chikmagalur, Karnataka. Pulp sun-dried honey process producing a silky, medium body with balanced citric brightness and rich jaggery sweetness.',
+    'cat_ie',
+    'India', 'Chikmagalur, Karnataka', 'Attikan Estate', 1750, 'S.795 & SLN 9',
+    'HONEY', 'MEDIUM_LIGHT',
+    '["Jaggery", "Red Apple", "Hazelnut", "Caramel"]',
+    4, 4, 5,
+    'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?auto=format&fit=crop&w=800&q=80',
+    1, 1
+),
+(
+    'prod_araku_honey',
+    'araku-valley-red-honey',
+    'Araku Valley Red Honey Micro-Lot',
+    'Ripe jackfruit, wild blossom honey & candied orange peel.',
+    'Cultivated by indigenous tribal farmers in the Eastern Ghats of Andhra Pradesh. High-elevation shade canopy and extended honey mucilage drying creates immense fruit complexity and buttery body.',
+    'cat_ie',
+    'India', 'Araku Valley, Andhra Pradesh', 'Smallholder Tribal Collective', 1400, 'Selection 5B',
+    'HONEY', 'MEDIUM_LIGHT',
+    '["Jackfruit", "Wild Honey", "Orange Peel", "Floral"]',
+    4, 4, 5,
+    'https://images.unsplash.com/photo-1611854779393-1b2da9d400fe?auto=format&fit=crop&w=800&q=80',
+    1, 1
+),
+(
+    'prod_taster_flight',
+    'curated-taster-flight-3x100g',
+    'Curated 3x 100g Roastery Taster Flight',
+    'Pick 3 distinct 100g micro-lots from our Indian and global roastery.',
+    'Explore three rare micro-lot profiles in custom nitrogen-flushed 100g sample pouches. Choose your favorite trio from Chikmagalur Attikan, Araku Valley Red Honey, Ethiopia Yirgacheffe, Dawn Patrol, and more.',
+    'cat_so',
+    'India & Global', 'Bangalore Roastery Selection', 'Multi-Estate Micro-Lots', 1800, 'Curated Trio',
+    'WASHED', 'MEDIUM',
+    '["Discovery Flight", "3x 100g Pouches", "Custom Trio", "Freshly Roasted"]',
+    4, 4, 5,
+    'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=800&q=80',
+    1, 1
+),
 (
     'prod_eth_yirg',
     'ethiopia-yirgacheffe-gedeb',
@@ -116,6 +159,18 @@ INSERT OR IGNORE INTO products (
 
 -- Product Variants
 INSERT OR IGNORE INTO product_variants (id, product_id, sku, weight_grams, price_cents, grind_options, is_active) VALUES
+-- Chikmagalur Attikan Estate
+('var_att_250', 'prod_chik_attikan', 'TDG-ATT-250G', 250, 1850, '["WHOLE_BEAN", "POUR_OVER", "SOUTH_INDIAN_FILTER", "AEROPRESS", "ESPRESSO"]', 1),
+('var_att_500', 'prod_chik_attikan', 'TDG-ATT-500G', 500, 3400, '["WHOLE_BEAN", "POUR_OVER", "SOUTH_INDIAN_FILTER", "AEROPRESS", "ESPRESSO"]', 1),
+('var_att_1000', 'prod_chik_attikan', 'TDG-ATT-1KG', 1000, 6200, '["WHOLE_BEAN", "POUR_OVER", "SOUTH_INDIAN_FILTER", "AEROPRESS", "ESPRESSO"]', 1),
+
+-- Araku Valley Red Honey
+('var_ara_250', 'prod_araku_honey', 'TDG-ARA-250G', 250, 1950, '["WHOLE_BEAN", "POUR_OVER", "AEROPRESS", "ESPRESSO"]', 1),
+('var_ara_500', 'prod_araku_honey', 'TDG-ARA-500G', 500, 3600, '["WHOLE_BEAN", "POUR_OVER", "AEROPRESS", "ESPRESSO"]', 1),
+
+-- Curated 3x 100g Roastery Taster Flight
+('var_flight_300', 'prod_taster_flight', 'TDG-FLIGHT-300G', 300, 2400, '["WHOLE_BEAN", "POUR_OVER", "SOUTH_INDIAN_FILTER", "ESPRESSO", "AEROPRESS", "FRENCH_PRESS", "COLD_BREW"]', 1),
+
 -- Ethiopia Yirgacheffe
 ('var_eth_250', 'prod_eth_yirg', 'TDG-ETH-YIRG-250G', 250, 1950, '["WHOLE_BEAN", "POUR_OVER", "ESPRESSO", "AEROPRESS", "DRIP", "FRENCH_PRESS"]', 1),
 ('var_eth_500', 'prod_eth_yirg', 'TDG-ETH-YIRG-500G', 500, 3600, '["WHOLE_BEAN", "POUR_OVER", "ESPRESSO", "AEROPRESS", "DRIP", "FRENCH_PRESS"]', 1),
@@ -148,6 +203,12 @@ INSERT OR IGNORE INTO product_variants (id, product_id, sku, weight_grams, price
 
 -- Inventory Initialization
 INSERT OR IGNORE INTO inventory (variant_id, sku, available_stock, reserved_stock, low_stock_threshold) VALUES
+('var_att_250', 'TDG-ATT-250G', 80, 0, 15),
+('var_att_500', 'TDG-ATT-500G', 50, 0, 10),
+('var_att_1000', 'TDG-ATT-1KG', 30, 0, 5),
+('var_ara_250', 'TDG-ARA-250G', 60, 0, 12),
+('var_ara_500', 'TDG-ARA-500G', 35, 0, 8),
+('var_flight_300', 'TDG-FLIGHT-300G', 100, 0, 20),
 ('var_eth_250', 'TDG-ETH-YIRG-250G', 45, 0, 10),
 ('var_eth_500', 'TDG-ETH-YIRG-500G', 30, 0, 8),
 ('var_eth_1000', 'TDG-ETH-YIRG-1KG', 15, 0, 5),

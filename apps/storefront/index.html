@@ -5,10 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>The Daily Grind — Artisanal Specialty Coffee Roasters · Bangalore, India</title>
   <meta name="description" content="Small-batch specialty coffee roastery based in Bangalore, India. Direct-trade Indian estate micro-lots & rare international origins, roasted fresh to order.">
+  <meta name="theme-color" content="#1b1614">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Daily Grind">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/src/styles/index.css">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => console.log('[Storefront] Service Worker registered in scope:', reg.scope))
+          .catch((err) => console.warn('[Storefront] Service Worker registration failed:', err));
+      });
+    }
+  </script>
 </head>
 <body>
   <!-- Free Shipping & Roasting Notice Bar -->
@@ -36,6 +51,8 @@
 
       <nav aria-label="Main Navigation">
         <ul class="nav-links">
+          <li><a href="#taster-flight" id="nav-flight-link">3x 100g Flight</a></li>
+          <li><a href="#flavor-wheel" id="nav-wheel-link">Flavor Wheel</a></li>
           <li><a href="#catalog" id="nav-coffees-link">Our Roasts</a></li>
           <li><a href="#quiz" id="nav-quiz-link">Coffee Quiz</a></li>
           <li><a href="#brew-guide" id="nav-brew-link">Brewing Guides</a></li>
@@ -45,6 +62,11 @@
       </nav>
 
       <div class="nav-actions">
+        <!-- PWA Header Install Button (Revealed when prompt is ready or on mobile) -->
+        <button class="btn-header-install" id="btn-header-install" style="display:none;" aria-label="Install The Daily Grind Web App">
+          <span>📲 Install App</span>
+        </button>
+
         <!-- Currency Toggle Switcher -->
         <div class="currency-toggle" id="currency-switcher-container" style="display:flex; background: var(--bg-secondary); border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); padding: 0.2rem 0.3rem;">
           <button class="currency-btn active" id="btn-currency-inr" data-currency="INR" style="border:none; background: var(--bg-espresso); color:#fff; border-radius: var(--radius-pill); padding: 0.3rem 0.75rem; font-size: 0.8rem; font-weight:700; cursor:pointer;">₹ INR</button>
@@ -112,6 +134,249 @@
           <div class="floating-text">
             <h5>Direct Indian Estate Partnerships</h5>
             <p>Supporting Western Ghats regenerative farms</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive SCA Coffee Flavor Wheel Section -->
+    <section class="flavor-wheel-section" id="flavor-wheel">
+      <div class="flavor-wheel-wrapper">
+        <div class="flavor-wheel-intro">
+          <span class="wheel-badge">🌸 🍓 🍯 🍫 🌶️ SCA SENSORY MATRIX</span>
+          <h2 class="wheel-title">Interactive Coffee Flavor Wheel</h2>
+          <p class="wheel-subtitle">
+            Explore our roasts by sensory families. Click any category on the wheel or cards below to immediately filter matching Bangalore micro-lots and origin profiles.
+          </p>
+
+          <div class="wheel-categories-list" id="flavor-wheel-pills">
+            <button class="wheel-cat-btn active" data-category="all" id="wheel-pill-all">
+              <span class="cat-dot" style="background: #a89a91;"></span>
+              <span class="cat-name">All Profiles</span>
+              <span class="cat-notes">All freshly roasted Bangalore lots</span>
+              <span class="cat-count" id="count-wheel-all">8 Roasts</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="floral" id="wheel-pill-floral">
+              <span class="cat-dot" style="background: #b85d94;"></span>
+              <span class="cat-name">🌸 Floral</span>
+              <span class="cat-notes">Jasmine · Bergamot · Blossom · Honey</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="fruity" id="wheel-pill-fruity">
+              <span class="cat-dot" style="background: #e0533b;"></span>
+              <span class="cat-name">🍓 Fruity</span>
+              <span class="cat-notes">Jackfruit · Red Apple · Peach · Citrus</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="sweet" id="wheel-pill-sweet">
+              <span class="cat-dot" style="background: #d97706;"></span>
+              <span class="cat-name">🍯 Sweet</span>
+              <span class="cat-notes">Jaggery · Wild Honey · Caramel · Toffee</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="chocolate_nutty" id="wheel-pill-chocolate_nutty">
+              <span class="cat-dot" style="background: #6e3922;"></span>
+              <span class="cat-name">🍫 Chocolate & Nutty</span>
+              <span class="cat-notes">Dark Cacao · Hazelnut · Cashew · Fudge</span>
+            </button>
+            <button class="wheel-cat-btn" data-category="spiced" id="wheel-pill-spiced">
+              <span class="cat-dot" style="background: #991b1b;"></span>
+              <span class="cat-name">🌶️ Spiced</span>
+              <span class="cat-notes">Cardamom · Cinnamon · Spiced Rum · Clove</span>
+            </button>
+          </div>
+
+          <div class="wheel-actions-bar">
+            <button class="btn-open-wheel-modal" id="btn-open-flavor-wheel-modal" aria-label="Open Fullscreen Flavor Wheel Visualizer">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10M12 12 19 5M12 12l5 7M12 12l-7 5M12 12l-5-7"></path>
+              </svg>
+              <span>Full-Screen Wheel Visualizer</span>
+            </button>
+            <div class="active-flavor-indicator" id="active-flavor-status" style="display:none;">
+              <span id="active-flavor-text">Filtering by <strong>Floral</strong></span>
+              <button class="btn-clear-wheel-filter" id="btn-clear-wheel-filter" title="Reset Flavor Filter">✕ Clear Filter</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flavor-wheel-visual-card">
+          <div class="svg-wheel-container" id="svg-wheel-container">
+            <!-- Interactive SVG SCA Wheel -->
+            <svg class="sca-wheel-svg" viewBox="0 0 340 340" id="sca-main-wheel" aria-label="SCA Flavor Wheel Graphic">
+              <g transform="translate(170, 170)" id="wheel-sectors-group">
+                <!-- Segments will be rendered and hooked dynamically -->
+              </g>
+              <!-- Center Hub -->
+              <circle cx="170" cy="170" r="46" fill="#1b1614" stroke="#c9933b" stroke-width="2" />
+              <text x="170" y="165" text-anchor="middle" fill="#c9933b" font-size="10" font-weight="700" letter-spacing="1">SCA WHEEL</text>
+              <text x="170" y="180" text-anchor="middle" fill="#fdfaf6" font-size="8.5" opacity="0.85">Tap Category</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dedicated 3x 100g Curated Taster Flight Builder Section -->
+    <section class="taster-flight-section" id="taster-flight">
+      <div class="flight-builder-container">
+        <!-- Banner Header -->
+        <div class="flight-header-banner">
+          <div class="flight-header-text">
+            <span class="flight-pill-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="12 6 12 12 16 14"></polygon>
+              </svg>
+              NITROGEN FLUSHED · 3x 100g MICRO-LOT TRIO
+            </span>
+            <h2 class="flight-title">Build Your 3x 100g Curated Taster Flight</h2>
+            <p class="flight-subtitle">
+              Experience the terroir of Western Ghats shade-grown estates and rare global micro-lots. Pick 3 distinct 100g pouches, sealed fresh in degassing mini valve bags.
+            </p>
+          </div>
+
+          <div class="flight-price-box">
+            <div class="flight-price-amount" id="flight-price-display">₹590</div>
+            <div class="flight-price-note" id="flight-price-subnote">₹590 (INR) / $24.00 (USD) · Free Priority Roastery Dispatch</div>
+          </div>
+        </div>
+
+        <!-- Quick Curated Trio Presets -->
+        <div class="flight-presets-bar">
+          <span class="preset-label">Curated Presets:</span>
+          <div class="preset-pills-wrap">
+            <button class="flight-preset-btn active" data-preset="india-estates" type="button">🇮🇳 All-India Estate Micro-Lots</button>
+            <button class="flight-preset-btn" data-preset="global-explorer" type="button">🌍 Global Terroir Explorer</button>
+            <button class="flight-preset-btn" data-preset="roasters-choice" type="button">☕ Bangalore Roaster's Choice</button>
+            <button class="flight-preset-btn" data-preset="dark-espresso" type="button">⚡ Bold & Espresso Trio</button>
+          </div>
+        </div>
+
+        <!-- 3 Interactive Pouch Slots Grid -->
+        <div class="flight-slots-grid">
+          <!-- Pouch Slot 1 -->
+          <div class="flight-slot-card" id="slot-card-1">
+            <div class="slot-header">
+              <span class="slot-pouch-badge">POUCH 1 (100g)</span>
+              <span class="slot-weight-tag">100g Micro-Lot</span>
+            </div>
+            <div class="slot-select-wrap">
+              <label for="flight-select-slot1" class="selector-label">Select Bean Profile</label>
+              <select class="slot-coffee-select" id="flight-select-slot1" data-slot="1">
+                <!-- Populated dynamically via main.ts -->
+              </select>
+            </div>
+            <div class="slot-detail-box" id="slot-detail-1">
+              <div class="slot-coffee-name" id="slot-name-1">Chikmagalur Attikan Estate Honey</div>
+              <div class="slot-meta-row" id="slot-meta-1">
+                <span class="slot-meta-tag">Karnataka, India</span>
+                <span class="slot-meta-tag">Honey Process</span>
+                <span class="slot-meta-tag">Medium-Light</span>
+              </div>
+              <div class="slot-tasting-notes" id="slot-notes-1">
+                🍯 Sugarcane Jaggery · Red Apple · Roasted Hazelnut · Caramel
+              </div>
+            </div>
+          </div>
+
+          <!-- Pouch Slot 2 -->
+          <div class="flight-slot-card" id="slot-card-2">
+            <div class="slot-header">
+              <span class="slot-pouch-badge">POUCH 2 (100g)</span>
+              <span class="slot-weight-tag">100g Micro-Lot</span>
+            </div>
+            <div class="slot-select-wrap">
+              <label for="flight-select-slot2" class="selector-label">Select Bean Profile</label>
+              <select class="slot-coffee-select" id="flight-select-slot2" data-slot="2">
+                <!-- Populated dynamically via main.ts -->
+              </select>
+            </div>
+            <div class="slot-detail-box" id="slot-detail-2">
+              <div class="slot-coffee-name" id="slot-name-2">Araku Valley Red Honey Micro-Lot</div>
+              <div class="slot-meta-row" id="slot-meta-2">
+                <span class="slot-meta-tag">Andhra Pradesh, India</span>
+                <span class="slot-meta-tag">Red Honey</span>
+                <span class="slot-meta-tag">Light-Medium</span>
+              </div>
+              <div class="slot-tasting-notes" id="slot-notes-2">
+                🥭 Ripe Jackfruit · Wild Blossom Honey · Candied Orange Peel
+              </div>
+            </div>
+          </div>
+
+          <!-- Pouch Slot 3 -->
+          <div class="flight-slot-card" id="slot-card-3">
+            <div class="slot-header">
+              <span class="slot-pouch-badge">POUCH 3 (100g)</span>
+              <span class="slot-weight-tag">100g Micro-Lot</span>
+            </div>
+            <div class="slot-select-wrap">
+              <label for="flight-select-slot3" class="selector-label">Select Bean Profile</label>
+              <select class="slot-coffee-select" id="flight-select-slot3" data-slot="3">
+                <!-- Populated dynamically via main.ts -->
+              </select>
+            </div>
+            <div class="slot-detail-box" id="slot-detail-3">
+              <div class="slot-coffee-name" id="slot-name-3">Ethiopia Yirgacheffe Gedeb</div>
+              <div class="slot-meta-row" id="slot-meta-3">
+                <span class="slot-meta-tag">Gedeb, Ethiopia</span>
+                <span class="slot-meta-tag">Natural Process</span>
+                <span class="slot-meta-tag">Light Roast</span>
+              </div>
+              <div class="slot-tasting-notes" id="slot-notes-3">
+                🌸 Floral Jasmine · Crisp Bergamot Tea · Sweet White Peach
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Flight Footer & Action Controls -->
+        <div class="flight-footer-section">
+          <div class="flight-controls-left">
+            <div class="flight-grind-picker">
+              <label for="flight-universal-grind" class="selector-label">Select Flight Grind Size</label>
+              <select class="grind-dropdown" id="flight-universal-grind">
+                <option value="WHOLE_BEAN">Whole Bean (Recommended for freshness)</option>
+                <option value="SOUTH_INDIAN_FILTER">South Indian Traditional Filter</option>
+                <option value="POUR_OVER">Pour Over / Chemex / V60</option>
+                <option value="ESPRESSO">Espresso Machine</option>
+                <option value="AEROPRESS">AeroPress Inverted</option>
+                <option value="FRENCH_PRESS">French Press Immersion</option>
+                <option value="COLD_BREW">Cold Brew Coarse</option>
+              </select>
+            </div>
+
+            <!-- Optional Flight Subscription Toggle -->
+            <div class="sub-toggle-container" id="flight-sub-container" style="margin-top:0; min-width: 250px;">
+              <div class="sub-switch-row">
+                <button class="sub-switch-btn selected" id="flight-sub-btn-onetime" type="button">One-Time</button>
+                <button class="sub-switch-btn" id="flight-sub-btn-club" type="button">
+                  <span>Subscribe</span>
+                  <span class="sub-save-tag">-10%</span>
+                </button>
+              </div>
+              <div class="sub-frequency-row" id="flight-sub-freq-row" style="display:none;">
+                <div class="sub-freq-pills">
+                  <button class="sub-freq-pill" data-freq="1_WEEK" type="button">1 Wk</button>
+                  <button class="sub-freq-pill selected" data-freq="2_WEEKS" type="button">2 Wks</button>
+                  <button class="sub-freq-pill" data-freq="4_WEEKS" type="button">4 Wks</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flight-actions-right">
+            <div style="text-align: right;">
+              <div style="font-size:0.82rem; color:var(--text-muted);">Custom 3x 100g Bundle</div>
+              <div style="font-size: 1.15rem; font-weight: 700; color: var(--text-main);" id="flight-footer-price">₹590 (300g Total)</div>
+            </div>
+            <button class="btn-add-flight" id="btn-add-flight-to-cart" type="button">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
+              </svg>
+              <span>Add Taster Flight to Cart</span>
+            </button>
           </div>
         </div>
       </div>
@@ -531,6 +796,103 @@
       <span>Direct-Trade Specialty Coffee · Roasted Fresh to Order</span>
     </div>
   </footer>
+
+  <!-- PWA Mobile-Native Install Banner -->
+  <aside class="pwa-install-banner" id="pwa-install-banner" aria-label="Install Mobile App" style="display:none;">
+    <div class="pwa-banner-content">
+      <div class="pwa-app-icon">
+        <img src="/favicon.svg" alt="The Daily Grind App" width="36" height="36">
+      </div>
+      <div class="pwa-text-content">
+        <div class="pwa-title">The Daily Grind App</div>
+        <div class="pwa-subtitle">Offline brew guide & instant roast drops</div>
+      </div>
+      <div class="pwa-actions">
+        <button class="btn-pwa-install" id="btn-pwa-install" aria-label="Install App">Install</button>
+        <button class="btn-pwa-dismiss" id="btn-pwa-dismiss" aria-label="Dismiss Install Banner">✕</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Interactive SCA Coffee Flavor Wheel Fullscreen Modal -->
+  <div class="flavor-wheel-modal-overlay" id="flavor-wheel-modal" aria-hidden="true" role="dialog" aria-label="Interactive SCA Coffee Flavor Wheel">
+    <div class="flavor-wheel-modal-card">
+      <div class="flavor-wheel-modal-header">
+        <div>
+          <span class="section-label" style="margin-bottom:0.2rem;">SCA COFFEE TASTING COMPASS</span>
+          <h3 style="font-family: var(--font-serif); font-size: 1.45rem; color: var(--text-main);">Interactive Flavor Wheel Visualizer</h3>
+        </div>
+        <button class="btn-close-drawer" id="btn-close-wheel-modal" aria-label="Close Flavor Wheel Modal">✕</button>
+      </div>
+
+      <div class="flavor-wheel-modal-body">
+        <div class="modal-wheel-column">
+          <div class="modal-wheel-svg-wrap">
+            <svg class="sca-wheel-svg-large" viewBox="0 0 400 400" id="sca-modal-wheel" aria-label="Expanded Flavor Wheel">
+              <g transform="translate(200, 200)" id="modal-wheel-sectors-group"></g>
+              <circle cx="200" cy="200" r="54" fill="#1b1614" stroke="#c9933b" stroke-width="2" />
+              <text x="200" y="195" text-anchor="middle" fill="#c9933b" font-size="11" font-weight="700" letter-spacing="1.5">SCA WHEEL</text>
+              <text x="200" y="212" text-anchor="middle" fill="#fdfaf6" font-size="9" opacity="0.85">Tap Category</text>
+            </svg>
+          </div>
+          <div class="wheel-tip-text">
+            <span>💡 Tap any wedge to reveal cupping notes and view matching Bangalore estate coffees.</span>
+          </div>
+        </div>
+
+        <div class="modal-info-column" id="modal-flavor-info">
+          <div class="flavor-detail-box" id="flavor-detail-box">
+            <div class="flavor-detail-header">
+              <span class="detail-icon" id="detail-category-icon">✨</span>
+              <div>
+                <h4 id="detail-category-title" style="font-size: 1.25rem; font-family: var(--font-serif); color: var(--text-main);">All Flavor Families</h4>
+                <p id="detail-category-desc" style="font-size: 0.88rem; color: var(--text-muted); margin-top: 0.2rem;">Select any sector (Floral, Fruity, Sweet, Chocolate/Nutty, Spiced) to highlight matching cupping notes.</p>
+              </div>
+            </div>
+
+            <div class="flavor-subnotes-section" style="margin-top: 1.2rem;">
+              <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Aromatic Sub-Notes</span>
+              <div class="flavor-subnotes-pills" id="detail-subnotes-container" style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.5rem;">
+                <span class="taste-tag">Jasmine</span>
+                <span class="taste-tag">Jackfruit</span>
+                <span class="taste-tag">Jaggery</span>
+                <span class="taste-tag">Dark Chocolate</span>
+                <span class="taste-tag">Cardamom</span>
+              </div>
+            </div>
+
+            <div class="flavor-matched-coffees" style="margin-top: 1.3rem;">
+              <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em;">Matching Bangalore Roasts</span>
+              <div class="matched-coffees-list" id="detail-matched-coffees" style="margin-top:0.6rem; display:flex; flex-direction:column; gap:0.6rem;">
+                <!-- Dynamically populated matched roasts -->
+              </div>
+            </div>
+
+            <button class="btn-primary" id="btn-apply-modal-filter" style="width: 100%; margin-top: 1.4rem;">Filter Catalog by Selected Profile</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Customer GST Tax Invoice (HSN 0901) -->
+  <div class="storefront-modal-backdrop" id="modal-customer-invoice">
+    <div class="storefront-modal-dialog">
+      <div class="storefront-modal-header">
+        <h3>🧾 Tax Invoice — The Daily Grind (HSN 0901)</h3>
+        <button type="button" class="storefront-modal-close" id="modal-cust-invoice-close">&times;</button>
+      </div>
+      <div class="storefront-modal-body">
+        <div id="modal-cust-invoice-content">
+          <!-- Rendered GST Invoice -->
+        </div>
+      </div>
+      <div class="storefront-modal-footer">
+        <button type="button" class="btn-secondary" id="modal-cust-invoice-cancel" style="padding: 0.65rem 1.2rem; border-radius: var(--radius-pill); cursor: pointer;">Close</button>
+        <button type="button" class="btn-primary" id="modal-cust-invoice-print" style="padding: 0.65rem 1.4rem;">🖨️ Print GST Tax Invoice</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="/src/main.ts"></script>
 </body>

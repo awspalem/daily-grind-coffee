@@ -92,6 +92,28 @@ export interface InventoryMovement {
   created_at: string;
 }
 
+export type SubscriptionFrequency = '1_WEEK' | '2_WEEKS' | '4_WEEKS';
+export type SubscriptionStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED';
+
+export interface Subscription {
+  id: string;
+  customer_email: string;
+  customer_id?: string;
+  order_id?: string;
+  variant_id: string;
+  product_name: string;
+  grind_type: GrindType;
+  frequency: SubscriptionFrequency;
+  quantity: number;
+  unit_price_cents: number;
+  discount_percent: number;
+  status: SubscriptionStatus;
+  next_renewal_date: string;
+  shipping_address_json?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CartItem {
   id: string;
   cart_id: string;
@@ -105,6 +127,8 @@ export interface CartItem {
   price_cents: number;
   quantity: number;
   line_total_cents: number;
+  subscription_frequency?: SubscriptionFrequency | null;
+  custom_notes?: string | null;
 }
 
 export interface Cart {
@@ -142,6 +166,8 @@ export interface OrderItem {
   unit_price_cents: number;
   quantity: number;
   total_price_cents: number;
+  subscription_frequency?: SubscriptionFrequency | null;
+  custom_notes?: string | null;
 }
 
 export interface ShippingAddress {

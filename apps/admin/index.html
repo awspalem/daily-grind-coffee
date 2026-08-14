@@ -4,10 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Roastery Command Center — The Daily Grind · Bangalore</title>
+  <meta name="theme-color" content="#1b1614">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Roastery Admin">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/src/styles/admin.css">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => console.log('[Admin] Service Worker registered in scope:', reg.scope))
+          .catch((err) => console.warn('[Admin] Service Worker registration failed:', err));
+      });
+    }
+  </script>
 </head>
 <body>
   <div class="admin-layout">
@@ -24,6 +39,7 @@
       <nav>
         <ul class="sidebar-nav">
           <li><button class="nav-item-btn active" data-tab="overview">📊 Daily Operations</button></li>
+          <li><button class="nav-item-btn" data-tab="labels">🏷️ Bag Labels & QR Studio</button></li>
           <li><button class="nav-item-btn" data-tab="pricing">🏷️ Catalog, Pricing & Discounts</button></li>
           <li><button class="nav-item-btn" data-tab="economics">💰 Unit Economics & Margins</button></li>
           <li><button class="nav-item-btn" data-tab="roasts">🔥 Batch Roaster & Loss Log</button></li>
@@ -46,6 +62,7 @@
           <p>Multi-currency price control, discount engines, roast loss logging, and direct-trade unit economics.</p>
         </div>
         <div class="top-actions">
+          <button class="btn-admin-action" id="btn-open-label-modal">🏷️ Generate Bag Label & QR</button>
           <button class="btn-admin-action" id="btn-quick-restock">+ Restock Green Silos</button>
           <a href="https://daily-grind-storefront.pages.dev" target="_blank" class="btn-table-action" style="padding: 0.65rem 1.2rem; text-decoration:none; display:flex; align-items:center;">
             View Public Storefront ↗
@@ -85,6 +102,123 @@
           <span class="kpi-title">Average Cupping Score</span>
           <div class="kpi-value">88.4 PTS</div>
           <span class="kpi-sub">Specialty Grade Standard</span>
+        </div>
+      </section>
+
+      <!-- SECTION: Printable Roastery Thermal Bag Label & QR Code Studio -->
+      <section class="section-panel" id="panel-labels" style="border-left: 4px solid var(--copper);">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">🏷️ Printable Roastery Thermal Bag Label & QR Studio</h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Configure & 1-click print 3"x4" high-contrast thermal bag labels with dynamic QR codes for Maya's brew guide</span>
+          </div>
+          <span style="background: var(--gold-glow); color: var(--gold); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight:700;">
+            3" x 4" Direct Thermal / 300 DPI Ready
+          </span>
+        </div>
+
+        <div style="padding: 1.6rem;">
+          <div class="label-generator-grid">
+            <!-- Left Form Controls -->
+            <div class="label-form-wrap">
+              <div class="label-input-group">
+                <label for="label-lot-preset">Select Coffee Lot</label>
+                <select id="label-lot-preset">
+                  <option value="chikmagalur_attikan">Chikmagalur Attikan Estate Honey (Baba Budan Giri · 1,750m)</option>
+                  <option value="araku_red_honey">Araku Valley Red Honey Micro-Lot (Eastern Ghats · 1,200m)</option>
+                  <option value="ethiopia_yirgacheffe">Ethiopia Yirgacheffe Gedeb (Heirloom · 2,100m)</option>
+                  <option value="dawn_patrol">Dawn Patrol Bangalore Roastery Blend (Chikmagalur & Coorg · 1,400m)</option>
+                  <option value="midnight_runner">Midnight Runner Dark Espresso (Shevaroys & Antigua · 1,500m)</option>
+                  <option value="custom">✏️ Custom Roastery Lot / Special Reserve</option>
+                </select>
+              </div>
+
+              <div class="label-form-row">
+                <div class="label-input-group">
+                  <label for="label-roast-date">Roast Date</label>
+                  <input type="date" id="label-roast-date">
+                </div>
+                <div class="label-input-group">
+                  <label for="label-batch-id">Roaster Batch ID</label>
+                  <div style="display: flex; gap: 0.4rem;">
+                    <input type="text" id="label-batch-id" value="BATCH-8821" style="flex:1;">
+                    <button type="button" class="btn-table-action" id="btn-gen-batch-id" title="Generate New Batch ID" style="padding: 0.4rem 0.7rem;">🎲</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="label-form-row">
+                <div class="label-input-group">
+                  <label for="label-bag-size">Bag Net Weight</label>
+                  <select id="label-bag-size">
+                    <option value="250g" selected>250g (Standard Specialty Pouch)</option>
+                    <option value="500g">500g (Roastery Value Pack)</option>
+                    <option value="1kg">1kg / 1000g (Bulk Silo Pack)</option>
+                  </select>
+                </div>
+                <div class="label-input-group">
+                  <label for="label-grind-type">Grind Profile</label>
+                  <select id="label-grind-type">
+                    <option value="South Indian Filter" selected>South Indian Filter Kaapi</option>
+                    <option value="Whole Bean">Whole Bean (Optimal Freshness)</option>
+                    <option value="Hario V60 / Pour Over">Hario V60 / Pour Over</option>
+                    <option value="AeroPress">AeroPress Inverted</option>
+                    <option value="French Press">French Press / Cold Brew</option>
+                    <option value="Espresso (9-Bar)">Espresso (9-Bar Calibrated)</option>
+                    <option value="Moka Pot">Moka Pot / Stovetop</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Custom Lot Overrides (Shown if custom or to fine-tune) -->
+              <div id="custom-lot-fields" style="display: flex; flex-direction: column; gap: 0.8rem; background: var(--admin-surface); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--admin-border);">
+                <div class="label-form-row">
+                  <div class="label-input-group">
+                    <label for="label-custom-name">Display Lot Name</label>
+                    <input type="text" id="label-custom-name" value="Chikmagalur Attikan Estate Honey">
+                  </div>
+                  <div class="label-input-group">
+                    <label for="label-custom-origin">Region / Origin</label>
+                    <input type="text" id="label-custom-origin" value="Baba Budan Giri, Karnataka">
+                  </div>
+                </div>
+                <div class="label-form-row">
+                  <div class="label-input-group">
+                    <label for="label-custom-process">Process & Elevation</label>
+                    <input type="text" id="label-custom-process" value="Pulp Sun-Dried Honey · 1,750m MSL">
+                  </div>
+                  <div class="label-input-group">
+                    <label for="label-custom-notes">Tasting Notes (comma-separated)</label>
+                    <input type="text" id="label-custom-notes" value="Sugarcane Jaggery, Red Apple, Hazelnut, Caramel">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Studio Action Buttons -->
+              <div style="display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                <button type="button" class="btn-admin-action" id="btn-print-thermal-label" style="background: var(--copper); font-size: 0.95rem; padding: 0.8rem 1.6rem;">
+                  🖨️ Print 3"x4" Thermal Bag Label
+                </button>
+                <button type="button" class="btn-table-action" id="btn-copy-brew-link" style="padding: 0.8rem 1.2rem;">
+                  📋 Copy Maya's Brew Link
+                </button>
+                <button type="button" class="btn-table-action" id="btn-reset-label-form" style="padding: 0.8rem 1rem;">
+                  🔄 Reset
+                </button>
+              </div>
+            </div>
+
+            <!-- Right Live 3"x4" Thermal Label Screen Preview -->
+            <div class="thermal-preview-container">
+              <div style="font-size: 0.76rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 0.4rem;">
+                <span>Live 3"x4" Thermal Label Preview</span>
+                <span style="color: var(--emerald);">● QR Active</span>
+              </div>
+              <div id="live-thermal-label-preview">
+                <!-- Dynamically rendered with pure SVG QR code -->
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -319,8 +453,13 @@
       <!-- SECTION: Active Orders Fulfillment -->
       <section class="section-panel" id="panel-orders">
         <div class="panel-header">
-          <h2 class="panel-title">🚚 Bangalore Dispatch & Orders</h2>
-          <span style="font-size: 0.85rem; color: var(--text-muted);">Real-time dispatch status</span>
+          <div>
+            <h2 class="panel-title">🚚 Bangalore Dispatch & Orders</h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Real-time dispatch status, GST Tax Invoices (HSN 0901), & bag labels</span>
+          </div>
+          <span style="background: var(--gold-glow); color: var(--gold); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight:700;">
+            Karnataka GSTIN: 29AABCT0123M1Z5
+          </span>
         </div>
 
         <table class="data-table">
@@ -331,37 +470,142 @@
               <th>Selected Coffee & Grind</th>
               <th>Total</th>
               <th>Status</th>
-              <th>Action</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="orders-table-body">
-            <tr>
+            <tr data-order-id="TDG-102938">
               <td><strong>TDG-102938</strong></td>
               <td>Rohan Sharma (Indiranagar)</td>
               <td>Chikmagalur Attikan (250g · South Indian Filter)</td>
-              <td>₹450</td>
+              <td><strong>₹450</strong></td>
               <td><span class="status-badge roasting">🔥 Roasting</span></td>
-              <td><button class="btn-table-action" onclick="alert('Batch advanced to: Degassing & Nitrogen Packed')">Advance ➔</button></td>
+              <td>
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                  <button class="btn-table-action btn-order-invoice" data-order="TDG-102938" data-customer="Rohan Sharma" data-loc="Indiranagar, Bangalore" data-item="Chikmagalur Attikan Estate Honey (250g · South Indian Filter)" data-total="450">🧾 GST Invoice</button>
+                  <button class="btn-table-action btn-order-label" data-lot="chikmagalur_attikan" data-grind="South Indian Filter" data-size="250g" data-batch="BATCH-8821">🏷️ Label</button>
+                  <button class="btn-table-action" onclick="alert('Batch TDG-102938 advanced to: Degassing & Nitrogen Packed')">Advance ➔</button>
+                </div>
+              </td>
             </tr>
-            <tr>
+            <tr data-order-id="TDG-102939">
               <td><strong>TDG-102939</strong></td>
               <td>Priya Nair (Koramangala)</td>
               <td>Midnight Runner Espresso (500g · Whole Bean)</td>
-              <td>₹820</td>
+              <td><strong>₹820</strong></td>
               <td><span class="status-badge paid">✓ Paid & Queued</span></td>
-              <td><button class="btn-table-action" onclick="alert('Batch queued for next convection cycle')">Advance ➔</button></td>
+              <td>
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                  <button class="btn-table-action btn-order-invoice" data-order="TDG-102939" data-customer="Priya Nair" data-loc="Koramangala, Bangalore" data-item="Midnight Runner Dark Espresso (500g · Whole Bean)" data-total="820">🧾 GST Invoice</button>
+                  <button class="btn-table-action btn-order-label" data-lot="midnight_runner" data-grind="Whole Bean" data-size="500g" data-batch="BATCH-8820">🏷️ Label</button>
+                  <button class="btn-table-action" onclick="alert('Batch TDG-102939 queued for next convection cycle')">Advance ➔</button>
+                </div>
+              </td>
             </tr>
-            <tr>
+            <tr data-order-id="TDG-102940">
               <td><strong>TDG-102940</strong></td>
               <td>David Miller (Whitefield)</td>
               <td>Dawn Patrol Bangalore Blend (1kg · Espresso)</td>
-              <td>₹1,490</td>
+              <td><strong>₹1,490</strong></td>
               <td><span class="status-badge shipped">📦 Shipped</span></td>
-              <td><button class="btn-table-action" onclick="alert('Tracking ID: BLR-EXPRESS-99281')">View Tracking</button></td>
+              <td>
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                  <button class="btn-table-action btn-order-invoice" data-order="TDG-102940" data-customer="David Miller" data-loc="Whitefield, Bangalore" data-item="Dawn Patrol Bangalore Roastery Blend (1kg · Espresso)" data-total="1490">🧾 GST Invoice</button>
+                  <button class="btn-table-action btn-order-label" data-lot="dawn_patrol" data-grind="Espresso (9-Bar)" data-size="1kg" data-batch="BATCH-8819">🏷️ Label</button>
+                  <button class="btn-table-action" onclick="alert('Tracking ID: BLR-EXPRESS-99281 (Shipped via Express Roastery Courier)')">View Tracking</button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
       </section>
+    </main>
+  </div>
+
+  <!-- MODAL: Roastery Thermal Bag Label & QR Code Quick Modal -->
+  <div class="admin-modal-backdrop" id="modal-bag-label">
+    <div class="admin-modal-dialog">
+      <div class="admin-modal-header">
+        <h3>🏷️ Roastery Thermal Bag Label Generator</h3>
+        <button type="button" class="admin-modal-close" id="modal-label-close">&times;</button>
+      </div>
+      <div class="admin-modal-body">
+        <div class="label-generator-grid">
+          <div class="label-form-wrap">
+            <div class="label-input-group">
+              <label for="modal-lot-select">Selected Lot</label>
+              <select id="modal-lot-select">
+                <option value="chikmagalur_attikan">Chikmagalur Attikan Estate Honey</option>
+                <option value="araku_red_honey">Araku Valley Red Honey Micro-Lot</option>
+                <option value="ethiopia_yirgacheffe">Ethiopia Yirgacheffe Gedeb</option>
+                <option value="dawn_patrol">Dawn Patrol Bangalore Blend</option>
+                <option value="midnight_runner">Midnight Runner Dark Espresso</option>
+              </select>
+            </div>
+            <div class="label-form-row">
+              <div class="label-input-group">
+                <label for="modal-roast-date">Roast Date</label>
+                <input type="date" id="modal-roast-date">
+              </div>
+              <div class="label-input-group">
+                <label for="modal-batch-id">Batch ID</label>
+                <input type="text" id="modal-batch-id" value="BATCH-8821">
+              </div>
+            </div>
+            <div class="label-form-row">
+              <div class="label-input-group">
+                <label for="modal-grind-select">Grind Profile</label>
+                <select id="modal-grind-select">
+                  <option value="South Indian Filter">South Indian Filter</option>
+                  <option value="Whole Bean">Whole Bean</option>
+                  <option value="Hario V60 / Pour Over">Hario V60 / Pour Over</option>
+                  <option value="AeroPress">AeroPress</option>
+                  <option value="French Press">French Press</option>
+                  <option value="Espresso (9-Bar)">Espresso (9-Bar)</option>
+                </select>
+              </div>
+              <div class="label-input-group">
+                <label for="modal-bag-size">Bag Size</label>
+                <select id="modal-bag-size">
+                  <option value="250g">250g</option>
+                  <option value="500g">500g</option>
+                  <option value="1kg">1kg</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="thermal-preview-container">
+            <div id="modal-thermal-label-preview">
+              <!-- Label Preview -->
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="btn-table-action" id="modal-label-cancel">Cancel</button>
+        <button type="button" class="btn-admin-action" id="modal-label-print">🖨️ Print Label (3"x4")</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Indian GST Tax Invoice Viewer (HSN 0901) -->
+  <div class="admin-modal-backdrop" id="modal-gst-invoice">
+    <div class="admin-modal-dialog" style="max-width: 900px;">
+      <div class="admin-modal-header">
+        <h3>🧾 Tax Invoice — GSTIN: 29AABCT0123M1Z5 (HSN 0901)</h3>
+        <button type="button" class="admin-modal-close" id="modal-invoice-close">&times;</button>
+      </div>
+      <div class="admin-modal-body" style="background: #e8e3df; padding: 1.5rem;">
+        <div id="modal-invoice-content">
+          <!-- Rendered GST Invoice -->
+        </div>
+      </div>
+      <div class="admin-modal-footer">
+        <button type="button" class="btn-table-action" id="modal-invoice-cancel">Close</button>
+        <button type="button" class="btn-admin-action" id="modal-invoice-print" style="background: var(--copper);">🖨️ Print GST Tax Invoice</button>
+      </div>
+    </div>
+  </div>
     </main>
   </div>
 
