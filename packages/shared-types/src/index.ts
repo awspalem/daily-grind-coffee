@@ -25,7 +25,7 @@ export interface ProductVariant {
   sku: string;
   weight_grams: number;
   price_cents: number; // USD cents for backward compat
-  price_inr: number;   // INR ₹ (default)
+  price_inr?: number;  // INR ₹ (default)
   price_usd_cents?: number; // USD $ cents
   discount_percent?: number; // 0 to 100%
   grind_options: GrindType[];
