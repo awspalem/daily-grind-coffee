@@ -29,21 +29,43 @@ jobs:
       - name: Run Tests
         run: npm test
 
+      - name: Provision D1 Database & R2 Bucket
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd apps/api
+          
+          # Create D1 database if it doesn't exist
+          npx wrangler d1 create daily-grind-db || true
+          
+          # Extract real D1 database UUID
+          D1_ID=$(npx wrangler d1 list --json | jq -r '.[] | select(.name=="daily-grind-db") | .uuid')
+          echo "Discovered D1 Database UUID: $D1_ID"
+          
+          if [ -n "$D1_ID" ] && [ "$D1_ID" != "null" ]; then
+            sed -i "s/database_id = \".*\"/database_id = \"$D1_ID\"/" wrangler.toml
+          fi
+          
+          # Create R2 bucket if not exists
+          npx wrangler r2 bucket create daily-grind-media || true
+
       - name: Apply D1 Database Migrations
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 migrations apply daily-grind-db --remote
-          workingDirectory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd apps/api
+          npx wrangler d1 migrations apply daily-grind-db --remote
+          npx wrangler d1 execute daily-grind-db --remote --file=../../packages/db/seeds/seed_catalog.sql || true
 
       - name: Deploy Worker API
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
-          workingDirectory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd apps/api
+          npx wrangler deploy
 
   deploy-storefront:
     name: Deploy Storefront to Cloudflare Pages
@@ -66,11 +88,12 @@ jobs:
         run: npm run build --workspace=apps/storefront
 
       - name: Deploy Pages to Cloudflare
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/storefront/dist --project-name=daily-grind-storefront
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler pages project create daily-grind-storefront --production-branch=main || true
+          npx wrangler pages deploy apps/storefront/dist --project-name=daily-grind-storefront
 
   deploy-admin:
     name: Deploy Admin Portal to Cloudflare Pages
@@ -93,8 +116,9 @@ jobs:
         run: npm run build --workspace=apps/admin
 
       - name: Deploy Admin Pages to Cloudflare
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/admin/dist --project-name=daily-grind-admin
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler pages project create daily-grind-admin --production-branch=main || true
+          npx wrangler pages deploy apps/admin/dist --project-name=daily-grind-admin
