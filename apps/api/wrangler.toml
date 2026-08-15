@@ -31,10 +31,12 @@ database_name = "daily-grind-db"
 database_id = "660152c1-a81d-433a-99e6-d3d99827da57"
 migrations_dir = "../../packages/db/migrations"
 
-# Cloudflare R2 Bucket Binding (Uncomment when R2 is enabled in Cloudflare dashboard)
-# [[r2_buckets]]
-# binding = "MEDIA_BUCKET"
-# bucket_name = "daily-grind-media"
+# Cloudflare R2 Bucket Binding — product catalog images (apps/api/src/routes/media.ts).
+# `wrangler dev` simulates this locally with no Cloudflare auth needed. Going live requires
+# `wrangler login` + `wrangler r2 bucket create daily-grind-media --env production` first.
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "daily-grind-media"
 
 # Cloudflare KV Namespace Binding
 [[kv_namespaces]]
@@ -85,6 +87,10 @@ id = "local-kv-config-id" # placeholder — replace with your real production KV
 
 [env.production.ai]
 binding = "AI"
+
+[[env.production.r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "daily-grind-media" # must exist in your Cloudflare account before deploying
 
 [env.production.triggers]
 crons = ["0 4 * * *"]

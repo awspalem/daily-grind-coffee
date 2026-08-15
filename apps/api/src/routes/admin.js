@@ -480,4 +480,156 @@ adminApp.patch('/promotions/:id/status', async (c) => {
     await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_PROMOTION_STATUS', 'promotions', promotionId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, status: body.status });
 });
+// ==================== Product Catalog Management ====================
+function slugify(name) {
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40);
+}
+// GET /api/admin/products — includes inactive products/variants, unlike the public catalog API
+adminApp.get('/products', async (c) => {
+    const { results: rawProducts } = await c.env.DB.prepare(`
+    SELECT p.*, cat.name as category_name
+    FROM products p
+    JOIN categories cat ON p.category_id = cat.id
+    ORDER BY p.created_at DESC
+  `).all();
+    const products = rawProducts || [];
+    if (products.length === 0) {
+        return c.json({ success: true, products: [] });
+    }
+    const productIds = products.map((p) => p.id);
+    const placeholders = productIds.map(() => '?').join(',');
+    const { results: rawVariants } = await c.env.DB.prepare(`
+    SELECT v.*, COALESCE(i.available_stock, 0) as available_stock, COALESCE(i.reserved_stock, 0) as reserved_stock
+    FROM product_variants v
+    LEFT JOIN inventory i ON v.id = i.variant_id
+    WHERE v.product_id IN (${placeholders})
+    ORDER BY v.weight_grams ASC
+  `).bind(...productIds).all();
+    const variantsByProduct = {};
+    for (const v of rawVariants || []) {
+        if (!variantsByProduct[v.product_id])
+            variantsByProduct[v.product_id] = [];
+        variantsByProduct[v.product_id].push(v);
+    }
+    return c.json({
+        success: true,
+        products: products.map((p) => ({ ...p, variants: variantsByProduct[p.id] || [] })),
+    });
+});
+// POST /api/admin/products — create a product with its first variant + opening inventory
+adminApp.post('/products', async (c) => {
+    const actor = c.get('adminActor');
+    const body = await c.req.json();
+    if (!body.name || !body.category_id || !body.origin_country || !body.roast_level || !body.description || !body.image_url || !body.weight_grams || !body.price_cents) {
+        return c.json({ success: false, error: 'name, category_id, origin_country, roast_level, description, image_url, weight_grams, and price_cents are required' }, 400);
+    }
+    const category = await c.env.DB.prepare('SELECT id FROM categories WHERE id = ?').bind(body.category_id).first();
+    if (!category) {
+        return c.json({ success: false, error: 'Unknown category_id' }, 400);
+    }
+    const slugBase = slugify(body.name);
+    const slug = `${slugBase}-${crypto.randomUUID().slice(0, 4)}`;
+    const productId = 'prod_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    const variantId = 'var_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    const sku = `TDG-${slugBase.toUpperCase().replace(/-/g, '').slice(0, 10)}-${body.weight_grams}G`;
+    await c.env.DB.batch([
+        c.env.DB.prepare(`
+      INSERT INTO products (
+        id, slug, name, tagline, description, category_id, origin_country, region, farm_or_coop,
+        altitude_meters, variety, process_method, roast_level, tasting_notes,
+        acidity_score, body_score, sweetness_score, image_url, is_featured, is_active
+      ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, NULL, NULL, NULL, 'WASHED', ?, '["Balanced"]', 3, 3, 3, ?, 0, 1)
+    `).bind(productId, slug, body.name, body.description, body.category_id, body.origin_country, body.origin_country, body.roast_level, body.image_url),
+        c.env.DB.prepare(`
+      INSERT INTO product_variants (id, product_id, sku, weight_grams, price_cents, grind_options, is_active)
+      VALUES (?, ?, ?, ?, ?, '["WHOLE_BEAN", "POUR_OVER", "ESPRESSO"]', 1)
+    `).bind(variantId, productId, sku, body.weight_grams, body.price_cents),
+    ]);
+    const ledger = new InventoryLedgerService(c.env.DB);
+    await ledger.recordMovement({
+        variantId,
+        movementType: 'INITIAL_STOCK',
+        delta: Number(body.initial_stock) || 0,
+        referenceType: 'ADMIN',
+        reason: `New product "${body.name}" created`,
+        actor: actor?.email || 'ADMIN_PORTAL',
+    });
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_PRODUCT', 'products', productId, null, { name: body.name, slug, variant_id: variantId, sku }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, product_id: productId, variant_id: variantId, slug, sku });
+});
+// PATCH /api/admin/products/:id
+adminApp.patch('/products/:id', async (c) => {
+    const actor = c.get('adminActor');
+    const productId = c.req.param('id');
+    const body = await c.req.json();
+    const current = await c.env.DB.prepare('SELECT * FROM products WHERE id = ?').bind(productId).first();
+    if (!current) {
+        return c.json({ success: false, error: 'Product not found' }, 404);
+    }
+    await c.env.DB.prepare(`
+    UPDATE products SET
+      name = COALESCE(?, name),
+      description = COALESCE(?, description),
+      image_url = COALESCE(?, image_url),
+      is_featured = COALESCE(?, is_featured),
+      is_active = COALESCE(?, is_active),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(body.name ?? null, body.description ?? null, body.image_url ?? null, body.is_featured === undefined ? null : (body.is_featured ? 1 : 0), body.is_active === undefined ? null : (body.is_active ? 1 : 0), productId).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_PRODUCT', 'products', productId, { is_active: current.is_active, name: current.name }, body, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true });
+});
+// POST /api/admin/products/:id/variants — add a new weight/price option to an existing product
+adminApp.post('/products/:id/variants', async (c) => {
+    const actor = c.get('adminActor');
+    const productId = c.req.param('id');
+    const body = await c.req.json();
+    if (!body.weight_grams || !body.price_cents) {
+        return c.json({ success: false, error: 'weight_grams and price_cents are required' }, 400);
+    }
+    const product = await c.env.DB.prepare('SELECT id, slug FROM products WHERE id = ?').bind(productId).first();
+    if (!product) {
+        return c.json({ success: false, error: 'Product not found' }, 404);
+    }
+    const variantId = 'var_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    const slugPart = String(product.slug).split('-').slice(0, -1).join('').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+    const sku = `TDG-${slugPart}-${body.weight_grams}G-${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
+    await c.env.DB.prepare(`
+    INSERT INTO product_variants (id, product_id, sku, weight_grams, price_cents, grind_options, is_active)
+    VALUES (?, ?, ?, ?, ?, '["WHOLE_BEAN", "POUR_OVER", "ESPRESSO"]', 1)
+  `).bind(variantId, productId, sku, body.weight_grams, body.price_cents).run();
+    const ledger = new InventoryLedgerService(c.env.DB);
+    await ledger.recordMovement({
+        variantId,
+        movementType: 'INITIAL_STOCK',
+        delta: Number(body.initial_stock) || 0,
+        referenceType: 'ADMIN',
+        reason: `New variant added to product ${productId}`,
+        actor: actor?.email || 'ADMIN_PORTAL',
+    });
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_VARIANT', 'product_variants', variantId, null, { product_id: productId, weight_grams: body.weight_grams, sku }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, variant_id: variantId, sku });
+});
+// PATCH /api/admin/variants/:id/status
+adminApp.patch('/variants/:id/status', async (c) => {
+    const actor = c.get('adminActor');
+    const variantId = c.req.param('id');
+    const body = await c.req.json();
+    if (typeof body.is_active !== 'boolean') {
+        return c.json({ success: false, error: 'is_active must be true or false' }, 400);
+    }
+    const current = await c.env.DB.prepare('SELECT is_active FROM product_variants WHERE id = ?').bind(variantId).first();
+    if (!current) {
+        return c.json({ success: false, error: 'Variant not found' }, 404);
+    }
+    await c.env.DB.prepare('UPDATE product_variants SET is_active = ? WHERE id = ?')
+        .bind(body.is_active ? 1 : 0, variantId).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_VARIANT_STATUS', 'product_variants', variantId, { is_active: current.is_active }, { is_active: body.is_active }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, is_active: body.is_active });
+});
 export { adminApp };

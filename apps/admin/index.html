@@ -43,6 +43,7 @@
           <li><button class="nav-item-btn" data-tab="labels">🏷️ Bag Labels & QR Studio</button></li>
           <li><button class="nav-item-btn" data-tab="pricing">🏷️ Catalog, Pricing & Discounts</button></li>
           <li><button class="nav-item-btn" data-tab="inventory">📦 Inventory Management</button></li>
+          <li><button class="nav-item-btn" data-tab="catalog">🌱 Product Catalog</button></li>
           <li><button class="nav-item-btn" data-tab="capacity">⚙️ Capacity vs Demand Matrix</button></li>
           <li><button class="nav-item-btn" data-tab="capex">🏭 Roaster Pricing & CapEx</button></li>
           <li><button class="nav-item-btn" data-tab="economics">💰 Unit Economics & Margins</button></li>
@@ -306,6 +307,99 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: Product Catalog -->
+      <section class="section-panel" id="panel-catalog">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">🌱 Product Catalog</h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Add new roasts, retire old ones, and manage bag-size variants — changes go live on the storefront immediately</span>
+          </div>
+          <button class="btn-table-action" id="btn-add-product">+ Add Product</button>
+        </div>
+
+        <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+          <form id="product-add-form" style="display: none; flex-direction: column; gap: 0.9rem; background: rgba(0,0,0,0.15); border: 1px solid var(--admin-border); border-radius: var(--radius-md); padding: 1.2rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
+              <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Name</label>
+                <input id="product-name" type="text" required placeholder="e.g. Coorg Peaberry Natural" style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;">
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Category</label>
+                <select id="product-category" required style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;"></select>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Origin Country</label>
+                <input id="product-origin" type="text" required placeholder="e.g. India" style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;">
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Roast Level</label>
+                <select id="product-roast-level" required style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;">
+                  <option value="LIGHT">Light</option>
+                  <option value="MEDIUM_LIGHT">Medium-Light</option>
+                  <option value="MEDIUM" selected>Medium</option>
+                  <option value="MEDIUM_DARK">Medium-Dark</option>
+                  <option value="DARK">Dark</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+              <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Description</label>
+              <textarea id="product-description" required rows="2" placeholder="Short tasting/description copy for the storefront" style="background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0.6rem;"></textarea>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+              <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Product Image</label>
+              <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <input id="product-image-file" type="file" accept="image/*" style="color: var(--text-main);">
+                <span id="product-image-status" style="font-size: 0.8rem; color: var(--text-muted);">No image uploaded yet</span>
+                <img id="product-image-preview" style="display: none; height: 44px; width: 44px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--admin-border);">
+              </div>
+              <input id="product-image-url" type="hidden">
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;">
+              <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Bag Size (grams)</label>
+                <input id="product-weight" type="number" required value="250" style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;">
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Price (cents/paise)</label>
+                <input id="product-price" type="number" required placeholder="e.g. 1850" style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;">
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Initial Stock</label>
+                <input id="product-initial-stock" type="number" value="0" style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;">
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem;">
+              <button type="submit" class="btn-table-action">Create Product</button>
+              <button type="button" class="btn-table-action" id="btn-cancel-add-product" style="background: transparent;">Cancel</button>
+            </div>
+          </form>
+
+          <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Category</th>
+                  <th>Roast Level</th>
+                  <th>Variants</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="catalog-table-body">
+                <!-- Rendered dynamically; each product row is followed by a nested variants row -->
+              </tbody>
+            </table>
           </div>
         </div>
       </section>

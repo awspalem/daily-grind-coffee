@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { zeroTrustAdminGuard } from '../middleware/zeroTrust';
 const mediaApp = new Hono();
 // GET /api/media/:key (Serve from R2 with edge caching)
-mediaApp.get('/:key', async (c) => {
+// Uploaded keys are namespaced like "catalog/168..._name.jpg", so the param must span slashes.
+mediaApp.get('/:key{.+}', async (c) => {
     const key = c.req.param('key');
     if (!c.env.MEDIA_BUCKET) {
         // In local development or before R2 bind, redirect or return fallback

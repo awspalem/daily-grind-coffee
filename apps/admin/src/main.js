@@ -57,6 +57,7 @@ class AdminPortal {
         this.setupThermalLabelStudio();
         this.setupGSTInvoicing();
         this.setupInventoryManager();
+        this.setupProductCatalogManager();
         this.setupChannelsManager();
         this.setupCampaignsManager();
         this.setupLimitedEditionsManager();
@@ -125,6 +126,7 @@ class AdminPortal {
                 labels: 'panel-labels',
                 pricing: 'panel-pricing',
                 inventory: 'panel-inventory',
+                catalog: 'panel-catalog',
                 capacity: 'panel-capacity',
                 capex: 'panel-capex',
                 economics: 'panel-economics',
@@ -796,6 +798,192 @@ class AdminPortal {
             }
             else {
                 alert(`⚠️ Inventory adjustment failed: ${result.error || 'Unknown error'}`);
+            }
+        });
+    }
+    // ==========================================================================
+    // PRODUCT CATALOG — create/retire products & variants; changes go live on the storefront
+    // ==========================================================================
+    setupProductCatalogManager() {
+        const tbody = document.getElementById('catalog-table-body');
+        const form = document.getElementById('product-add-form');
+        const categorySelect = document.getElementById('product-category');
+        const imageFileInput = document.getElementById('product-image-file');
+        const imageUrlInput = document.getElementById('product-image-url');
+        const imageStatus = document.getElementById('product-image-status');
+        const imagePreview = document.getElementById('product-image-preview');
+        if (!tbody || !form || !categorySelect || !imageFileInput || !imageUrlInput)
+            return;
+        const loadCategories = async () => {
+            const data = await this.adminFetch('/api/categories');
+            categorySelect.innerHTML = (data.categories || []).map((cat) => `<option value="${cat.id}">${this.escapeHtml(cat.name)}</option>`).join('');
+        };
+        const renderVariantRow = (product, variant) => `
+      <tr style="background: rgba(0,0,0,0.12);">
+        <td data-label="Variant" colspan="2" style="padding-left: 2.4rem;">${variant.weight_grams}g · ${this.escapeHtml(variant.sku)}</td>
+        <td data-label="Price">₹${(variant.price_cents / 100).toFixed(2)}</td>
+        <td data-label="Stock">${variant.available_stock ?? 0} available</td>
+        <td data-label="Status">${variant.is_active ? '<span class="status-badge paid">Active</span>' : '<span class="status-badge low-stock">Inactive</span>'}</td>
+        <td data-label="Action"><button class="btn-table-action" data-variant-toggle="${variant.id}" data-current-active="${variant.is_active ? '1' : '0'}">${variant.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
+      </tr>
+    `;
+        const renderAddVariantRow = (productId) => `
+      <tr style="background: rgba(0,0,0,0.08);">
+        <td colspan="6" style="padding-left: 2.4rem;">
+          <details>
+            <summary style="cursor: pointer; color: var(--text-muted); font-size: 0.85rem;">+ Add bag-size variant</summary>
+            <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; align-items: center;">
+              <input type="number" placeholder="Grams" class="new-variant-weight" style="min-height: 40px; width: 100px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.5rem;">
+              <input type="number" placeholder="Price (cents)" class="new-variant-price" style="min-height: 40px; width: 130px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.5rem;">
+              <input type="number" placeholder="Initial stock" class="new-variant-stock" style="min-height: 40px; width: 110px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.5rem;">
+              <button type="button" class="btn-table-action" data-add-variant="${productId}">Add Variant</button>
+            </div>
+          </details>
+        </td>
+      </tr>
+    `;
+        const render = (products) => {
+            tbody.innerHTML = products.map((p) => `
+        <tr>
+          <td data-label="Product"><strong>${this.escapeHtml(p.name)}</strong></td>
+          <td data-label="Category">${this.escapeHtml(p.category_name)}</td>
+          <td data-label="Roast Level">${this.escapeHtml(p.roast_level)}</td>
+          <td data-label="Variants">${(p.variants || []).length}</td>
+          <td data-label="Status">${p.is_active ? '<span class="status-badge paid">Active</span>' : '<span class="status-badge low-stock">Inactive</span>'}</td>
+          <td data-label="Action"><button class="btn-table-action" data-product-toggle="${p.id}" data-current-active="${p.is_active ? '1' : '0'}">${p.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
+        </tr>
+        ${(p.variants || []).map((v) => renderVariantRow(p, v)).join('')}
+        ${renderAddVariantRow(p.id)}
+      `).join('');
+        };
+        const load = async () => {
+            const data = await this.adminFetch('/api/admin/products');
+            render(data.products || []);
+        };
+        loadCategories();
+        load();
+        // Product / variant active toggles + inline "add variant"
+        tbody.addEventListener('click', async (e) => {
+            const target = e.target;
+            const productToggle = target.closest('button[data-product-toggle]');
+            if (productToggle) {
+                this.triggerHaptic();
+                const nextActive = productToggle.dataset.currentActive !== '1';
+                const result = await this.adminFetch(`/api/admin/products/${productToggle.dataset.productToggle}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ is_active: nextActive }),
+                });
+                if (result.success)
+                    await load();
+                return;
+            }
+            const variantToggle = target.closest('button[data-variant-toggle]');
+            if (variantToggle) {
+                this.triggerHaptic();
+                const nextActive = variantToggle.dataset.currentActive !== '1';
+                const result = await this.adminFetch(`/api/admin/variants/${variantToggle.dataset.variantToggle}/status`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ is_active: nextActive }),
+                });
+                if (result.success)
+                    await load();
+                return;
+            }
+            const addVariantBtn = target.closest('button[data-add-variant]');
+            if (addVariantBtn) {
+                this.triggerHaptic();
+                const row = addVariantBtn.closest('td');
+                const weight = Number(row.querySelector('.new-variant-weight')?.value);
+                const price = Number(row.querySelector('.new-variant-price')?.value);
+                const stock = Number(row.querySelector('.new-variant-stock')?.value) || 0;
+                if (!weight || !price) {
+                    alert('⚠️ Weight and price are required to add a variant.');
+                    return;
+                }
+                const result = await this.adminFetch(`/api/admin/products/${addVariantBtn.dataset.addVariant}/variants`, {
+                    method: 'POST',
+                    body: JSON.stringify({ weight_grams: weight, price_cents: price, initial_stock: stock }),
+                });
+                if (result.success) {
+                    await load();
+                }
+                else {
+                    alert(`⚠️ Could not add variant: ${result.error || 'Unknown error'}`);
+                }
+            }
+        });
+        // Image upload
+        imageFileInput.addEventListener('change', async () => {
+            const file = imageFileInput.files?.[0];
+            if (!file)
+                return;
+            if (imageStatus)
+                imageStatus.textContent = 'Uploading...';
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/api/media/upload', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer tdg_admin_dev_token_secret' },
+                body: formData,
+            });
+            const data = await res.json();
+            if (data.success && data.url) {
+                imageUrlInput.value = data.url;
+                if (imageStatus)
+                    imageStatus.textContent = 'Image uploaded';
+                if (imagePreview) {
+                    imagePreview.src = data.url;
+                    imagePreview.style.display = 'block';
+                }
+            }
+            else if (imageStatus) {
+                imageStatus.textContent = `Upload failed: ${data.error || 'Unknown error'}`;
+            }
+        });
+        // Show/hide the add-product form
+        document.getElementById('btn-add-product')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+        });
+        document.getElementById('btn-cancel-add-product')?.addEventListener('click', () => {
+            form.style.display = 'none';
+            form.reset();
+            imageUrlInput.value = '';
+            if (imageStatus)
+                imageStatus.textContent = 'No image uploaded yet';
+            if (imagePreview)
+                imagePreview.style.display = 'none';
+        });
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            this.triggerHaptic();
+            const payload = {
+                name: document.getElementById('product-name').value,
+                category_id: categorySelect.value,
+                origin_country: document.getElementById('product-origin').value,
+                roast_level: document.getElementById('product-roast-level').value,
+                description: document.getElementById('product-description').value,
+                image_url: imageUrlInput.value || 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?auto=format&fit=crop&w=800&q=80',
+                weight_grams: Number(document.getElementById('product-weight').value),
+                price_cents: Number(document.getElementById('product-price').value),
+                initial_stock: Number(document.getElementById('product-initial-stock').value) || 0,
+            };
+            const result = await this.adminFetch('/api/admin/products', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+            if (result.success) {
+                form.style.display = 'none';
+                form.reset();
+                imageUrlInput.value = '';
+                if (imageStatus)
+                    imageStatus.textContent = 'No image uploaded yet';
+                if (imagePreview)
+                    imagePreview.style.display = 'none';
+                await load();
+            }
+            else {
+                alert(`⚠️ Could not create product: ${result.error || 'Unknown error'}`);
             }
         });
     }
