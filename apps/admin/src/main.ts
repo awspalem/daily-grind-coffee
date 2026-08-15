@@ -3,10 +3,12 @@ import { ROASTERY_LOT_PRESETS, generateThermalLabelHTML, BagLabelConfig } from '
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 
 // Cloudflare Pages' `_redirects` 200-status rewrite does not proxy the Worker API reliably, so
-// we call the Worker's own custom domain directly (see apps/storefront/src/main.ts for the same
-// fix). This domain must be behind Cloudflare Access — the browser needs an active Access
-// session cookie for it, which `credentials: 'include'` below forwards on every request.
-const API_BASE = 'https://daily-grind-api.rohithpalem.in';
+// we call the Worker's own URL directly (see apps/storefront/src/main.ts for the same fix).
+// TEMPORARY: pointed at the workers.dev URL until the custom domain (daily-grind-api.
+// rohithpalem.in) is live — see the comment in apps/api/wrangler.toml. Cloudflare Access can't
+// protect a workers.dev subdomain, so admin API calls will 401 until that domain is restored;
+// expected/safe (fail-closed) rather than the previous wide-open state.
+const API_BASE = 'https://daily-grind-api.awspalem.workers.dev';
 
 interface PricingRow {
   variant_id: string;

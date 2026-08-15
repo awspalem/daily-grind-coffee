@@ -73,12 +73,14 @@ crons = ["0 4 * * *"] # Daily 4:00 AM UTC stock audit & backup
 [env.production]
 name = "daily-grind-api"
 
-# Custom domain required so Cloudflare Access can actually protect this API — Access cannot be
-# applied to a bare *.workers.dev subdomain, only to a domain/zone you own. `custom_domain = true`
-# has Wrangler provision the DNS + domain binding automatically on deploy.
-[[env.production.routes]]
-pattern = "daily-grind-api.rohithpalem.in"
-custom_domain = true
+# Custom domain (needed so Cloudflare Access can protect this API — Access cannot be applied to
+# a bare *.workers.dev subdomain) is DISABLED for now: the CLOUDFLARE_API_TOKEN used in CI lacks
+# the Zone:Workers Routes:Edit permission needed to auto-provision it, which was hard-failing
+# every deploy. Once that token permission is granted, re-add:
+#   [[env.production.routes]]
+#   pattern = "daily-grind-api.rohithpalem.in"
+#   custom_domain = true
+# and switch API_BASE in apps/admin/src/main.ts back to that hostname.
 
 [env.production.vars]
 ENVIRONMENT = "production"

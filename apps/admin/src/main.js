@@ -2,10 +2,12 @@
 import { ROASTERY_LOT_PRESETS, generateThermalLabelHTML } from './utils/thermalLabel';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 // Cloudflare Pages' `_redirects` 200-status rewrite does not proxy the Worker API reliably, so
-// we call the Worker's own custom domain directly (see apps/storefront/src/main.ts for the same
-// fix). This domain must be behind Cloudflare Access — the browser needs an active Access
-// session cookie for it, which `credentials: 'include'` below forwards on every request.
-const API_BASE = 'https://daily-grind-api.rohithpalem.in';
+// we call the Worker's own URL directly (see apps/storefront/src/main.ts for the same fix).
+// TEMPORARY: pointed at the workers.dev URL until the custom domain (daily-grind-api.
+// rohithpalem.in) is live — see the comment in apps/api/wrangler.toml. Cloudflare Access can't
+// protect a workers.dev subdomain, so admin API calls will 401 until that domain is restored;
+// expected/safe (fail-closed) rather than the previous wide-open state.
+const API_BASE = 'https://daily-grind-api.awspalem.workers.dev';
 const ROASTER_TIERS = [
     { batchSizeKg: 1.0, label: '1.0kg Specialty Drum', category: 'Sample / Pilot', recommendedRole: '🔴 Sub-Breakeven (4h: 1,273 kg/yr)', statusClass: 'danger' },
     { batchSizeKg: 1.5, label: '1.5kg Nano Roaster', category: 'Nano Roaster', recommendedRole: '🔴 Sub-Breakeven (4h: 1,909 kg/yr)', statusClass: 'danger' },
