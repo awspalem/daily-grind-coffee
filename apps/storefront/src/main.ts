@@ -311,6 +311,8 @@ class StorefrontApp {
   private cartItems: LocalCartItem[] = [];
   private activeCategory: string = 'all';
   private activeTastingNote: string = 'all';
+  private searchQuery: string = '';
+  private reviewSummary: Record<string, { avg_rating: number; review_count: number }> = {};
   private activeFlavorWheelCategory: string = 'all';
   private currentCurrency: Currency = 'INR';
   private discountPercentage: number = 0;
@@ -444,6 +446,16 @@ class StorefrontApp {
       countAllEl.textContent = `${this.products.length} Roasts`;
     }
 
+    try {
+      const res = await fetch(`${API_BASE}/api/reviews/summary`);
+      if (res.ok) {
+        const data = await res.json() as { success: boolean; summary: Record<string, { avg_rating: number; review_count: number }> };
+        this.reviewSummary = data.summary || {};
+      }
+    } catch {
+      // Reviews are non-critical — leave summary empty rather than blocking catalog render
+    }
+
     this.renderProducts();
     this.renderFlavorWheelSVGs();
   }
@@ -453,6 +465,18 @@ class StorefrontApp {
     if (!container) return;
 
     let filtered = this.products;
+
+    if (this.searchQuery.trim() !== '') {
+      const q = this.searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.tagline || '').toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q) ||
+        (p.origin_country || '').toLowerCase().includes(q) ||
+        (p.roast_level || '').toLowerCase().replace(/_/g, ' ').includes(q) ||
+        p.tasting_notes.some((n: string) => n.toLowerCase().includes(q))
+      );
+    }
 
     if (this.activeCategory !== 'all') {
       filtered = filtered.filter((p) => p.category_id === this.activeCategory || p.slug.includes(this.activeCategory));
@@ -471,9 +495,12 @@ class StorefrontApp {
     }
 
     if (filtered.length === 0) {
+      const emptyMessage = this.searchQuery.trim() !== ''
+        ? `No roasts match "${this.escapeHtml(this.searchQuery.trim())}".`
+        : 'No roasts match your exact flavor filter.';
       container.innerHTML = `
         <div style="grid-column: 1/-1; text-align:center; padding: 4rem 1rem; color: var(--text-muted);">
-          <p style="font-size: 1.2rem; font-family: var(--font-serif);">No roasts match your exact flavor filter.</p>
+          <p style="font-size: 1.2rem; font-family: var(--font-serif);">${emptyMessage}</p>
           <button class="btn-secondary" style="margin-top:1rem;" onclick="window.storefrontApp.resetFilters()">View All Roasts</button>
         </div>
       `;
@@ -532,6 +559,14 @@ class StorefrontApp {
               <h3 class="card-title">${prod.name}</h3>
             </div>
             <p class="card-tagline">${prod.tagline}</p>
+
+            ${(() => {
+              const rs = this.reviewSummary[prod.id];
+              const stars = rs ? '★'.repeat(Math.round(rs.avg_rating)) + '☆'.repeat(5 - Math.round(rs.avg_rating)) : '';
+              return `<button type="button" class="product-rating-badge" data-action="open-reviews" data-prod-id="${prod.id}" data-prod-name="${this.escapeHtml(prod.name)}">
+                ${rs ? `<span class="stars">${stars}</span> ${rs.avg_rating} (${rs.review_count} review${rs.review_count === 1 ? '' : 's'})` : 'Be the first to review'}
+              </button>`;
+            })()}
 
             <div class="tasting-tags-list">
               ${notesHtml}
@@ -609,6 +644,17 @@ class StorefrontApp {
         </article>
       `;
     }).join('');
+
+    // Attach review badges
+    document.querySelectorAll('[data-action="open-reviews"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        this.triggerHaptic();
+        const target = e.currentTarget as HTMLElement;
+        const prodId = target.getAttribute('data-prod-id') || '';
+        const prodName = target.getAttribute('data-prod-name') || 'this coffee';
+        this.openReviewsModal(prodId, prodName);
+      });
+    });
 
     // Attach weight selectors
     document.querySelectorAll('.weight-btn').forEach((btn) => {
@@ -1009,6 +1055,12 @@ class StorefrontApp {
     localStorage.setItem('tdg_cart', JSON.stringify(this.cartItems));
   }
 
+  private escapeHtml(value: string): string {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
+  }
+
   private triggerHaptic() {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       try {
@@ -1218,6 +1270,18 @@ class StorefrontApp {
     this.setupSheetDragDismiss('cart-drawer', 'cart-drag-handle', () => this.closeCart());
     this.setupSheetDragDismiss('agent-drawer', 'agent-drag-handle', () => this.closeAgent());
 
+    // Product Search
+    const searchInput = document.getElementById('catalog-search-input') as HTMLInputElement | null;
+    let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+    searchInput?.addEventListener('input', (e) => {
+      const value = (e.target as HTMLInputElement).value;
+      if (searchDebounce) clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => {
+        this.searchQuery = value;
+        this.renderProducts();
+      }, 200);
+    });
+
     // Category Tabs
     document.querySelectorAll('#category-tabs-container .category-tab').forEach((tab) => {
       tab.addEventListener('click', (e) => {
@@ -1339,6 +1403,121 @@ class StorefrontApp {
       this.triggerHaptic();
       window.print();
     });
+
+    // Reviews Modal
+    const modalReviews = document.getElementById('modal-reviews');
+    document.getElementById('modal-reviews-close')?.addEventListener('click', () => {
+      modalReviews?.classList.remove('active');
+    });
+
+    // Star picker
+    document.querySelectorAll('.review-star-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        this.triggerHaptic();
+        const target = e.currentTarget as HTMLElement;
+        const star = parseInt(target.getAttribute('data-star') || '5', 10);
+        const ratingInput = document.getElementById('review-rating-input') as HTMLInputElement;
+        if (ratingInput) ratingInput.value = String(star);
+        document.querySelectorAll('.review-star-btn').forEach((b) => {
+          const s = parseInt(b.getAttribute('data-star') || '0', 10);
+          b.classList.toggle('filled', s <= star);
+        });
+      });
+    });
+
+    // Review submission
+    const reviewForm = document.getElementById('review-submit-form') as HTMLFormElement;
+    reviewForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      this.triggerHaptic();
+      const productId = (document.getElementById('review-form-product-id') as HTMLInputElement)?.value;
+      const rating = parseInt((document.getElementById('review-rating-input') as HTMLInputElement)?.value || '5', 10);
+      const customerName = (document.getElementById('review-name-input') as HTMLInputElement)?.value.trim();
+      const orderNumber = (document.getElementById('review-order-input') as HTMLInputElement)?.value.trim();
+      const comment = (document.getElementById('review-comment-input') as HTMLTextAreaElement)?.value.trim();
+      const statusEl = document.getElementById('review-submit-status');
+
+      if (!productId || !customerName || !comment) return;
+
+      if (statusEl) {
+        statusEl.textContent = 'Submitting...';
+        statusEl.style.color = 'var(--text-muted)';
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: productId, customer_name: customerName, rating, comment, order_number: orderNumber || undefined })
+        });
+        const data = await res.json() as { success: boolean; error?: string };
+        if (data.success) {
+          if (statusEl) {
+            statusEl.textContent = 'Thank you for your review!';
+            statusEl.style.color = 'var(--accent-emerald)';
+          }
+          reviewForm.reset();
+          document.querySelectorAll('.review-star-btn').forEach((b) => b.classList.remove('filled'));
+          const prodName = document.getElementById('modal-reviews-title')?.getAttribute('data-prod-name') || 'this coffee';
+          await this.openReviewsModal(productId, prodName);
+          this.loadCatalog();
+        } else {
+          if (statusEl) {
+            statusEl.textContent = data.error || 'Could not submit review — please try again.';
+            statusEl.style.color = 'var(--accent-terracotta)';
+          }
+        }
+      } catch {
+        if (statusEl) {
+          statusEl.textContent = 'Network error — please try again.';
+          statusEl.style.color = 'var(--accent-terracotta)';
+        }
+      }
+    });
+  }
+
+  async openReviewsModal(productId: string, productName: string) {
+    const modal = document.getElementById('modal-reviews');
+    const titleEl = document.getElementById('modal-reviews-title');
+    const listEl = document.getElementById('modal-reviews-list');
+    const productIdInput = document.getElementById('review-form-product-id') as HTMLInputElement;
+    const statusEl = document.getElementById('review-submit-status');
+    if (!modal || !listEl) return;
+
+    if (titleEl) {
+      titleEl.textContent = `Reviews — ${productName}`;
+      titleEl.setAttribute('data-prod-name', productName);
+    }
+    if (productIdInput) productIdInput.value = productId;
+    if (statusEl) statusEl.textContent = '';
+    listEl.innerHTML = `<p style="color: var(--text-muted); text-align:center; padding: 1rem;">Loading reviews...</p>`;
+    modal.classList.add('active');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/reviews/${encodeURIComponent(productId)}`);
+      const data = await res.json() as { success: boolean; reviews: any[]; avg_rating: number | null; review_count: number };
+      if (!data.success || data.reviews.length === 0) {
+        listEl.innerHTML = `<p style="color: var(--text-muted); text-align:center; padding: 1rem;">No reviews yet — be the first to share your thoughts!</p>`;
+        return;
+      }
+      listEl.innerHTML = data.reviews.map((r) => {
+        const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+        const date = new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        return `
+          <div class="review-card">
+            <div class="review-card-stars">${stars}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin: 0.3rem 0;">
+              <strong style="font-size: 0.92rem;">${this.escapeHtml(r.customer_name)}</strong>
+              ${r.is_verified_purchase ? '<span style="font-size: 0.72rem; color: var(--accent-emerald); font-weight: 700;">✓ Verified Purchase</span>' : ''}
+            </div>
+            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 0.3rem;">${this.escapeHtml(r.comment)}</p>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">${date}</span>
+          </div>
+        `;
+      }).join('');
+    } catch {
+      listEl.innerHTML = `<p style="color: var(--text-muted); text-align:center; padding: 1rem;">Couldn't load reviews right now.</p>`;
+    }
   }
 
   private orderStatusDisplay(status: string): { label: string; statusClass: string; desc: string } {
@@ -2325,7 +2504,10 @@ class StorefrontApp {
     this.activeCategory = 'all';
     this.activeTastingNote = 'all';
     this.activeFlavorWheelCategory = 'all';
-    
+    this.searchQuery = '';
+    const searchInput = document.getElementById('catalog-search-input') as HTMLInputElement | null;
+    if (searchInput) searchInput.value = '';
+
     document.querySelectorAll('#category-tabs-container .category-tab').forEach((t) => t.classList.remove('active'));
     document.querySelectorAll('#flavor-pills-container .note-pill').forEach((p) => p.classList.remove('active'));
     document.querySelectorAll('#flavor-wheel-pills .wheel-cat-btn').forEach((p) => p.classList.remove('active'));

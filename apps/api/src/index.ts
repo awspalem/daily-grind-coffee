@@ -13,6 +13,7 @@ import { analyticsApp } from './routes/analytics';
 import { mcpApp } from './routes/mcp';
 import { mediaApp } from './routes/media';
 import { customerApp } from './routes/customer';
+import { reviewsApp } from './routes/reviews';
 import { rateLimiter } from './middleware/rateLimit';
 import { generateOrderConfirmationEmail } from './services/emailTemplate';
 import { D1BackupService } from './services/backupService';
@@ -61,6 +62,7 @@ app.route('/api/analytics', analyticsApp);
 app.route('/api/mcp', mcpApp);
 app.route('/api/media', mediaApp);
 app.route('/api/customer', customerApp);
+app.route('/api/reviews', reviewsApp);
 
 // 404 Handler
 app.notFound((c) => {

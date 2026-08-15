@@ -2731,6 +2731,53 @@ body {
   gap: 0.8rem;
 }
 
+/* Product Reviews */
+.review-star-btn {
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--border-subtle);
+  transition: var(--transition-smooth);
+  padding: 0;
+}
+
+.review-star-btn.filled {
+  color: var(--accent-gold);
+}
+
+.review-card {
+  background: #fff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.2rem;
+  margin-bottom: 0.8rem;
+}
+
+.review-card-stars {
+  color: var(--accent-gold);
+  letter-spacing: 0.1em;
+  font-size: 0.95rem;
+}
+
+.product-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 0.3rem;
+}
+
+.product-rating-badge .stars {
+  color: var(--accent-gold);
+}
+
 /* Document Formatting inside Storefront */
 .gst-invoice-document {
   background: #ffffff;

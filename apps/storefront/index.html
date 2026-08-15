@@ -142,6 +142,11 @@
         <p class="section-subtitle">Roasted to order in Bangalore. Custom grind size ground fresh right before sealing.</p>
       </div>
 
+      <!-- Product Search -->
+      <div class="catalog-search-container" style="max-width: 480px; margin: 0 auto 1.4rem;">
+        <input type="search" id="catalog-search-input" placeholder="Search roasts, origins, tasting notes…" aria-label="Search coffee roasts" style="width:100%; padding: 0.8rem 1.2rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); font-family: inherit; font-size: 0.95rem;">
+      </div>
+
       <!-- Filter Tabs -->
       <div class="filter-container">
         <div class="category-tabs" id="category-tabs-container">
@@ -797,7 +802,11 @@
     </div>
     <div class="footer-bottom">
       <span>&copy; 2026 The Daily Grind Roastery Pvt Ltd · Bangalore, India</span>
-      <span>Direct-Trade Specialty Coffee · Roasted Fresh to Order</span>
+      <span style="display:flex; gap: 1.2rem; align-items:center;">
+        <a href="/privacy.html" style="color: inherit; opacity: 0.8;">Privacy Policy</a>
+        <a href="/terms.html" style="color: inherit; opacity: 0.8;">Terms of Service</a>
+        <span>Direct-Trade Specialty Coffee · Roasted Fresh to Order</span>
+      </span>
     </div>
   </footer>
 
@@ -877,6 +886,38 @@
       <div class="storefront-modal-footer">
         <button type="button" class="btn-secondary" id="modal-cust-invoice-cancel" style="padding: 0.65rem 1.2rem; border-radius: var(--radius-pill); cursor: pointer;">Close</button>
         <button type="button" class="btn-primary" id="modal-cust-invoice-print" style="padding: 0.65rem 1.4rem;">🖨️ Print GST Tax Invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Product Reviews -->
+  <div class="storefront-modal-backdrop" id="modal-reviews">
+    <div class="storefront-modal-dialog">
+      <div class="storefront-modal-header">
+        <h3 id="modal-reviews-title">Reviews</h3>
+        <button type="button" class="storefront-modal-close" id="modal-reviews-close">&times;</button>
+      </div>
+      <div class="storefront-modal-body">
+        <div id="modal-reviews-list">
+          <!-- Rendered review list -->
+        </div>
+        <form id="review-submit-form" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle);">
+          <input type="hidden" id="review-form-product-id">
+          <h4 style="margin-bottom: 0.8rem; font-size: 1rem;">Write a Review</h4>
+          <div style="display:flex; gap: 0.6rem; margin-bottom: 0.8rem;" id="review-star-picker">
+            <input type="hidden" id="review-rating-input" value="5">
+            <button type="button" class="review-star-btn" data-star="1" aria-label="1 star">★</button>
+            <button type="button" class="review-star-btn" data-star="2" aria-label="2 stars">★</button>
+            <button type="button" class="review-star-btn" data-star="3" aria-label="3 stars">★</button>
+            <button type="button" class="review-star-btn" data-star="4" aria-label="4 stars">★</button>
+            <button type="button" class="review-star-btn" data-star="5" aria-label="5 stars">★</button>
+          </div>
+          <input type="text" id="review-name-input" placeholder="Your name" required maxlength="80" style="width:100%; padding: 0.7rem 1rem; margin-bottom: 0.6rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-family: inherit;">
+          <input type="text" id="review-order-input" placeholder="Order number (optional — verifies your purchase)" maxlength="20" style="width:100%; padding: 0.7rem 1rem; margin-bottom: 0.6rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-family: inherit;">
+          <textarea id="review-comment-input" placeholder="What did you think of this coffee?" required maxlength="2000" rows="3" style="width:100%; padding: 0.7rem 1rem; margin-bottom: 0.8rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-family: inherit; resize: vertical;"></textarea>
+          <div id="review-submit-status" style="font-size: 0.85rem; margin-bottom: 0.6rem;"></div>
+          <button type="submit" class="btn-primary" style="padding: 0.7rem 1.4rem;">Submit Review</button>
+        </form>
       </div>
     </div>
   </div>
