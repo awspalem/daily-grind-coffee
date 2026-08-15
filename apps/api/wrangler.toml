@@ -77,7 +77,7 @@ name = "daily-grind-api"
 # applied to a bare *.workers.dev subdomain, only to a domain/zone you own. `custom_domain = true`
 # has Wrangler provision the DNS + domain binding automatically on deploy.
 [[env.production.routes]]
-pattern = "api.rohithpalem.in"
+pattern = "daily-grind-api.rohithpalem.in"
 custom_domain = true
 
 [env.production.vars]

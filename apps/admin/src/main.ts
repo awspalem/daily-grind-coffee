@@ -6,7 +6,7 @@ import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoi
 // we call the Worker's own custom domain directly (see apps/storefront/src/main.ts for the same
 // fix). This domain must be behind Cloudflare Access — the browser needs an active Access
 // session cookie for it, which `credentials: 'include'` below forwards on every request.
-const API_BASE = 'https://api.rohithpalem.in';
+const API_BASE = 'https://daily-grind-api.rohithpalem.in';
 
 interface PricingRow {
   variant_id: string;
