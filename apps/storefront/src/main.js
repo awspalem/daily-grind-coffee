@@ -1,4 +1,9 @@
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
+// Cloudflare Pages' `_redirects` 200-status rewrite does not proxy the Worker API reliably
+// (POST requests 405 at the Pages edge, GET requests fall through to the SPA shell instead of
+// reaching the Worker) — so we call the Worker's own URL directly. The Worker already sends
+// permissive CORS headers (access-control-allow-origin: *), so no proxy is needed.
+const API_BASE = 'https://daily-grind-api.awspalem.workers.dev';
 // Curated Bangalore & Global Specialty Catalog
 const FALLBACK_PRODUCTS = [
     {
@@ -366,7 +371,7 @@ class StorefrontApp {
     }
     async loadCatalog() {
         try {
-            const res = await fetch('/api/products');
+            const res = await fetch(`${API_BASE}/api/products`);
             if (res.ok) {
                 const data = await res.json();
                 if (data.products && data.products.length > 0) {
@@ -1139,7 +1144,7 @@ class StorefrontApp {
             checkoutBtn.disabled = true;
             checkoutBtn.textContent = 'Securing Your Bangalore Roast...';
             try {
-                const res = await fetch('/api/checkout/session', {
+                const res = await fetch(`${API_BASE}/api/checkout/session`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
                     body: JSON.stringify({
@@ -1327,7 +1332,7 @@ class StorefrontApp {
         // 3. Show loading bubble
         const loadingBubble = this.appendMessage('agent', 'Consulting our Indiranagar cupping table...');
         try {
-            const res = await fetch('/api/agent/chat', {
+            const res = await fetch(`${API_BASE}/api/agent/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
                 body: JSON.stringify({ messages: this.chatHistory })
