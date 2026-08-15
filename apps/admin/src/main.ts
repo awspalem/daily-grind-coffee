@@ -2,6 +2,12 @@
 import { ROASTERY_LOT_PRESETS, generateThermalLabelHTML, BagLabelConfig } from './utils/thermalLabel';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 
+// Cloudflare Pages' `_redirects` 200-status rewrite does not proxy the Worker API reliably, so
+// we call the Worker's own custom domain directly (see apps/storefront/src/main.ts for the same
+// fix). This domain must be behind Cloudflare Access — the browser needs an active Access
+// session cookie for it, which `credentials: 'include'` below forwards on every request.
+const API_BASE = 'https://api.rohithpalem.in';
+
 interface PricingRow {
   variant_id: string;
   product_name: string;
@@ -279,9 +285,10 @@ class AdminPortal {
 
         this.triggerHaptic();
         try {
-          await fetch(`/api/admin/variants/${item.variant_id}/pricing`, {
+          await fetch(`${API_BASE}/api/admin/variants/${item.variant_id}/pricing`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer tdg_admin_dev_token_secret' },
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               price_inr: item.price_inr,
               price_usd_cents: item.price_usd_cents,
@@ -783,11 +790,14 @@ class AdminPortal {
   }
 
   private async adminFetch<T = any>(path: string, options: RequestInit = {}): Promise<T> {
-    const res = await fetch(path, {
+    // Auth is handled by Cloudflare Access at the edge (it injects Cf-Access-Jwt-Assertion on
+    // requests carrying a valid session cookie) — `credentials: 'include'` is what forwards that
+    // cookie cross-origin. No app-level token needed or sent.
+    const res = await fetch(`${API_BASE}${path}`, {
       ...options,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer tdg_admin_dev_token_secret',
         ...(options.headers || {}),
       },
     });
@@ -1032,9 +1042,9 @@ class AdminPortal {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/media/upload', {
+      const res = await fetch(`${API_BASE}/api/media/upload`, {
         method: 'POST',
-        headers: { 'Authorization': 'Bearer tdg_admin_dev_token_secret' },
+        credentials: 'include',
         body: formData,
       });
       const data = await res.json() as { success: boolean; url?: string; error?: string };
@@ -1612,8 +1622,8 @@ class AdminPortal {
 
   private async loadDashboardData() {
     try {
-      const res = await fetch('/api/admin/dashboard', {
-        headers: { 'Authorization': 'Bearer tdg_admin_dev_token_secret' }
+      const res = await fetch(`${API_BASE}/api/admin/dashboard`, {
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json() as any;

@@ -1,6 +1,11 @@
 // The Daily Grind — Roastery Command Center Interactive Engine
 import { ROASTERY_LOT_PRESETS, generateThermalLabelHTML } from './utils/thermalLabel';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
+// Cloudflare Pages' `_redirects` 200-status rewrite does not proxy the Worker API reliably, so
+// we call the Worker's own custom domain directly (see apps/storefront/src/main.ts for the same
+// fix). This domain must be behind Cloudflare Access — the browser needs an active Access
+// session cookie for it, which `credentials: 'include'` below forwards on every request.
+const API_BASE = 'https://api.rohithpalem.in';
 const ROASTER_TIERS = [
     { batchSizeKg: 1.0, label: '1.0kg Specialty Drum', category: 'Sample / Pilot', recommendedRole: '🔴 Sub-Breakeven (4h: 1,273 kg/yr)', statusClass: 'danger' },
     { batchSizeKg: 1.5, label: '1.5kg Nano Roaster', category: 'Nano Roaster', recommendedRole: '🔴 Sub-Breakeven (4h: 1,909 kg/yr)', statusClass: 'danger' },
@@ -237,9 +242,10 @@ class AdminPortal {
                 }
                 this.triggerHaptic();
                 try {
-                    await fetch(`/api/admin/variants/${item.variant_id}/pricing`, {
+                    await fetch(`${API_BASE}/api/admin/variants/${item.variant_id}/pricing`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer tdg_admin_dev_token_secret' },
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             price_inr: item.price_inr,
                             price_usd_cents: item.price_usd_cents,
@@ -722,11 +728,14 @@ class AdminPortal {
         });
     }
     async adminFetch(path, options = {}) {
-        const res = await fetch(path, {
+        // Auth is handled by Cloudflare Access at the edge (it injects Cf-Access-Jwt-Assertion on
+        // requests carrying a valid session cookie) — `credentials: 'include'` is what forwards that
+        // cookie cross-origin. No app-level token needed or sent.
+        const res = await fetch(`${API_BASE}${path}`, {
             ...options,
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer tdg_admin_dev_token_secret',
                 ...(options.headers || {}),
             },
         });
@@ -943,9 +952,9 @@ class AdminPortal {
                 imageStatus.textContent = 'Uploading...';
             const formData = new FormData();
             formData.append('file', file);
-            const res = await fetch('/api/media/upload', {
+            const res = await fetch(`${API_BASE}/api/media/upload`, {
                 method: 'POST',
-                headers: { 'Authorization': 'Bearer tdg_admin_dev_token_secret' },
+                credentials: 'include',
                 body: formData,
             });
             const data = await res.json();
@@ -1485,8 +1494,8 @@ class AdminPortal {
     }
     async loadDashboardData() {
         try {
-            const res = await fetch('/api/admin/dashboard', {
-                headers: { 'Authorization': 'Bearer tdg_admin_dev_token_secret' }
+            const res = await fetch(`${API_BASE}/api/admin/dashboard`, {
+                credentials: 'include',
             });
             if (res.ok) {
                 const data = await res.json();

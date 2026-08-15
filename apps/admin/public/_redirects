@@ -1,3 +1,4 @@
-# Cloudflare Pages Redirects / Proxies to live Edge API
-/api/* https://daily-grind-api.awspalem.workers.dev/api/:splat 200
+# Cloudflare Pages does not proxy this to the Worker API for non-GET methods (and GET falls
+# through to the SPA shell too) — the admin portal calls the Worker's custom domain directly
+# instead (see API_BASE in src/main.ts). This file only needs the SPA fallback.
 /* /index.html 200

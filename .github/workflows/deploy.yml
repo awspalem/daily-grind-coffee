@@ -60,8 +60,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           cd apps/api
-          npx wrangler d1 migrations apply daily-grind-db --remote
-          npx wrangler d1 execute daily-grind-db --remote --file=../../packages/db/seeds/seed_catalog.sql || true
+          npx wrangler d1 migrations apply daily-grind-db --remote --env production
+          npx wrangler d1 execute daily-grind-db --remote --env production --file=../../packages/db/seeds/seed_catalog.sql || true
 
       - name: Deploy Worker API
         env:
@@ -71,9 +71,9 @@ jobs:
         run: |
           cd apps/api
           if [ -n "$GROQ_API_KEY" ]; then
-            echo "$GROQ_API_KEY" | npx wrangler secret put GROQ_API_KEY || true
+            echo "$GROQ_API_KEY" | npx wrangler secret put GROQ_API_KEY --env production || true
           fi
-          npx wrangler deploy
+          npx wrangler deploy --env production
 
   deploy-storefront:
     name: Deploy Storefront to Cloudflare Pages

@@ -23,7 +23,12 @@ const app = new Hono<{ Bindings: Env }>();
 app.use('*', logger());
 app.use('*', rateLimiter({ windowSeconds: 60, maxRequests: 180 }));
 app.use('*', cors({
-  origin: '*',
+  // Reflects the request's own Origin rather than a static '*'. Required for `credentials: true`
+  // below (the CORS spec forbids combining a wildcard origin with credentialed requests) — the
+  // admin portal needs cookies sent cross-origin so Cloudflare Access's session cookie reaches
+  // api.rohithpalem.in when called from a different frontend origin.
+  origin: (origin) => origin || '*',
+  credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-Session-Token', 'X-Turnstile-Token', 'X-Customer-Email', 'stripe-signature', 'Cf-Access-Jwt-Assertion'],
   exposeHeaders: ['Content-Length', 'X-Session-Token', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],

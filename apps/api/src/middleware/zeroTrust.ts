@@ -21,23 +21,11 @@ export async function zeroTrustAdminGuard(c: Context<{ Bindings: Env; Variables:
   const cfJwt = c.req.header('Cf-Access-Jwt-Assertion');
   const authHeader = c.req.header('Authorization');
 
-  let actorEmail = cfEmail || 'admin-local@dailygrind.coffee';
-  let actorId = 'actor_admin_01';
+  const actorEmail = cfEmail || 'admin-local@dailygrind.coffee';
+  const actorId = 'actor_admin_01';
+  const isProduction = c.env.ENVIRONMENT === 'production';
 
-  // In development, accept Bearer token or development authorization
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (token === c.env.ADMIN_TOKEN || token === 'admin-dev-token' || c.env.ENVIRONMENT === 'development') {
-      c.set('adminActor' as any, {
-        id: actorId,
-        email: actorEmail,
-        role: 'ADMIN',
-      });
-      return next();
-    }
-  }
-
-  // If in production and Zero Trust header is present
+  // Primary path: Cloudflare Access has already verified the user and forwarded a signed JWT.
   if (cfJwt && cfEmail) {
     c.set('adminActor' as any, {
       id: 'zt_' + cfEmail,
@@ -47,8 +35,23 @@ export async function zeroTrustAdminGuard(c: Context<{ Bindings: Env; Variables:
     return next();
   }
 
-  // If local development mode
-  if (c.env.ENVIRONMENT === 'development' || !c.env.ENVIRONMENT) {
+  // Fallback: a pre-shared bearer token, for local tooling/scripts. Only ever trusted when a
+  // real ADMIN_TOKEN secret is configured — never a hardcoded literal, and never in production
+  // (production must go through Cloudflare Access above).
+  if (!isProduction && authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (c.env.ADMIN_TOKEN && token === c.env.ADMIN_TOKEN) {
+      c.set('adminActor' as any, {
+        id: actorId,
+        email: actorEmail,
+        role: 'ADMIN',
+      });
+      return next();
+    }
+  }
+
+  // Non-production with no ADMIN_TOKEN configured at all: allow through for local dev only.
+  if (!isProduction && !c.env.ADMIN_TOKEN) {
     c.set('adminActor' as any, {
       id: 'local_dev_admin',
       email: 'roaster@dailygrind.coffee',

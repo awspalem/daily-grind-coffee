@@ -64,7 +64,22 @@ crons = ["0 4 * * *"] # Daily 4:00 AM UTC stock audit & backup
 
 # Production environment overrides — deploy with `wrangler deploy --env production`.
 # Without this, `ENVIRONMENT` stays "development" even on a live deploy, which keeps
-# ShiprocketService in mock mode (fake tracking numbers reach real customers).
+# ShiprocketService in mock mode (fake tracking numbers reach real customers) AND leaves the
+# admin API's Zero Trust guard in its dev-bypass mode (see middleware/zeroTrust.ts) — wide open.
+#
+# `name` must be pinned here: Wrangler suffixes the Worker name with the environment name by
+# default (daily-grind-api-production), which would silently split traffic onto a second Worker
+# at a different *.workers.dev URL. Pinning it keeps the same Worker/URL as the default env.
+[env.production]
+name = "daily-grind-api"
+
+# Custom domain required so Cloudflare Access can actually protect this API — Access cannot be
+# applied to a bare *.workers.dev subdomain, only to a domain/zone you own. `custom_domain = true`
+# has Wrangler provision the DNS + domain binding automatically on deploy.
+[[env.production.routes]]
+pattern = "api.rohithpalem.in"
+custom_domain = true
+
 [env.production.vars]
 ENVIRONMENT = "production"
 STOREFRONT_URL = "https://dailygrind.coffee" # placeholder — replace with your real domain
