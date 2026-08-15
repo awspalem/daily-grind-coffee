@@ -61,7 +61,11 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: hidden;
+  /* No overflow-x here: any non-visible overflow-x silently forces overflow-y:auto too
+     (per spec), which turns this into an accidental inner scroll container and breaks
+     position:sticky on .top-bar below (it resolves against the nearest scroll container,
+     which never has a fixed height here, so it never actually sticks). body's overflow-x
+     is the single source of horizontal clipping for the whole app. */
 }
 
 /* Responsive Table Wrapper */
@@ -223,7 +227,9 @@ body {
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
-  overflow-x: hidden;
+  /* No overflow-x here — see .admin-layout comment above; this element contains .top-bar,
+     which needs position:sticky to resolve against the real viewport, not a same-height
+     "scroll container" this element would otherwise silently become. */
 }
 
 /* Top Bar */
@@ -239,6 +245,10 @@ body {
   font-family: var(--font-serif);
   font-size: clamp(1.6rem, 4.5vw, 2.2rem);
   font-weight: 700;
+}
+
+.headline-short {
+  display: none;
 }
 
 .page-headline p {
@@ -594,8 +604,14 @@ input[type="range"]::-webkit-slider-thumb {
 
   .page-headline h1 {
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  }
+
+  .headline-full {
+    display: none;
+  }
+
+  .headline-short {
+    display: inline;
   }
 
   /* Secondary action buttons are reachable inside their own panels; keep the mobile
@@ -611,7 +627,6 @@ input[type="range"]::-webkit-slider-thumb {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    overflow-x: hidden;
   }
 
   /* 2x2 Responsive KPI Grid on Mobile (No Horizontal Scrolling) */
