@@ -51,8 +51,10 @@ class AdminPortal {
         this.setupNavigation();
         this.setupPricingTable();
         this.setupCapacityMatrix();
-        this.setupCapExManager();
+        // Economics must be wired up before CapEx: applyCapExUpgrade's initial call
+        // reads this.recalculateEconomics, which setupEconomicsSimulator assigns.
         this.setupEconomicsSimulator();
+        this.setupCapExManager();
         this.setupBatchLogging();
         this.setupCouponsManager();
         this.setupThermalLabelStudio();
@@ -589,6 +591,8 @@ class AdminPortal {
         const greenSlider = document.getElementById('econ-green-slider');
         const lossSlider = document.getElementById('econ-loss-slider');
         const channelSelect = document.getElementById('econ-channel-select');
+        if (!priceSlider || !greenSlider || !lossSlider || !channelSelect)
+            return;
         const priceLbl = document.getElementById('econ-price-lbl');
         const greenLbl = document.getElementById('econ-green-lbl');
         const lossLbl = document.getElementById('econ-loss-lbl');
