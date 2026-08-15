@@ -46,6 +46,7 @@ class AdminPortal {
         { variant_id: 'var_mid_500', product_name: 'Midnight Runner Dark Espresso', weight_grams: 500, price_inr: 820, price_usd_cents: 3300, discount_percent: 5 }
     ];
     async init() {
+        this.setupCollapsiblePanels();
         this.setupNavigation();
         this.setupPricingTable();
         this.setupCapacityMatrix();
@@ -55,7 +56,48 @@ class AdminPortal {
         this.setupCouponsManager();
         this.setupThermalLabelStudio();
         this.setupGSTInvoicing();
+        this.setupInventoryManager();
+        this.setupChannelsManager();
+        this.setupCampaignsManager();
+        this.setupLimitedEditionsManager();
+        this.setupPromotionsManager();
         await this.loadDashboardData();
+    }
+    setupCollapsiblePanels() {
+        document.querySelectorAll('.section-panel').forEach((panel) => {
+            const header = panel.querySelector('.panel-header');
+            if (!header || header.querySelector('.panel-toggle'))
+                return;
+            const toggle = document.createElement('button');
+            toggle.className = 'panel-toggle';
+            toggle.type = 'button';
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.setAttribute('aria-label', 'Expand section');
+            toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+            header.appendChild(toggle);
+            const setExpanded = (expanded) => {
+                panel.classList.toggle('expanded', expanded);
+                toggle.setAttribute('aria-expanded', String(expanded));
+            };
+            toggle.addEventListener('click', () => {
+                this.triggerHaptic();
+                setExpanded(!panel.classList.contains('expanded'));
+            });
+            // Larger tap target: clicking elsewhere in the header (but not on a real control) also toggles.
+            header.addEventListener('click', (e) => {
+                const target = e.target;
+                if (toggle.contains(target) || target.closest('button, a, input, select, textarea'))
+                    return;
+                setExpanded(!panel.classList.contains('expanded'));
+            });
+        });
+    }
+    expandPanel(panelId) {
+        const panel = document.getElementById(panelId);
+        if (!panel)
+            return;
+        panel.classList.add('expanded');
+        panel.querySelector('.panel-toggle')?.setAttribute('aria-expanded', 'true');
     }
     triggerHaptic() {
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -79,32 +121,27 @@ class AdminPortal {
             document.querySelectorAll('.admin-cmd-item').forEach((b) => {
                 b.classList.toggle('active', b.getAttribute('data-tab') === tab);
             });
+            const panelIdByTab = {
+                labels: 'panel-labels',
+                pricing: 'panel-pricing',
+                inventory: 'panel-inventory',
+                capacity: 'panel-capacity',
+                capex: 'panel-capex',
+                economics: 'panel-economics',
+                roasts: 'panel-roasts',
+                coupons: 'panel-coupons',
+                channels: 'panel-channels',
+                campaigns: 'panel-campaigns',
+                'limited-editions': 'panel-limited-editions',
+                promotions: 'panel-promotions',
+                orders: 'panel-orders',
+            };
             if (tab === 'overview') {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
-            else if (tab === 'labels') {
-                document.getElementById('panel-labels')?.scrollIntoView({ behavior: 'smooth' });
-            }
-            else if (tab === 'pricing') {
-                document.getElementById('panel-pricing')?.scrollIntoView({ behavior: 'smooth' });
-            }
-            else if (tab === 'capacity') {
-                document.getElementById('panel-capacity')?.scrollIntoView({ behavior: 'smooth' });
-            }
-            else if (tab === 'capex') {
-                document.getElementById('panel-capex')?.scrollIntoView({ behavior: 'smooth' });
-            }
-            else if (tab === 'economics') {
-                document.getElementById('panel-economics')?.scrollIntoView({ behavior: 'smooth' });
-            }
-            else if (tab === 'roasts') {
-                document.getElementById('panel-roasts')?.scrollIntoView({ behavior: 'smooth' });
-            }
-            else if (tab === 'coupons') {
-                document.getElementById('panel-coupons')?.scrollIntoView({ behavior: 'smooth' });
-            }
-            else if (tab === 'orders') {
-                document.getElementById('panel-orders')?.scrollIntoView({ behavior: 'smooth' });
+            else if (panelIdByTab[tab]) {
+                this.expandPanel(panelIdByTab[tab]);
+                document.getElementById(panelIdByTab[tab])?.scrollIntoView({ behavior: 'smooth' });
             }
         };
         // Sidebar navigation
@@ -657,6 +694,322 @@ class AdminPortal {
                     tbody.prepend(tr);
                 }
                 alert(`🎟️ Coupon code "${code.toUpperCase()}" with ${discount}% discount created successfully!`);
+            }
+        });
+    }
+    async adminFetch(path, options = {}) {
+        const res = await fetch(path, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer tdg_admin_dev_token_secret',
+                ...(options.headers || {}),
+            },
+        });
+        return res.json();
+    }
+    escapeHtml(value) {
+        const div = document.createElement('div');
+        div.textContent = value;
+        return div.innerHTML;
+    }
+    // ==========================================================================
+    // INVENTORY MANAGEMENT
+    // ==========================================================================
+    setupInventoryManager() {
+        const stockBody = document.getElementById('inventory-stock-table-body');
+        const movementsBody = document.getElementById('inventory-movements-table-body');
+        const variantSelect = document.getElementById('inventory-adjust-variant');
+        const lowStockBadge = document.getElementById('inventory-low-stock-badge');
+        if (!stockBody || !movementsBody || !variantSelect)
+            return;
+        const movementTypeLabels = {
+            INITIAL_STOCK: 'Initial Stock',
+            PURCHASE_RESERVE: 'Purchase Reserve',
+            ORDER_FULFILLED: 'Order Fulfilled',
+            RESTOCK: 'Restock',
+            DAMAGE_ADJUSTMENT: 'Damage Adjustment',
+            RETURN_RESTOCK: 'Return Restock',
+            RESERVATION_EXPIRED: 'Reservation Expired',
+        };
+        const loadStock = async () => {
+            const data = await this.adminFetch('/api/admin/inventory');
+            const rows = data.inventory || [];
+            stockBody.innerHTML = rows.map((row) => {
+                const isLow = Number(row.available_stock) <= Number(row.low_stock_threshold);
+                return `
+          <tr>
+            <td data-label="Coffee Lot">${this.escapeHtml(row.product_name)} (${row.weight_grams}g)</td>
+            <td data-label="SKU">${this.escapeHtml(row.sku)}</td>
+            <td data-label="Available">${row.available_stock}</td>
+            <td data-label="Reserved">${row.reserved_stock}</td>
+            <td data-label="Status">${isLow ? '<span class="status-badge low-stock">Low Stock</span>' : '<span class="status-badge paid">In Stock</span>'}</td>
+          </tr>
+        `;
+            }).join('');
+            const lowStockCount = rows.filter((row) => Number(row.available_stock) <= Number(row.low_stock_threshold)).length;
+            if (lowStockBadge) {
+                lowStockBadge.style.display = lowStockCount > 0 ? 'inline-flex' : 'none';
+                lowStockBadge.textContent = `${lowStockCount} Low Stock`;
+            }
+            variantSelect.innerHTML = rows.map((row) => `<option value="${row.variant_id}">${this.escapeHtml(row.product_name)} (${row.weight_grams}g) — ${this.escapeHtml(row.sku)}</option>`).join('');
+        };
+        const loadMovements = async () => {
+            const data = await this.adminFetch('/api/admin/movements?limit=25');
+            const rows = data.movements || [];
+            movementsBody.innerHTML = rows.map((row) => `
+        <tr>
+          <td data-label="When">${new Date(row.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+          <td data-label="SKU">${this.escapeHtml(row.sku || row.variant_id)}</td>
+          <td data-label="Type">${movementTypeLabels[row.movement_type] || row.movement_type}</td>
+          <td data-label="Δ">${row.quantity_delta > 0 ? '+' : ''}${row.quantity_delta}</td>
+          <td data-label="Stock After">${row.stock_after}</td>
+          <td data-label="Reason">${this.escapeHtml(row.reason || '—')}</td>
+        </tr>
+      `).join('');
+        };
+        const refreshAll = () => Promise.all([loadStock(), loadMovements()]);
+        refreshAll();
+        document.getElementById('inventory-adjust-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            this.triggerHaptic();
+            const variantId = variantSelect.value;
+            const movementType = document.getElementById('inventory-adjust-type').value;
+            const quantityInput = document.getElementById('inventory-adjust-quantity');
+            const reasonInput = document.getElementById('inventory-adjust-reason');
+            const quantityDelta = Number(quantityInput.value);
+            if (!variantId || !quantityDelta)
+                return;
+            const result = await this.adminFetch('/api/admin/inventory/adjust', {
+                method: 'POST',
+                body: JSON.stringify({
+                    variant_id: variantId,
+                    movement_type: movementType,
+                    quantity_delta: quantityDelta,
+                    reason: reasonInput.value || undefined,
+                }),
+            });
+            if (result.success) {
+                quantityInput.value = '';
+                reasonInput.value = '';
+                await refreshAll();
+            }
+            else {
+                alert(`⚠️ Inventory adjustment failed: ${result.error || 'Unknown error'}`);
+            }
+        });
+    }
+    // ==========================================================================
+    // MARKETING HUB — Communication Channels, Campaigns, Limited Editions, Promotions
+    // ==========================================================================
+    setupChannelsManager() {
+        const tbody = document.getElementById('channels-table-body');
+        if (!tbody)
+            return;
+        const statusBadgeClass = { ACTIVE: 'paid', INACTIVE: 'low-stock', PLANNED: 'shipped' };
+        const render = (channels) => {
+            tbody.innerHTML = channels.map((ch) => `
+        <tr>
+          <td data-label="Channel"><strong>${this.escapeHtml(ch.name)}</strong></td>
+          <td data-label="Type">${this.escapeHtml(ch.channel_type)}</td>
+          <td data-label="Handle / Address">${this.escapeHtml(ch.handle_or_address || '—')}</td>
+          <td data-label="Status"><span class="status-badge ${statusBadgeClass[ch.status] || 'shipped'}">${ch.status}</span></td>
+        </tr>
+      `).join('');
+        };
+        const load = async () => {
+            const data = await this.adminFetch('/api/admin/channels');
+            render(data.channels || []);
+        };
+        load();
+        document.getElementById('btn-add-channel')?.addEventListener('click', async () => {
+            this.triggerHaptic();
+            const name = prompt('Channel name (e.g. Instagram — @dailygrind.coffee):');
+            if (!name)
+                return;
+            const channelType = prompt('Channel type (EMAIL, SMS, WHATSAPP, INSTAGRAM, FACEBOOK, OTHER):', 'INSTAGRAM');
+            if (!channelType)
+                return;
+            const handle = prompt('Handle / address (optional):', '') || undefined;
+            const result = await this.adminFetch('/api/admin/channels', {
+                method: 'POST',
+                body: JSON.stringify({ name, channel_type: channelType.toUpperCase(), handle_or_address: handle, status: 'PLANNED' }),
+            });
+            if (result.success) {
+                await load();
+            }
+            else {
+                alert(`⚠️ Could not add channel: ${result.error || 'Unknown error'}`);
+            }
+        });
+    }
+    setupCampaignsManager() {
+        const tbody = document.getElementById('campaigns-table-body');
+        if (!tbody)
+            return;
+        const statusBadgeClass = { DRAFT: 'shipped', SCHEDULED: 'shipped', LIVE: 'paid', COMPLETED: 'roasting' };
+        const cycle = { DRAFT: 'SCHEDULED', SCHEDULED: 'LIVE', LIVE: 'COMPLETED', COMPLETED: 'DRAFT' };
+        const render = (campaigns) => {
+            tbody.innerHTML = campaigns.map((camp) => `
+        <tr>
+          <td data-label="Campaign"><strong>${this.escapeHtml(camp.name)}</strong></td>
+          <td data-label="Objective">${this.escapeHtml(camp.objective || '—')}</td>
+          <td data-label="Dates">${camp.start_date || '—'} → ${camp.end_date || '—'}</td>
+          <td data-label="Status"><button class="status-badge ${statusBadgeClass[camp.status] || 'shipped'}" style="border: none; cursor: pointer;" data-campaign-id="${camp.id}" data-current-status="${camp.status}">${camp.status}</button></td>
+        </tr>
+      `).join('');
+        };
+        const load = async () => {
+            const data = await this.adminFetch('/api/admin/campaigns');
+            render(data.campaigns || []);
+        };
+        load();
+        tbody.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button[data-campaign-id]');
+            if (!btn)
+                return;
+            this.triggerHaptic();
+            const nextStatus = cycle[btn.dataset.currentStatus || 'DRAFT'];
+            const result = await this.adminFetch(`/api/admin/campaigns/${btn.dataset.campaignId}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status: nextStatus }),
+            });
+            if (result.success)
+                await load();
+        });
+        document.getElementById('btn-add-campaign')?.addEventListener('click', async () => {
+            this.triggerHaptic();
+            const name = prompt('Campaign name (e.g. Diwali Gifting Push):');
+            if (!name)
+                return;
+            const objective = prompt('Objective (optional):', '') || undefined;
+            const startDate = prompt('Start date (YYYY-MM-DD, optional):', '') || undefined;
+            const endDate = prompt('End date (YYYY-MM-DD, optional):', '') || undefined;
+            const result = await this.adminFetch('/api/admin/campaigns', {
+                method: 'POST',
+                body: JSON.stringify({ name, objective, start_date: startDate, end_date: endDate, status: 'DRAFT' }),
+            });
+            if (result.success) {
+                await load();
+            }
+            else {
+                alert(`⚠️ Could not add campaign: ${result.error || 'Unknown error'}`);
+            }
+        });
+    }
+    setupLimitedEditionsManager() {
+        const tbody = document.getElementById('limited-editions-table-body');
+        if (!tbody)
+            return;
+        const statusBadgeClass = { UPCOMING: 'shipped', LIVE: 'paid', SOLD_OUT: 'low-stock', ENDED: 'roasting' };
+        const cycle = { UPCOMING: 'LIVE', LIVE: 'SOLD_OUT', SOLD_OUT: 'ENDED', ENDED: 'UPCOMING' };
+        const render = (editions) => {
+            tbody.innerHTML = editions.map((ed) => `
+        <tr>
+          <td data-label="Drop"><strong>${this.escapeHtml(ed.name)}</strong></td>
+          <td data-label="Product">${this.escapeHtml(ed.product_name || '—')}</td>
+          <td data-label="Launch Window">${ed.launch_date || '—'} → ${ed.end_date || '—'}</td>
+          <td data-label="Units Sold">${ed.units_sold}${ed.total_units ? ` / ${ed.total_units}` : ''}</td>
+          <td data-label="Status"><button class="status-badge ${statusBadgeClass[ed.status] || 'shipped'}" style="border: none; cursor: pointer;" data-edition-id="${ed.id}" data-current-status="${ed.status}">${ed.status}</button></td>
+        </tr>
+      `).join('');
+        };
+        const load = async () => {
+            const data = await this.adminFetch('/api/admin/limited-editions');
+            render(data.limited_editions || []);
+        };
+        load();
+        tbody.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button[data-edition-id]');
+            if (!btn)
+                return;
+            this.triggerHaptic();
+            const nextStatus = cycle[btn.dataset.currentStatus || 'UPCOMING'];
+            const result = await this.adminFetch(`/api/admin/limited-editions/${btn.dataset.editionId}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status: nextStatus }),
+            });
+            if (result.success)
+                await load();
+        });
+        document.getElementById('btn-add-limited-edition')?.addEventListener('click', async () => {
+            this.triggerHaptic();
+            const name = prompt('Limited edition name (e.g. Monsoon Malabar Reserve Cask):');
+            if (!name)
+                return;
+            const productName = prompt('Product / lot name (optional):', '') || undefined;
+            const totalUnits = prompt('Total units (optional):', '') || undefined;
+            const launchDate = prompt('Launch date (YYYY-MM-DD, optional):', '') || undefined;
+            const endDate = prompt('End date (YYYY-MM-DD, optional):', '') || undefined;
+            const result = await this.adminFetch('/api/admin/limited-editions', {
+                method: 'POST',
+                body: JSON.stringify({
+                    name,
+                    product_name: productName,
+                    total_units: totalUnits ? Number(totalUnits) : undefined,
+                    launch_date: launchDate,
+                    end_date: endDate,
+                }),
+            });
+            if (result.success) {
+                await load();
+            }
+            else {
+                alert(`⚠️ Could not add limited edition: ${result.error || 'Unknown error'}`);
+            }
+        });
+    }
+    setupPromotionsManager() {
+        const tbody = document.getElementById('promotions-table-body');
+        if (!tbody)
+            return;
+        const statusBadgeClass = { SCHEDULED: 'shipped', ACTIVE: 'paid', ENDED: 'roasting' };
+        const cycle = { SCHEDULED: 'ACTIVE', ACTIVE: 'ENDED', ENDED: 'SCHEDULED' };
+        const render = (promotions) => {
+            tbody.innerHTML = promotions.map((promo) => `
+        <tr>
+          <td data-label="Promotion"><strong>${this.escapeHtml(promo.name)}</strong></td>
+          <td data-label="Type">${this.escapeHtml(promo.promo_type)}</td>
+          <td data-label="Dates">${promo.start_date || '—'} → ${promo.end_date || '—'}</td>
+          <td data-label="Status"><button class="status-badge ${statusBadgeClass[promo.status] || 'shipped'}" style="border: none; cursor: pointer;" data-promotion-id="${promo.id}" data-current-status="${promo.status}">${promo.status}</button></td>
+        </tr>
+      `).join('');
+        };
+        const load = async () => {
+            const data = await this.adminFetch('/api/admin/promotions');
+            render(data.promotions || []);
+        };
+        load();
+        tbody.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button[data-promotion-id]');
+            if (!btn)
+                return;
+            this.triggerHaptic();
+            const nextStatus = cycle[btn.dataset.currentStatus || 'SCHEDULED'];
+            const result = await this.adminFetch(`/api/admin/promotions/${btn.dataset.promotionId}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status: nextStatus }),
+            });
+            if (result.success)
+                await load();
+        });
+        document.getElementById('btn-add-promotion')?.addEventListener('click', async () => {
+            this.triggerHaptic();
+            const name = prompt('Promotion name (e.g. Bangalore Launch Week Sale):');
+            if (!name)
+                return;
+            const promoType = prompt('Promo type (SALE, BUNDLE, SEASONAL, CLEARANCE):', 'SALE') || 'SALE';
+            const startDate = prompt('Start date (YYYY-MM-DD, optional):', '') || undefined;
+            const endDate = prompt('End date (YYYY-MM-DD, optional):', '') || undefined;
+            const result = await this.adminFetch('/api/admin/promotions', {
+                method: 'POST',
+                body: JSON.stringify({ name, promo_type: promoType.toUpperCase(), start_date: startDate, end_date: endDate }),
+            });
+            if (result.success) {
+                await load();
+            }
+            else {
+                alert(`⚠️ Could not add promotion: ${result.error || 'Unknown error'}`);
             }
         });
     }

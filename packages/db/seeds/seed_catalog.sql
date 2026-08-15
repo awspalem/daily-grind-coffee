@@ -238,6 +238,27 @@ INSERT OR IGNORE INTO coupons (id, code, discount_type, discount_value, minimum_
 ('coup_freshroast', 'FRESHROAST', 'FIXED', 500, 3500, 200, 5, 1),
 ('coup_barista20', 'BARISTA20', 'PERCENT', 20, 5000, 100, 3, 1);
 
+-- Marketing Hub: Communication Channels
+INSERT OR IGNORE INTO communication_channels (id, name, channel_type, handle_or_address, status, notes) VALUES
+('chan_ig', 'Instagram — @dailygrind.coffee', 'INSTAGRAM', '@dailygrind.coffee', 'ACTIVE', 'Primary visual channel for roast drops and brew content'),
+('chan_email', 'Weekly Roast Notes newsletter', 'EMAIL', 'hello@dailygrind.coffee', 'ACTIVE', 'Weekly email digest of new lots and brewing guides'),
+('chan_whatsapp', 'WhatsApp Broadcast', 'WHATSAPP', '+91-80-4000-1234', 'PLANNED', 'Planned for limited-edition drop alerts to repeat customers');
+
+-- Marketing Hub: Social Campaigns
+INSERT OR IGNORE INTO social_campaigns (id, name, channel_id, objective, status, start_date, end_date, notes) VALUES
+('camp_diwali', 'Diwali Gifting Push', 'chan_ig', 'Drive gift-box orders through the festive season', 'SCHEDULED', '2026-10-15', '2026-11-05', 'Reels featuring the Taster Flight as a gifting option'),
+('camp_launch_araku', 'Araku Honey Relaunch', 'chan_email', 'Re-introduce Araku Valley Red Honey after a roast profile update', 'LIVE', '2026-08-01', '2026-08-31', NULL);
+
+-- Marketing Hub: Limited Editions
+INSERT OR IGNORE INTO limited_editions (id, name, description, product_name, product_id, sku, launch_date, end_date, total_units, units_sold, status) VALUES
+('ltd_monsoon_reserve', 'Monsoon Malabar Reserve Cask', 'Small-batch cask-aged Monsoon Malabar, 120 bags only', 'Monsoon Malabar Reserve', NULL, 'TDG-MON-RESERVE-250G', '2026-07-01', '2026-09-01', 120, 87, 'LIVE'),
+('ltd_holiday_flight', 'Holiday Estate Taster Flight', 'Limited holiday edition of the 3x100g taster flight with seasonal packaging', 'Curated Taster Flight (Holiday)', 'prod_taster_flight', 'TDG-FLIGHT-HOLIDAY-300G', '2026-12-01', '2026-12-31', 300, 0, 'UPCOMING');
+
+-- Marketing Hub: Sales & Promotions
+INSERT OR IGNORE INTO promotions (id, name, description, promo_type, start_date, end_date, linked_coupon_id, status) VALUES
+('promo_launch_week', 'Bangalore Launch Week Sale', 'Storewide launch promotion for the Bangalore roastery opening', 'SEASONAL', '2026-08-01', '2026-08-15', 'coup_barista20', 'ACTIVE'),
+('promo_clearance_q3', 'Q3 Green Stock Clearance', 'Clearance pricing on aging green stock ahead of new harvest arrivals', 'CLEARANCE', '2026-09-01', '2026-09-14', NULL, 'SCHEDULED');
+
 -- Brewing Guides
 INSERT OR IGNORE INTO brewing_guides (id, slug, name, grind_recommendation, ratio_description, water_temp_celsius, brew_time_seconds, steps_json, pro_tips_json) VALUES
 (

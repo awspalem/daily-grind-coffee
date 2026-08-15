@@ -347,4 +347,137 @@ adminApp.post('/roast-batch', async (c) => {
         message: `Logged batch "${body.lot_name}" with ${lossPct}% roast loss. Yield calibrated.`,
     });
 });
+// ==================== Marketing Hub ====================
+// Internal planning/tracking only — no external channel/social API integration.
+// GET /api/admin/channels
+adminApp.get('/channels', async (c) => {
+    const { results } = await c.env.DB.prepare('SELECT * FROM communication_channels ORDER BY created_at DESC').all();
+    return c.json({ success: true, channels: results || [] });
+});
+// POST /api/admin/channels
+adminApp.post('/channels', async (c) => {
+    const actor = c.get('adminActor');
+    const body = await c.req.json();
+    if (!body.name || !body.channel_type) {
+        return c.json({ success: false, error: 'name and channel_type are required' }, 400);
+    }
+    const id = 'chan_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    await c.env.DB.prepare(`
+    INSERT INTO communication_channels (id, name, channel_type, handle_or_address, status, notes)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(id, body.name, body.channel_type, body.handle_or_address || null, body.status || 'PLANNED', body.notes || null).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_CHANNEL', 'communication_channels', id, null, { name: body.name, channel_type: body.channel_type }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, channel_id: id });
+});
+// GET /api/admin/campaigns
+adminApp.get('/campaigns', async (c) => {
+    const { results } = await c.env.DB.prepare('SELECT * FROM social_campaigns ORDER BY created_at DESC').all();
+    return c.json({ success: true, campaigns: results || [] });
+});
+// POST /api/admin/campaigns
+adminApp.post('/campaigns', async (c) => {
+    const actor = c.get('adminActor');
+    const body = await c.req.json();
+    if (!body.name) {
+        return c.json({ success: false, error: 'name is required' }, 400);
+    }
+    const id = 'camp_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    await c.env.DB.prepare(`
+    INSERT INTO social_campaigns (id, name, channel_id, objective, status, start_date, end_date, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(id, body.name, body.channel_id || null, body.objective || null, body.status || 'DRAFT', body.start_date || null, body.end_date || null, body.notes || null).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_CAMPAIGN', 'social_campaigns', id, null, { name: body.name, status: body.status || 'DRAFT' }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, campaign_id: id });
+});
+const CAMPAIGN_STATUSES = ['DRAFT', 'SCHEDULED', 'LIVE', 'COMPLETED'];
+// PATCH /api/admin/campaigns/:id/status
+adminApp.patch('/campaigns/:id/status', async (c) => {
+    const actor = c.get('adminActor');
+    const campaignId = c.req.param('id');
+    const body = await c.req.json();
+    if (!CAMPAIGN_STATUSES.includes(body.status)) {
+        return c.json({ success: false, error: `status must be one of ${CAMPAIGN_STATUSES.join(', ')}` }, 400);
+    }
+    const current = await c.env.DB.prepare('SELECT status FROM social_campaigns WHERE id = ?').bind(campaignId).first();
+    if (!current) {
+        return c.json({ success: false, error: 'Campaign not found' }, 404);
+    }
+    await c.env.DB.prepare('UPDATE social_campaigns SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.status, campaignId).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_CAMPAIGN_STATUS', 'social_campaigns', campaignId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, status: body.status });
+});
+// GET /api/admin/limited-editions
+adminApp.get('/limited-editions', async (c) => {
+    const { results } = await c.env.DB.prepare('SELECT * FROM limited_editions ORDER BY created_at DESC').all();
+    return c.json({ success: true, limited_editions: results || [] });
+});
+// POST /api/admin/limited-editions
+adminApp.post('/limited-editions', async (c) => {
+    const actor = c.get('adminActor');
+    const body = await c.req.json();
+    if (!body.name) {
+        return c.json({ success: false, error: 'name is required' }, 400);
+    }
+    const id = 'ltd_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    await c.env.DB.prepare(`
+    INSERT INTO limited_editions (id, name, description, product_name, product_id, sku, launch_date, end_date, total_units, units_sold, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'UPCOMING')
+  `).bind(id, body.name, body.description || null, body.product_name || null, body.product_id || null, body.sku || null, body.launch_date || null, body.end_date || null, body.total_units || null).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_LIMITED_EDITION', 'limited_editions', id, null, { name: body.name, total_units: body.total_units }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, limited_edition_id: id });
+});
+const LIMITED_EDITION_STATUSES = ['UPCOMING', 'LIVE', 'SOLD_OUT', 'ENDED'];
+// PATCH /api/admin/limited-editions/:id/status
+adminApp.patch('/limited-editions/:id/status', async (c) => {
+    const actor = c.get('adminActor');
+    const editionId = c.req.param('id');
+    const body = await c.req.json();
+    if (!LIMITED_EDITION_STATUSES.includes(body.status)) {
+        return c.json({ success: false, error: `status must be one of ${LIMITED_EDITION_STATUSES.join(', ')}` }, 400);
+    }
+    const current = await c.env.DB.prepare('SELECT status FROM limited_editions WHERE id = ?').bind(editionId).first();
+    if (!current) {
+        return c.json({ success: false, error: 'Limited edition not found' }, 404);
+    }
+    await c.env.DB.prepare('UPDATE limited_editions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.status, editionId).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_LIMITED_EDITION_STATUS', 'limited_editions', editionId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, status: body.status });
+});
+// GET /api/admin/promotions
+adminApp.get('/promotions', async (c) => {
+    const { results } = await c.env.DB.prepare('SELECT * FROM promotions ORDER BY created_at DESC').all();
+    return c.json({ success: true, promotions: results || [] });
+});
+// POST /api/admin/promotions
+adminApp.post('/promotions', async (c) => {
+    const actor = c.get('adminActor');
+    const body = await c.req.json();
+    if (!body.name) {
+        return c.json({ success: false, error: 'name is required' }, 400);
+    }
+    const id = 'promo_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+    await c.env.DB.prepare(`
+    INSERT INTO promotions (id, name, description, promo_type, start_date, end_date, linked_coupon_id, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'SCHEDULED')
+  `).bind(id, body.name, body.description || null, body.promo_type || 'SALE', body.start_date || null, body.end_date || null, body.linked_coupon_id || null).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_PROMOTION', 'promotions', id, null, { name: body.name, promo_type: body.promo_type || 'SALE' }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, promotion_id: id });
+});
+const PROMOTION_STATUSES = ['SCHEDULED', 'ACTIVE', 'ENDED'];
+// PATCH /api/admin/promotions/:id/status
+adminApp.patch('/promotions/:id/status', async (c) => {
+    const actor = c.get('adminActor');
+    const promotionId = c.req.param('id');
+    const body = await c.req.json();
+    if (!PROMOTION_STATUSES.includes(body.status)) {
+        return c.json({ success: false, error: `status must be one of ${PROMOTION_STATUSES.join(', ')}` }, 400);
+    }
+    const current = await c.env.DB.prepare('SELECT status FROM promotions WHERE id = ?').bind(promotionId).first();
+    if (!current) {
+        return c.json({ success: false, error: 'Promotion not found' }, 404);
+    }
+    await c.env.DB.prepare('UPDATE promotions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.status, promotionId).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_PROMOTION_STATUS', 'promotions', promotionId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true, status: body.status });
+});
 export { adminApp };

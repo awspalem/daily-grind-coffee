@@ -351,6 +351,48 @@ body {
   font-weight: 700;
 }
 
+/* Collapsible panels — collapsed is the default; JS adds .expanded to reveal the body.
+   Targets every direct child except .panel-header, so existing panel markup doesn't need
+   a dedicated wrapper element; `revert` restores each child's own natural display value
+   (block for divs, table for tables, etc.) rather than forcing one display type on all of them. */
+.section-panel > :not(.panel-header) {
+  display: none;
+}
+
+.section-panel.expanded > :not(.panel-header) {
+  display: revert;
+}
+
+.panel-toggle {
+  min-width: 36px;
+  min-height: 36px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--admin-border);
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.panel-toggle:hover {
+  color: var(--text-main);
+  border-color: var(--copper);
+}
+
+.panel-toggle svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.section-panel.expanded .panel-toggle svg {
+  transform: rotate(180deg);
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;

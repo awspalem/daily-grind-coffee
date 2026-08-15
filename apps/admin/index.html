@@ -42,11 +42,16 @@
           <li><a href="/investor.html" class="nav-item-btn" style="text-decoration:none; display:flex; align-items:center; color: var(--gold); font-weight: 600;">🚀 Investor Readiness & Growth ↗</a></li>
           <li><button class="nav-item-btn" data-tab="labels">🏷️ Bag Labels & QR Studio</button></li>
           <li><button class="nav-item-btn" data-tab="pricing">🏷️ Catalog, Pricing & Discounts</button></li>
+          <li><button class="nav-item-btn" data-tab="inventory">📦 Inventory Management</button></li>
           <li><button class="nav-item-btn" data-tab="capacity">⚙️ Capacity vs Demand Matrix</button></li>
           <li><button class="nav-item-btn" data-tab="capex">🏭 Roaster Pricing & CapEx</button></li>
           <li><button class="nav-item-btn" data-tab="economics">💰 Unit Economics & Margins</button></li>
           <li><button class="nav-item-btn" data-tab="roasts">🔥 Batch Roaster & Loss Log</button></li>
           <li><button class="nav-item-btn" data-tab="coupons">🎟️ Promo Coupons Engine</button></li>
+          <li><button class="nav-item-btn" data-tab="channels">📣 Communication Channels</button></li>
+          <li><button class="nav-item-btn" data-tab="campaigns">📢 Social Media Campaigns</button></li>
+          <li><button class="nav-item-btn" data-tab="limited-editions">✨ Limited Editions</button></li>
+          <li><button class="nav-item-btn" data-tab="promotions">💸 Sales & Promotions</button></li>
           <li><button class="nav-item-btn" data-tab="orders">🚚 Order Fulfillment</button></li>
         </ul>
       </nav>
@@ -223,6 +228,83 @@
               <div id="live-thermal-label-preview">
                 <!-- Dynamically rendered with pure SVG QR code -->
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION: Inventory Management -->
+      <section class="section-panel" id="panel-inventory">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">📦 Inventory Management</h2>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Live stock levels, manual adjustments, and the movement ledger</span>
+          </div>
+          <span id="inventory-low-stock-badge" style="background: rgba(214, 93, 93, 0.18); color: var(--rose); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.8rem; font-weight:700; display: none;">
+            0 Low Stock
+          </span>
+        </div>
+
+        <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+            <table class="data-table" id="inventory-stock-table">
+              <thead>
+                <tr>
+                  <th>Coffee Lot</th>
+                  <th>SKU</th>
+                  <th>Available</th>
+                  <th>Reserved</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-stock-table-body">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <form id="inventory-adjust-form" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; background: rgba(0,0,0,0.15); border: 1px solid var(--admin-border); border-radius: var(--radius-md); padding: 1rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.3rem; flex: 1 1 220px;">
+              <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Variant</label>
+              <select id="inventory-adjust-variant" required style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;"></select>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.3rem; flex: 1 1 160px;">
+              <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Movement Type</label>
+              <select id="inventory-adjust-type" required style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;">
+                <option value="RESTOCK">Restock</option>
+                <option value="DAMAGE_ADJUSTMENT">Damage Adjustment</option>
+                <option value="RETURN_RESTOCK">Return Restock</option>
+              </select>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.3rem; flex: 1 1 120px;">
+              <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Quantity Δ</label>
+              <input id="inventory-adjust-quantity" type="number" required placeholder="e.g. 25 or -3" style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.3rem; flex: 2 1 220px;">
+              <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Reason</label>
+              <input id="inventory-adjust-reason" type="text" placeholder="e.g. New lot arrival from Chikmagalur" style="min-height: 44px; background: var(--admin-surface); border: 1px solid var(--admin-border); color: var(--text-main); border-radius: var(--radius-sm); padding: 0 0.6rem;">
+            </div>
+            <button type="submit" class="btn-table-action">Log Adjustment</button>
+          </form>
+
+          <div>
+            <h3 style="font-family: var(--font-serif); font-size: 1rem; margin-bottom: 0.75rem;">Recent Movements</h3>
+            <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+              <table class="data-table" id="inventory-movements-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>SKU</th>
+                    <th>Type</th>
+                    <th>Δ</th>
+                    <th>Stock After</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody id="inventory-movements-table-body">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -980,6 +1062,99 @@
         </div>
       </section>
 
+      <!-- SECTION: Communication Channels -->
+      <section class="section-panel" id="panel-channels">
+        <div class="panel-header">
+          <h2 class="panel-title">📣 Communication Channels</h2>
+          <button class="btn-table-action" id="btn-add-channel">+ Add Channel</button>
+        </div>
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Channel</th>
+                <th>Type</th>
+                <th>Handle / Address</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="channels-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION: Social Media Campaigns -->
+      <section class="section-panel" id="panel-campaigns">
+        <div class="panel-header">
+          <h2 class="panel-title">📢 Social Media Campaigns</h2>
+          <button class="btn-table-action" id="btn-add-campaign">+ Plan Campaign</button>
+        </div>
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Campaign</th>
+                <th>Objective</th>
+                <th>Dates</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="campaigns-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION: Limited Editions -->
+      <section class="section-panel" id="panel-limited-editions">
+        <div class="panel-header">
+          <h2 class="panel-title">✨ Limited Editions</h2>
+          <button class="btn-table-action" id="btn-add-limited-edition">+ Plan Drop</button>
+        </div>
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Drop</th>
+                <th>Product</th>
+                <th>Launch Window</th>
+                <th>Units Sold</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="limited-editions-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION: Sales & Promotions -->
+      <section class="section-panel" id="panel-promotions">
+        <div class="panel-header">
+          <h2 class="panel-title">💸 Sales & Promotions</h2>
+          <button class="btn-table-action" id="btn-add-promotion">+ Plan Promotion</button>
+        </div>
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Promotion</th>
+                <th>Type</th>
+                <th>Dates</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="promotions-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- SECTION: Active Orders Fulfillment -->
       <section class="section-panel" id="panel-orders">
         <div class="panel-header">
@@ -1154,6 +1329,16 @@
         </svg>
       </div>
       <span>Ops</span>
+    </button>
+    <button class="admin-cmd-item" id="mob-cmd-inventory" data-tab="inventory">
+      <div class="cmd-icon-wrap">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8L12 3 3 8l9 5 9-5z"></path>
+          <path d="M3 8v8l9 5 9-5V8"></path>
+          <path d="M12 13v8"></path>
+        </svg>
+      </div>
+      <span>Stock</span>
     </button>
     <button class="admin-cmd-item" id="mob-cmd-capacity" data-tab="capacity">
       <div class="cmd-icon-wrap">

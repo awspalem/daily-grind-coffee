@@ -232,6 +232,69 @@ export interface Coupon {
   is_active: boolean;
 }
 
+export type ChannelType = 'EMAIL' | 'SMS' | 'WHATSAPP' | 'INSTAGRAM' | 'FACEBOOK' | 'OTHER';
+export type ChannelStatus = 'ACTIVE' | 'INACTIVE' | 'PLANNED';
+
+export interface CommunicationChannel {
+  id: string;
+  name: string;
+  channel_type: ChannelType;
+  handle_or_address?: string;
+  status: ChannelStatus;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CampaignStatus = 'DRAFT' | 'SCHEDULED' | 'LIVE' | 'COMPLETED';
+
+export interface SocialCampaign {
+  id: string;
+  name: string;
+  channel_id?: string;
+  objective?: string;
+  status: CampaignStatus;
+  start_date?: string;
+  end_date?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LimitedEditionStatus = 'UPCOMING' | 'LIVE' | 'SOLD_OUT' | 'ENDED';
+
+export interface LimitedEdition {
+  id: string;
+  name: string;
+  description?: string;
+  product_name?: string;
+  product_id?: string;
+  sku?: string;
+  launch_date?: string;
+  end_date?: string;
+  total_units?: number;
+  units_sold: number;
+  status: LimitedEditionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PromotionType = 'SALE' | 'BUNDLE' | 'SEASONAL' | 'CLEARANCE';
+export type PromotionStatus = 'SCHEDULED' | 'ACTIVE' | 'ENDED';
+
+export interface Promotion {
+  id: string;
+  name: string;
+  description?: string;
+  promo_type: PromotionType;
+  start_date?: string;
+  end_date?: string;
+  linked_coupon_id?: string;
+  status: PromotionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface BrewingGuide {
   id: string;
   slug: string;
