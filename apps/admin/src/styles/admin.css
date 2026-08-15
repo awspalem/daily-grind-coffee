@@ -402,9 +402,12 @@ body {
 /* Collapsible panels — collapsed is the default; JS adds .expanded to reveal the body.
    Targets every direct child except .panel-header, so existing panel markup doesn't need
    a dedicated wrapper element; `revert` restores each child's own natural display value
-   (block for divs, table for tables, etc.) rather than forcing one display type on all of them. */
+   (block for divs, table for tables, etc.) rather than forcing one display type on all of them.
+   !important is required here because several panel-body wrappers carry an inline
+   `style="display: flex/grid"` attribute; inline styles otherwise always beat this rule
+   regardless of selector specificity, which is why panels used to stay stuck open. */
 .section-panel > :not(.panel-header) {
-  display: none;
+  display: none !important;
 }
 
 .section-panel.expanded > :not(.panel-header) {
@@ -884,6 +887,36 @@ input[type="range"]::-webkit-slider-thumb {
     width: 100% !important;
     justify-content: center !important;
     min-height: 44px !important;
+  }
+
+  /* ==========================================================================
+     GST TAX INVOICE — mobile stacking (this document is a fixed-width, print-
+     oriented layout by design; without this it overflows the modal on phones)
+     ========================================================================== */
+  .gst-invoice-document {
+    padding: 1.2rem 1rem;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .inv-header {
+    flex-wrap: wrap;
+  }
+
+  .inv-title-block {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .inv-parties-grid,
+  .inv-summary-container,
+  .inv-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .inv-signatory {
+    align-items: flex-start;
+    text-align: left;
   }
 }
 
@@ -1997,10 +2030,17 @@ input[type="range"]::-webkit-slider-thumb {
   line-height: 1.4;
 }
 
+.inv-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1.2rem;
+}
+
 .inv-table {
   width: 100%;
+  min-width: 620px;
   border-collapse: collapse;
-  margin-bottom: 1.2rem;
 }
 
 .inv-table th {

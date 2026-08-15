@@ -228,6 +228,7 @@ export function renderGSTInvoiceHTML(inv: GSTInvoiceData): string {
       </div>
 
       <!-- Itemized Goods Table -->
+      <div class="inv-table-scroll">
       <table class="inv-table">
         <thead>
           <tr>
@@ -261,6 +262,7 @@ export function renderGSTInvoiceHTML(inv: GSTInvoiceData): string {
           `).join('')}
         </tbody>
       </table>
+      </div>
 
       <!-- Summary & Tax Breakup -->
       <div class="inv-summary-container">
