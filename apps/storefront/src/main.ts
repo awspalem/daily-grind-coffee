@@ -1,5 +1,5 @@
 // The Daily Grind — Bangalore Specialty Coffee Storefront Interactive Client
-import type { Cart, CartItem, Product, ProductVariant } from '@daily-grind/shared-types';
+import type { Cart, CartItem, Order, Product, ProductVariant } from '@daily-grind/shared-types';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 
 export type Currency = 'INR' | 'USD';
@@ -361,6 +361,7 @@ class StorefrontApp {
     this.renderFlavorWheelSVGs();
     this.updateCartUI();
     this.handleQRCodeDeepLink();
+    this.handleOrderConfirmationDeepLink();
     await this.loadCatalog();
   }
 
@@ -1278,22 +1279,18 @@ class StorefrontApp {
           })
         });
 
-        const data = await res.json() as { checkout_url?: string };
+        const data = await res.json() as { success?: boolean; checkout_url?: string; order_number?: string; error?: string };
         if (data.checkout_url) {
           window.location.href = data.checkout_url;
+        } else if (data.success && data.order_number) {
+          // Order was created in D1 but Stripe isn't configured on this deploy — no payment
+          // redirect to send the shopper through, so surface the real order number directly.
+          window.location.href = `${window.location.pathname}?order_number=${encodeURIComponent(data.order_number)}`;
         } else {
-          alert('🎉 Thank you for your order! Your batch has been reserved for roasting at our Indiranagar roastery.');
-          this.cartItems = [];
-          this.saveCart();
-          this.updateCartUI();
-          this.closeCart();
+          alert(`Checkout failed: ${data.error || 'Please try again.'}`);
         }
       } catch {
-        alert('🎉 Order simulated! Your beans are scheduled for roasting.');
-        this.cartItems = [];
-        this.saveCart();
-        this.updateCartUI();
-        this.closeCart();
+        alert('Checkout failed — please check your connection and try again. Your cart has not been cleared.');
       } finally {
         checkoutBtn.disabled = false;
         checkoutBtn.textContent = 'Proceed to Secure Checkout';
@@ -1320,109 +1317,14 @@ class StorefrontApp {
       });
     });
 
-    // Order Lookup Form & Indian GST Tax Invoicing (HSN 0901)
+    // Order Lookup Form — looks up the real order via GET /api/orders/:identifier
     const orderForm = document.getElementById('order-lookup-form');
     orderForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       this.triggerHaptic();
       const input = document.getElementById('order-lookup-input') as HTMLInputElement;
       const orderNum = input.value.trim().toUpperCase();
-      const resultBox = document.getElementById('order-lookup-result');
-      if (!resultBox) return;
-
-      // Match known mock or dynamic order data
-      const orderLookupCatalog: { [key: string]: { customer: string; loc: string; item: string; total: number; status: string; statusClass: string; desc: string } } = {
-        'TDG-102938': {
-          customer: 'Rohan Sharma',
-          loc: 'Indiranagar, Bengaluru',
-          item: 'Chikmagalur Attikan Estate Honey (250g · South Indian Filter)',
-          total: 450,
-          status: 'ROASTING IN PROGRESS',
-          statusClass: 'accent-emerald',
-          desc: 'Your batch is currently in convection roast cycle #04 at Indiranagar Roastery. It will degas for 12 hours and ship via express roastery courier across India.'
-        },
-        'TDG-102939': {
-          customer: 'Priya Nair',
-          loc: 'Koramangala, Bengaluru',
-          item: 'Midnight Runner Dark Espresso (500g · Whole Bean)',
-          total: 820,
-          status: 'PAID & QUEUED',
-          statusClass: 'accent-gold',
-          desc: 'Queued for today\'s afternoon roasting batch. Nitrogen-sealed packaging ready for next-day Bangalore handoff.'
-        },
-        'TDG-102940': {
-          customer: 'David Miller',
-          loc: 'Whitefield, Bengaluru',
-          item: 'Dawn Patrol Bangalore Roastery Blend (1kg · Espresso)',
-          total: 1490,
-          status: 'DISPATCHED · IN TRANSIT',
-          statusClass: 'accent-terracotta',
-          desc: 'Dispatched via Express Courier. Tracking ID: BLR-EXPRESS-99281. Estimated delivery: Today by 6:00 PM.'
-        }
-      };
-
-      const matched = orderLookupCatalog[orderNum] || {
-        customer: 'Specialty Coffee Connoisseur',
-        loc: 'Bengaluru, Karnataka',
-        item: 'Chikmagalur Attikan Estate Honey (250g · Fresh Roast)',
-        total: 450,
-        status: 'PAID & QUEUED FOR ROAST',
-        statusClass: 'accent-emerald',
-        desc: 'Your custom order is confirmed and queued at our Indiranagar roastery. Fresh micro-batch convection roasting starts shortly!'
-      };
-
-      resultBox.style.display = 'block';
-      resultBox.innerHTML = `
-        <div style="background: var(--bg-primary); padding: 1.6rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
-            <div>
-              <strong style="font-size: 1.1rem; color: var(--text-main);">Order: ${orderNum}</strong>
-              <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem;">Customer: ${matched.customer} (${matched.loc})</div>
-            </div>
-            <span style="background: var(--accent-sage); color: var(--accent-emerald); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.78rem; font-weight:700; letter-spacing: 0.04em;">${matched.status}</span>
-          </div>
-
-          <div style="margin: 0.8rem 0; padding: 0.8rem 1rem; background: #fff; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
-            <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">${matched.item}</div>
-            <div style="font-size: 0.8rem; color: var(--accent-terracotta); font-weight: 700; margin-top: 0.2rem;">Total: ₹${matched.total} (Inclusive of 5.0% GST · HSN 0901)</div>
-          </div>
-
-          <p style="font-size:0.88rem; color: var(--text-muted); line-height:1.5; margin-bottom: 1.2rem;">
-            ${matched.desc}
-          </p>
-
-          <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
-            <button class="btn-primary" id="btn-view-order-gst-invoice" style="padding: 0.7rem 1.4rem; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 0.5rem;">
-              🧾 View & Print GST Tax Invoice (HSN 0901)
-            </button>
-            <a href="#brew-guide" class="btn-secondary" style="padding: 0.7rem 1.2rem; font-size: 0.88rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; border-radius: var(--radius-pill);">
-              ☕ Maya's Brew Guide
-            </a>
-          </div>
-        </div>
-      `;
-
-      // Attach GST invoice modal trigger
-      document.getElementById('btn-view-order-gst-invoice')?.addEventListener('click', () => {
-        this.triggerHaptic();
-        const invoiceData = buildGSTInvoiceFromOrder({
-          orderId: orderNum,
-          customerName: matched.customer,
-          customerLocation: matched.loc,
-          productDescription: matched.item,
-          totalAmountInr: matched.total
-        });
-
-        const invoiceContentEl = document.getElementById('modal-cust-invoice-content');
-        const modalCustInvoice = document.getElementById('modal-customer-invoice');
-
-        if (invoiceContentEl) {
-          invoiceContentEl.innerHTML = renderGSTInvoiceHTML(invoiceData);
-        }
-        if (modalCustInvoice) {
-          modalCustInvoice.classList.add('active');
-        }
-      });
+      await this.lookupOrder(orderNum);
     });
 
     // Customer Invoice Modal Close & Print
@@ -1437,6 +1339,140 @@ class StorefrontApp {
       this.triggerHaptic();
       window.print();
     });
+  }
+
+  private orderStatusDisplay(status: string): { label: string; statusClass: string; desc: string } {
+    switch (status) {
+      case 'PENDING_PAYMENT':
+        return { label: 'AWAITING PAYMENT', statusClass: 'accent-terracotta', desc: 'We\'re still waiting on payment confirmation for this order.' };
+      case 'PAID':
+        return { label: 'PAID & QUEUED', statusClass: 'accent-gold', desc: 'Payment confirmed — queued for the next roasting batch at our Indiranagar roastery.' };
+      case 'ROASTING':
+        return { label: 'ROASTING IN PROGRESS', statusClass: 'accent-emerald', desc: 'Your batch is currently in the convection roast cycle. It will degas before packaging.' };
+      case 'PACKED':
+        return { label: 'PACKED', statusClass: 'accent-emerald', desc: 'Freshly roasted, degassed, and nitrogen-sealed. Ready to hand off to courier.' };
+      case 'SHIPPED':
+        return { label: 'DISPATCHED · IN TRANSIT', statusClass: 'accent-terracotta', desc: 'Dispatched via courier and on its way to you.' };
+      case 'DELIVERED':
+        return { label: 'DELIVERED', statusClass: 'accent-emerald', desc: 'Delivered! We hope you enjoy every cup.' };
+      case 'CANCELLED':
+        return { label: 'CANCELLED', statusClass: 'accent-terracotta', desc: 'This order was cancelled.' };
+      case 'REFUNDED':
+        return { label: 'REFUNDED', statusClass: 'accent-terracotta', desc: 'This order was refunded.' };
+      default:
+        return { label: status, statusClass: 'accent-emerald', desc: '' };
+    }
+  }
+
+  async lookupOrder(orderNum: string) {
+    const resultBox = document.getElementById('order-lookup-result');
+    if (!resultBox || !orderNum) return;
+
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = `<p style="text-align:center; color: var(--text-muted); padding: 1rem;">Looking up order ${orderNum}...</p>`;
+
+    let order: Order | null = null;
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNum)}`);
+      const data = await res.json() as { success: boolean; order?: Order };
+      if (data.success && data.order) {
+        order = data.order;
+      }
+    } catch {
+      // network error — order stays null, handled below
+    }
+
+    if (!order) {
+      resultBox.innerHTML = `
+        <div style="background: var(--bg-primary); padding: 1.6rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); text-align: center;">
+          <strong style="color: var(--text-main);">No order found for "${orderNum}"</strong>
+          <p style="font-size:0.88rem; color: var(--text-muted); margin-top: 0.5rem;">Double-check your order number — it should look like TDG-XXXXXX.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const { label, statusClass, desc } = this.orderStatusDisplay(order.status);
+    const itemSummary = order.items.length === 1
+      ? `${order.items[0].product_name} (${order.items[0].weight_grams}g · ${order.items[0].grind_type})`
+      : `${order.items[0]?.product_name || 'Coffee'} + ${order.items.length - 1} more item${order.items.length > 2 ? 's' : ''}`;
+    const totalDisplay = order.currency === 'usd'
+      ? `$${(order.total_cents / 100).toFixed(2)}`
+      : `₹${Math.round(order.total_cents / 100)}`;
+    const customerName = order.shipping_address?.name || order.customer_email;
+    const customerLoc = order.shipping_address ? `${order.shipping_address.city}, ${order.shipping_address.state}` : '';
+
+    resultBox.innerHTML = `
+      <div style="background: var(--bg-primary); padding: 1.6rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div>
+            <strong style="font-size: 1.1rem; color: var(--text-main);">Order: ${order.order_number}</strong>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.1rem;">Customer: ${customerName}${customerLoc ? ` (${customerLoc})` : ''}</div>
+          </div>
+          <span style="background: var(--accent-sage); color: var(--accent-emerald); padding: 0.3rem 0.8rem; border-radius: var(--radius-pill); font-size: 0.78rem; font-weight:700; letter-spacing: 0.04em;">${label}</span>
+        </div>
+
+        <div style="margin: 0.8rem 0; padding: 0.8rem 1rem; background: #fff; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">${itemSummary}</div>
+          <div style="font-size: 0.8rem; color: var(--accent-terracotta); font-weight: 700; margin-top: 0.2rem;">Total: ${totalDisplay}${order.tracking_number ? ` · Tracking: ${order.tracking_number}` : ''}</div>
+        </div>
+
+        <p style="font-size:0.88rem; color: var(--text-muted); line-height:1.5; margin-bottom: 1.2rem;">
+          ${desc}
+        </p>
+
+        <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+          ${order.currency !== 'usd' ? `
+          <button class="btn-primary" id="btn-view-order-gst-invoice" style="padding: 0.7rem 1.4rem; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+            🧾 View & Print GST Tax Invoice (HSN 0901)
+          </button>` : ''}
+          <a href="#brew-guide" class="btn-secondary" style="padding: 0.7rem 1.2rem; font-size: 0.88rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; border-radius: var(--radius-pill);">
+            ☕ Maya's Brew Guide
+          </a>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('btn-view-order-gst-invoice')?.addEventListener('click', () => {
+      this.triggerHaptic();
+      const invoiceData = buildGSTInvoiceFromOrder({
+        orderId: order!.order_number,
+        customerName,
+        customerLocation: customerLoc,
+        customerEmail: order!.customer_email,
+        productDescription: itemSummary,
+        totalAmountInr: Math.round(order!.total_cents / 100)
+      });
+
+      const invoiceContentEl = document.getElementById('modal-cust-invoice-content');
+      const modalCustInvoice = document.getElementById('modal-customer-invoice');
+
+      if (invoiceContentEl) {
+        invoiceContentEl.innerHTML = renderGSTInvoiceHTML(invoiceData);
+      }
+      if (modalCustInvoice) {
+        modalCustInvoice.classList.add('active');
+      }
+    });
+  }
+
+  // After a successful Stripe redirect back, checkout.ts sends ?order_id=...&order_number=...
+  // — surface the real order instead of leaving the shopper on a blank homepage.
+  private handleOrderConfirmationDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const orderNumber = params.get('order_number');
+    if (!orderNumber) return;
+
+    this.cartItems = [];
+    this.saveCart();
+    this.updateCartUI();
+
+    setTimeout(() => {
+      document.getElementById('track-order')?.scrollIntoView({ behavior: 'smooth' });
+      const input = document.getElementById('order-lookup-input') as HTMLInputElement | null;
+      if (input) input.value = orderNumber;
+      this.lookupOrder(orderNumber);
+    }, 400);
   }
 
   async sendAgentMessage(text: string) {

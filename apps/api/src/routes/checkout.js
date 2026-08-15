@@ -22,21 +22,60 @@ async function processCheckout(c, isSessionRoute = false) {
         postal_code: '560038',
         country: 'IN',
     };
-    // Fetch current cart state
-    const cart = await getOrCreateCart(c.env.DB, token);
-    if (!cart.items || cart.items.length === 0) {
-        return c.json({ success: false, error: 'Cart is empty' }, 400);
+    let resolvedItems;
+    let discountCents = 0;
+    let cartIdForLedger = token;
+    if (Array.isArray(body.items) && body.items.length > 0) {
+        const variantIds = [...new Set(body.items.map((it) => it.variant_id).filter(Boolean))];
+        const placeholders = variantIds.map(() => '?').join(',');
+        const { results: variantRows } = variantIds.length > 0
+            ? await c.env.DB.prepare(`
+          SELECT v.id, v.weight_grams, v.price_cents, v.is_active, p.name as product_name
+          FROM product_variants v
+          JOIN products p ON v.product_id = p.id
+          WHERE v.id IN (${placeholders})
+        `).bind(...variantIds).all()
+            : { results: [] };
+        const variantMap = new Map((variantRows || []).map((r) => [r.id, r]));
+        resolvedItems = [];
+        for (const it of body.items) {
+            const variant = variantMap.get(it.variant_id);
+            if (!variant || !variant.is_active) {
+                return c.json({ success: false, error: `Unavailable product: ${it.variant_id}` }, 400);
+            }
+            const quantity = Math.max(1, Math.floor(Number(it.quantity)) || 1);
+            resolvedItems.push({
+                variant_id: it.variant_id,
+                product_name: variant.product_name,
+                weight_grams: Number(variant.weight_grams),
+                grind_type: it.grind_type || 'WHOLE_BEAN',
+                price_cents: Number(variant.price_cents),
+                quantity,
+                line_total_cents: Number(variant.price_cents) * quantity,
+                subscription_frequency: it.subscription_frequency || null,
+                custom_notes: it.custom_notes || null,
+            });
+        }
+    }
+    else {
+        const cart = await getOrCreateCart(c.env.DB, token);
+        if (!cart.items || cart.items.length === 0) {
+            return c.json({ success: false, error: 'Cart is empty' }, 400);
+        }
+        resolvedItems = cart.items;
+        discountCents = cart.discount_cents;
+        cartIdForLedger = cart.id;
     }
     const ledger = new InventoryLedgerService(c.env.DB);
     // 1. Verify stock availability and reserve items
     try {
-        for (const item of cart.items) {
+        for (const item of resolvedItems) {
             await ledger.recordMovement({
                 variantId: item.variant_id,
                 movementType: 'PURCHASE_RESERVE',
                 delta: -item.quantity,
                 referenceType: 'CART',
-                referenceId: cart.id,
+                referenceId: cartIdForLedger,
                 reason: 'Checkout stock reservation hold',
                 actor: 'CHECKOUT_SERVICE',
             });
@@ -48,9 +87,11 @@ async function processCheckout(c, isSessionRoute = false) {
     // 2. Create Order in D1
     const orderId = 'ord_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
     const orderNumber = 'TDG-' + Math.floor(100000 + Math.random() * 900000);
-    const shippingCents = cart.subtotal_cents >= 5000 ? 0 : 500; // Free shipping over $50 / ₹1,200
-    const taxCents = Math.round(cart.total_cents * 0.08); // 8% estimated sales tax
-    const totalCents = cart.total_cents + shippingCents + taxCents;
+    const subtotalCents = resolvedItems.reduce((acc, it) => acc + it.line_total_cents, 0);
+    const totalAfterDiscount = Math.max(0, subtotalCents - discountCents);
+    const shippingCents = subtotalCents >= 5000 ? 0 : 500; // Free shipping over $50 / ₹1,200
+    const taxCents = Math.round(totalAfterDiscount * 0.08); // 8% estimated sales tax
+    const totalCents = totalAfterDiscount + shippingCents + taxCents;
     const orderStatements = [
         c.env.DB.prepare(`
       INSERT INTO orders (
@@ -58,9 +99,9 @@ async function processCheckout(c, isSessionRoute = false) {
         shipping_cents, tax_cents, discount_cents, total_cents,
         currency, shipping_address_json, created_at, updated_at
       ) VALUES (?, ?, ?, 'PENDING_PAYMENT', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `).bind(orderId, orderNumber, customerEmail, cart.subtotal_cents, shippingCents, taxCents, cart.discount_cents, totalCents, body.currency || 'usd', JSON.stringify(shippingAddress)),
+    `).bind(orderId, orderNumber, customerEmail, subtotalCents, shippingCents, taxCents, discountCents, totalCents, body.currency || 'usd', JSON.stringify(shippingAddress)),
     ];
-    for (const item of cart.items) {
+    for (const item of resolvedItems) {
         const orderItemId = 'oi_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
         orderStatements.push(c.env.DB.prepare(`
         INSERT INTO order_items (
@@ -78,7 +119,7 @@ async function processCheckout(c, isSessionRoute = false) {
             grind_type, frequency, quantity, unit_price_cents, discount_percent,
             status, next_renewal_date, shipping_address_json, created_at, updated_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 10, 'ACTIVE', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        `).bind(subId, customerEmail, cart.customer_id || null, orderId, item.variant_id, item.product_name, item.grind_type, item.subscription_frequency, item.quantity, item.price_cents, nextRenewalDate, JSON.stringify(shippingAddress)));
+        `).bind(subId, customerEmail, null, orderId, item.variant_id, item.product_name, item.grind_type, item.subscription_frequency, item.quantity, item.price_cents, nextRenewalDate, JSON.stringify(shippingAddress)));
         }
     }
     await c.env.DB.batch(orderStatements);
@@ -90,7 +131,7 @@ async function processCheckout(c, isSessionRoute = false) {
             orderId,
             orderNumber,
             customerEmail,
-            items: cart.items.map((it) => ({
+            items: resolvedItems.map((it) => ({
                 name: `${it.product_name} (${it.weight_grams}g, ${it.grind_type})${it.subscription_frequency ? ` [${it.subscription_frequency.replace('_', ' ')} Sub]` : ''}`,
                 unitPriceCents: it.price_cents,
                 quantity: it.quantity,

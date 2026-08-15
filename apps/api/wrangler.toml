@@ -84,8 +84,8 @@ name = "daily-grind-api"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-STOREFRONT_URL = "https://dailygrind.coffee" # placeholder — replace with your real domain
-ADMIN_URL = "https://admin.dailygrind.coffee" # placeholder — replace with your real domain
+STOREFRONT_URL = "https://daily-grind-storefront.pages.dev" # real working Pages URL — swap for a custom domain once one is set up
+ADMIN_URL = "https://daily-grind-admin.pages.dev" # real working Pages URL — swap for a custom domain once one is set up
 CURRENCY = "usd"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 SHIPROCKET_PICKUP_LOCATION = "Primary"
