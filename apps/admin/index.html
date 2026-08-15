@@ -26,14 +26,15 @@
 </head>
 <body>
   <div class="admin-layout">
-    <!-- Roastery Navigation Sidebar -->
-    <aside class="admin-sidebar">
+    <!-- Roastery Navigation Sidebar (becomes a slide-in drawer on mobile) -->
+    <aside class="admin-sidebar" id="admin-sidebar">
       <div class="roastery-brand">
         <div class="brand-icon">☕</div>
         <div class="brand-meta">
           <h2>THE DAILY GRIND</h2>
           <span>Bangalore Hub · Indiranagar</span>
         </div>
+        <button class="sidebar-close-btn" id="btn-close-sidebar" aria-label="Close menu">✕</button>
       </div>
 
       <nav>
@@ -63,9 +64,15 @@
       </div>
     </aside>
 
+    <!-- Tap-outside-to-close overlay for the mobile drawer -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
     <!-- Main Operational Workspace -->
     <main class="admin-main">
       <div class="top-bar">
+        <button class="hamburger-btn" id="btn-mobile-menu" aria-label="Open menu" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
         <div class="page-headline">
           <h1>Bangalore Roastery Command Center</h1>
           <p>Multi-currency price control, discount engines, roast loss logging, and direct-trade unit economics.</p>
@@ -673,8 +680,8 @@
               <span style="font-size: 0.78rem; color: var(--text-muted);">Click any row to test batch size</span>
             </div>
 
-            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius-sm); border: 1px solid var(--admin-border);">
-              <table class="data-table" id="capacity-comparison-table" style="margin: 0; min-width: 820px;">
+            <div class="table-responsive" style="border-radius: var(--radius-sm); border: 1px solid var(--admin-border);">
+              <table class="data-table" id="capacity-comparison-table" style="margin: 0;">
                 <thead>
                   <tr>
                     <th>Batch Size</th>
@@ -1411,79 +1418,6 @@
   </div>
     </main>
   </div>
-
-  <!-- Mobile-Native Bottom Command Bar for Roastery Operations -->
-  <nav class="mobile-admin-bar" aria-label="Roastery Mobile Commands">
-    <button class="admin-cmd-item active" id="mob-cmd-ops" data-tab="overview">
-      <div class="cmd-icon-wrap">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"></line>
-          <line x1="12" y1="20" x2="12" y2="4"></line>
-          <line x1="6" y1="20" x2="6" y2="14"></line>
-        </svg>
-      </div>
-      <span>Ops</span>
-    </button>
-    <button class="admin-cmd-item" id="mob-cmd-inventory" data-tab="inventory">
-      <div class="cmd-icon-wrap">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 8L12 3 3 8l9 5 9-5z"></path>
-          <path d="M3 8v8l9 5 9-5V8"></path>
-          <path d="M12 13v8"></path>
-        </svg>
-      </div>
-      <span>Stock</span>
-    </button>
-    <button class="admin-cmd-item" id="mob-cmd-capacity" data-tab="capacity">
-      <div class="cmd-icon-wrap">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-      </div>
-      <span>Capacity</span>
-    </button>
-    <button class="admin-cmd-item" id="mob-cmd-capex" data-tab="capex">
-      <div class="cmd-icon-wrap">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M2 20h20"></path>
-          <path d="M5 20V8l5 4V4l5 4v12"></path>
-          <path d="M19 20v-6l-4-2"></path>
-        </svg>
-      </div>
-      <span>CapEx</span>
-    </button>
-    <button class="admin-cmd-item" id="mob-cmd-econ" data-tab="economics">
-      <div class="cmd-icon-wrap">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
-        </svg>
-      </div>
-      <span>Economics</span>
-    </button>
-    <button class="admin-cmd-item" id="mob-cmd-orders" data-tab="orders">
-      <div class="cmd-icon-wrap">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="1" y="3" width="15" height="13"></rect>
-          <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
-          <circle cx="5.5" cy="18.5" r="2.5"></circle>
-          <circle cx="18.5" cy="18.5" r="2.5"></circle>
-        </svg>
-      </div>
-      <span>Orders</span>
-    </button>
-    <a href="/investor.html" class="admin-cmd-item" id="mob-cmd-investor" style="text-decoration:none; color:var(--gold);">
-      <div class="cmd-icon-wrap" style="color:var(--gold);">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-      </div>
-      <span>Investor</span>
-    </a>
-  </nav>
 
   <script type="module" src="/src/main.ts"></script>
 </body>

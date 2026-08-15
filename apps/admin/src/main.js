@@ -46,6 +46,7 @@ class AdminPortal {
         { variant_id: 'var_mid_500', product_name: 'Midnight Runner Dark Espresso', weight_grams: 500, price_inr: 820, price_usd_cents: 3300, discount_percent: 5 }
     ];
     async init() {
+        this.setupMobileDrawer();
         this.setupCollapsiblePanels();
         this.setupNavigation();
         this.setupPricingTable();
@@ -100,6 +101,32 @@ class AdminPortal {
         panel.classList.add('expanded');
         panel.querySelector('.panel-toggle')?.setAttribute('aria-expanded', 'true');
     }
+    setupMobileDrawer() {
+        const sidebar = document.getElementById('admin-sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        const hamburger = document.getElementById('btn-mobile-menu');
+        const closeBtn = document.getElementById('btn-close-sidebar');
+        if (!sidebar || !backdrop || !hamburger)
+            return;
+        const open = () => {
+            this.triggerHaptic();
+            sidebar.classList.add('open');
+            backdrop.classList.add('visible');
+            hamburger.setAttribute('aria-expanded', 'true');
+        };
+        hamburger.addEventListener('click', open);
+        backdrop.addEventListener('click', () => this.closeMobileDrawer());
+        closeBtn?.addEventListener('click', () => this.closeMobileDrawer());
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape')
+                this.closeMobileDrawer();
+        });
+    }
+    closeMobileDrawer() {
+        document.getElementById('admin-sidebar')?.classList.remove('open');
+        document.getElementById('sidebar-backdrop')?.classList.remove('visible');
+        document.getElementById('btn-mobile-menu')?.setAttribute('aria-expanded', 'false');
+    }
     triggerHaptic() {
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
             try {
@@ -115,11 +142,8 @@ class AdminPortal {
             if (!tab)
                 return;
             this.triggerHaptic();
-            // Sync active state on desktop sidebar and mobile command bar
+            // Sync active state on the sidebar/drawer nav
             document.querySelectorAll('.nav-item-btn').forEach((b) => {
-                b.classList.toggle('active', b.getAttribute('data-tab') === tab);
-            });
-            document.querySelectorAll('.admin-cmd-item').forEach((b) => {
                 b.classList.toggle('active', b.getAttribute('data-tab') === tab);
             });
             const panelIdByTab = {
@@ -145,16 +169,10 @@ class AdminPortal {
                 this.expandPanel(panelIdByTab[tab]);
                 document.getElementById(panelIdByTab[tab])?.scrollIntoView({ behavior: 'smooth' });
             }
+            this.closeMobileDrawer();
         };
-        // Sidebar navigation
+        // Sidebar / mobile drawer navigation
         document.querySelectorAll('.nav-item-btn').forEach((btn) => {
-            btn.addEventListener('click', (e) => {
-                const tab = e.currentTarget.getAttribute('data-tab');
-                handleTabChange(tab);
-            });
-        });
-        // Mobile Bottom Command Bar
-        document.querySelectorAll('.admin-cmd-item').forEach((btn) => {
             btn.addEventListener('click', (e) => {
                 const tab = e.currentTarget.getAttribute('data-tab');
                 handleTabChange(tab);

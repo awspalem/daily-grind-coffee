@@ -99,6 +99,44 @@ body {
   gap: 0.8rem;
 }
 
+.sidebar-close-btn {
+  display: none;
+  margin-left: auto;
+  min-width: 40px;
+  min-height: 40px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--admin-border);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  font-size: 1.1rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+.hamburger-btn {
+  display: none;
+  min-width: 44px;
+  min-height: 44px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--admin-border);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.hamburger-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
 .brand-icon {
   width: 42px;
   height: 42px;
@@ -487,11 +525,6 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
 }
 
-/* Mobile-Native Bottom Command Bar */
-.mobile-admin-bar {
-  display: none;
-}
-
 @media (max-width: 1024px) {
   .admin-layout {
     grid-template-columns: 1fr;
@@ -499,77 +532,86 @@ input[type="range"]::-webkit-slider-thumb {
     max-width: 100vw;
   }
 
+  /* Sidebar becomes an off-canvas drawer, toggled via .open (see setupMobileDrawer in main.ts) */
   .admin-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(85vw, 320px);
+    z-index: 900;
+    transform: translateX(-100%);
+    transition: var(--transition);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: var(--transition);
+    z-index: 899;
+  }
+
+  .sidebar-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .hamburger-btn {
+    display: flex;
+  }
+
+  /* Persistent top app bar (Jira/Bitbucket-style) so the hamburger is always reachable */
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 500;
+    background: var(--admin-bg);
+    border-bottom: 1px solid var(--admin-border);
+    margin: 0 -1rem;
+    padding: 0.9rem 1rem;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.85rem;
+    flex-wrap: nowrap;
+  }
+
+  .page-headline {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .page-headline h1 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Secondary action buttons are reachable inside their own panels; keep the mobile
+     top bar to just the hamburger + title for a clutter-free header */
+  .top-actions,
+  .page-headline p {
     display: none;
   }
 
   .admin-main {
-    padding: 1.25rem 1rem calc(84px + env(safe-area-inset-bottom, 0px));
+    padding: 0 1rem 2rem;
     gap: 1.6rem;
     width: 100%;
     max-width: 100%;
     min-width: 0;
     overflow-x: hidden;
-  }
-
-  /* Fixed Mobile Command Bar */
-  .mobile-admin-bar {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 950;
-    height: calc(64px + env(safe-area-inset-bottom, 0px));
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    background: rgba(30, 25, 23, 0.96);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    border-top: 1px solid var(--admin-border);
-    justify-content: space-around;
-    align-items: center;
-    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
-  }
-
-  .admin-cmd-item {
-    flex: 1;
-    min-height: 52px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-family: var(--font-sans);
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: var(--transition);
-    padding: 4px 0;
-  }
-
-  .admin-cmd-item:active {
-    transform: scale(0.92);
-  }
-
-  .admin-cmd-item.active {
-    color: var(--copper);
-  }
-
-  .admin-cmd-item.active .cmd-icon-wrap svg {
-    color: var(--copper);
-    stroke-width: 2.3;
-  }
-
-  .cmd-icon-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
   }
 
   /* 2x2 Responsive KPI Grid on Mobile (No Horizontal Scrolling) */
@@ -832,28 +874,8 @@ input[type="range"]::-webkit-slider-thumb {
 
 @media (max-width: 600px) {
   .admin-main {
-    padding: 1rem 0.85rem calc(84px + env(safe-area-inset-bottom, 0px));
+    padding: 0 0.85rem 1.5rem;
     gap: 1.3rem;
-  }
-
-  .top-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.85rem;
-  }
-
-  .top-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-    width: 100%;
-  }
-
-  .btn-admin-action, .top-actions a {
-    width: 100%;
-    padding: 0.6rem 0.6rem;
-    font-size: 0.82rem;
-    text-align: center;
   }
 
   .capacity-batch-carousel {
@@ -2079,7 +2101,7 @@ input[type="range"]::-webkit-slider-thumb {
   }
 
   .admin-sidebar,
-  .mobile-admin-bar,
+  .sidebar-backdrop,
   .top-bar,
   .kpi-grid,
   .roaster-briefing-card,
