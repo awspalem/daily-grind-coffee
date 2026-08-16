@@ -32,6 +32,8 @@ ordersApp.get('/:identifier', async (c) => {
     unit_price_cents: Number(it.unit_price_cents),
     quantity: Number(it.quantity),
     total_price_cents: Number(it.total_price_cents),
+    subscription_frequency: it.subscription_frequency || null,
+    custom_notes: it.custom_notes || null,
   }));
 
   const order: Order = {

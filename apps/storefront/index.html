@@ -9,12 +9,48 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Daily Grind">
+
+  <!-- Update this to your real custom domain once one is set up (currently the Pages URL) -->
+  <link rel="canonical" href="https://daily-grind-storefront.pages.dev/">
+
+  <!-- Open Graph / Facebook / WhatsApp link previews -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://daily-grind-storefront.pages.dev/">
+  <meta property="og:site_name" content="The Daily Grind">
+  <meta property="og:title" content="The Daily Grind — Artisanal Specialty Coffee Roasters · Bangalore, India">
+  <meta property="og:description" content="Small-batch specialty coffee roastery based in Bangalore, India. Direct-trade Indian estate micro-lots & rare international origins, roasted fresh to order.">
+  <meta property="og:image" content="https://daily-grind-storefront.pages.dev/images/roaster.jpg">
+
+  <!-- Twitter/X Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="The Daily Grind — Artisanal Specialty Coffee Roasters · Bangalore, India">
+  <meta name="twitter:description" content="Small-batch specialty coffee roastery based in Bangalore, India. Direct-trade Indian estate micro-lots & rare international origins, roasted fresh to order.">
+  <meta name="twitter:image" content="https://daily-grind-storefront.pages.dev/images/roaster.jpg">
+
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="apple-touch-icon" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/src/styles/index.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "The Daily Grind Roastery",
+    "url": "https://daily-grind-storefront.pages.dev/",
+    "logo": "https://daily-grind-storefront.pages.dev/favicon.svg",
+    "description": "Small-batch specialty coffee roastery based in Indiranagar, Bangalore, India.",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "100ft Road, Indiranagar",
+      "addressLocality": "Bangalore",
+      "addressRegion": "Karnataka",
+      "postalCode": "560038",
+      "addressCountry": "IN"
+    }
+  }
+  </script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {

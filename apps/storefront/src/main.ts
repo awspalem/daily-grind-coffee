@@ -365,6 +365,8 @@ class StorefrontApp {
     this.updateCartUI();
     this.handleQRCodeDeepLink();
     this.handleOrderConfirmationDeepLink();
+    this.handleResumeOrderDeepLink();
+    this.handleReviewProductDeepLink();
     await this.loadCatalog();
   }
 
@@ -1697,6 +1699,65 @@ class StorefrontApp {
       if (input) input.value = orderNumber;
       this.lookupOrder(orderNumber);
     }, 400);
+  }
+
+  // Resumes an abandoned-cart recovery email's "Complete Your Order" link — the original order
+  // was already cancelled (and its stock reservation released) by the abandoned-checkout cron,
+  // so this just repopulates the local cart from the order's items; the normal checkout button
+  // flow then creates a fresh order with a real-time stock/price check.
+  private async handleResumeOrderDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const orderNumber = params.get('resume_order');
+    if (!orderNumber) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNumber)}`);
+      const data = await res.json() as { success: boolean; order?: Order };
+      if (!data.success || !data.order || data.order.items.length === 0) return;
+
+      this.cartItems = data.order.items.map((it) => ({
+        id: 'resumed_' + it.id,
+        variant_id: it.variant_id,
+        product_id: it.variant_id,
+        name: it.product_name,
+        weight_grams: it.weight_grams,
+        grind_type: it.grind_type,
+        unit_price_inr: Math.round(it.unit_price_cents * 0.23),
+        unit_price_usd_cents: it.unit_price_cents,
+        discount_percent: 0,
+        quantity: it.quantity,
+        image_url: '/images/roaster.jpg',
+        subscription_frequency: it.subscription_frequency || null,
+        custom_notes: it.custom_notes || null,
+      }));
+      this.saveCart();
+      this.updateCartUI();
+
+      setTimeout(() => {
+        this.openCart();
+      }, 400);
+    } catch {
+      // Resume failed silently — shopper can still shop normally, nothing to recover from here
+    }
+  }
+
+  // Opens the reviews modal for a specific product when a shopper clicks a review-request
+  // email's "Rate this coffee" link.
+  private async handleReviewProductDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get('review_product');
+    if (!productId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/products/${encodeURIComponent(productId)}`);
+      const data = await res.json() as { success: boolean; product?: { name: string } };
+      const productName = data.success && data.product ? data.product.name : 'this coffee';
+      setTimeout(() => {
+        this.openReviewsModal(productId, productName);
+      }, 400);
+    } catch {
+      // No product found for this id — nothing to open
+    }
   }
 
   async sendAgentMessage(text: string) {

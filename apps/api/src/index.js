@@ -14,7 +14,7 @@ import { mediaApp } from './routes/media';
 import { customerApp } from './routes/customer';
 import { reviewsApp } from './routes/reviews';
 import { rateLimiter } from './middleware/rateLimit';
-import { generateOrderConfirmationEmail } from './services/emailTemplate';
+import { generateOrderConfirmationEmail, generateAbandonedCartEmail, generateReviewRequestEmail } from './services/emailTemplate';
 import { D1BackupService } from './services/backupService';
 import { InventoryLedgerService } from './services/inventoryLedger';
 import { ResendEmailService } from './services/resend';
@@ -116,6 +116,7 @@ export default {
     // Cloudflare Cron Scheduled Handler (Phase 2, 3 & 5)
     async scheduled(controller, env, ctx) {
         console.log(`Cron triggered at ${new Date().toISOString()} (cron: ${controller.cron})`);
+        const emailService = new ResendEmailService(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL);
         // 1. Audit low-stock items
         const { results: lowStock } = await env.DB.prepare(`
       SELECT sku, available_stock, low_stock_threshold 
@@ -144,12 +145,13 @@ export default {
         try {
             const staleThreshold = new Date(Date.now() - 30 * 60 * 1000).toISOString();
             const { results: staleOrders } = await env.DB.prepare(`
-        SELECT id, order_number FROM orders WHERE status = 'PENDING_PAYMENT' AND created_at < ?
+        SELECT id, order_number, customer_email FROM orders WHERE status = 'PENDING_PAYMENT' AND created_at < ?
       `).bind(staleThreshold).all();
             if (staleOrders && staleOrders.length > 0) {
                 const ledger = new InventoryLedgerService(env.DB);
+                const storefrontUrl = env.STOREFRONT_URL || 'http://localhost:5173';
                 for (const order of staleOrders) {
-                    const { results: items } = await env.DB.prepare('SELECT variant_id, quantity FROM order_items WHERE order_id = ?').bind(order.id).all();
+                    const { results: items } = await env.DB.prepare('SELECT variant_id, quantity, product_name, weight_grams, grind_type FROM order_items WHERE order_id = ?').bind(order.id).all();
                     for (const item of items || []) {
                         try {
                             await ledger.recordMovement({
@@ -167,6 +169,22 @@ export default {
                         }
                     }
                     await env.DB.prepare("UPDATE orders SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(order.id).run();
+                    // Cart recovery email — a fresh checkout attempt (not a resurrected one) re-checks
+                    // stock/price for real at submission time, so it's fine that we already released the
+                    // reservation above.
+                    if (order.customer_email && !order.customer_email.endsWith('@dailygrind.coffee') && items && items.length > 0) {
+                        try {
+                            const emailData = generateAbandonedCartEmail({
+                                customerEmail: order.customer_email,
+                                items: items.map((it) => ({ name: it.product_name, weightGrams: Number(it.weight_grams), grindType: it.grind_type })),
+                                resumeUrl: `${storefrontUrl}/?resume_order=${encodeURIComponent(order.order_number)}`,
+                            });
+                            await emailService.send(emailData.to, emailData.subject, emailData.html);
+                        }
+                        catch (cartEmailErr) {
+                            console.error(`[CRON] Abandoned-cart email failed for ${order.order_number}:`, cartEmailErr);
+                        }
+                    }
                 }
                 console.log(`[CRON] Released reservations and cancelled ${staleOrders.length} abandoned PENDING_PAYMENT order(s).`);
             }
@@ -187,7 +205,6 @@ export default {
             if (dueSubs && dueSubs.length > 0) {
                 const ledger = new InventoryLedgerService(env.DB);
                 const stripe = new StripeService(env.STRIPE_SECRET_KEY, env.STRIPE_WEBHOOK_SECRET);
-                const emailService = new ResendEmailService(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL);
                 let renewed = 0;
                 let pastDue = 0;
                 for (const sub of dueSubs) {
@@ -300,6 +317,45 @@ export default {
         catch (subErr) {
             console.error('[CRON SUBSCRIPTION RENEWAL ERROR]', subErr);
         }
-        console.log('[CRON DONE] Nightly inventory check, cart cleanup, reservation cleanup, subscription renewals & D1 R2 backup completed successfully.');
+        // 6. Post-delivery review-request emails — sent once per delivered order (order gets set to
+        // DELIVERED via the Shiprocket webhook or a manual admin status update; this just watches
+        // for that and follows up, rather than hooking into every place status can change).
+        try {
+            const { results: deliveredOrders } = await env.DB.prepare(`
+        SELECT id, order_number, customer_email FROM orders
+        WHERE status = 'DELIVERED' AND review_request_sent_at IS NULL
+      `).all();
+            if (deliveredOrders && deliveredOrders.length > 0) {
+                const storefrontUrl = env.STOREFRONT_URL || 'http://localhost:5173';
+                for (const order of deliveredOrders) {
+                    const { results: products } = await env.DB.prepare(`
+            SELECT DISTINCT v.product_id as productId, oi.product_name as name
+            FROM order_items oi
+            JOIN product_variants v ON oi.variant_id = v.id
+            WHERE oi.order_id = ?
+          `).bind(order.id).all();
+                    if (order.customer_email && !order.customer_email.endsWith('@dailygrind.coffee') && products && products.length > 0) {
+                        try {
+                            const emailData = generateReviewRequestEmail({
+                                customerEmail: order.customer_email,
+                                orderNumber: order.order_number,
+                                products,
+                                storefrontUrl,
+                            });
+                            await emailService.send(emailData.to, emailData.subject, emailData.html);
+                        }
+                        catch (reviewEmailErr) {
+                            console.error(`[CRON] Review-request email failed for ${order.order_number}:`, reviewEmailErr);
+                        }
+                    }
+                    await env.DB.prepare('UPDATE orders SET review_request_sent_at = CURRENT_TIMESTAMP WHERE id = ?').bind(order.id).run();
+                }
+                console.log(`[CRON] Sent ${deliveredOrders.length} review-request email(s).`);
+            }
+        }
+        catch (reviewErr) {
+            console.error('[CRON REVIEW REQUEST ERROR]', reviewErr);
+        }
+        console.log('[CRON DONE] Nightly inventory check, cart cleanup, reservation cleanup, subscription renewals, review requests & D1 R2 backup completed successfully.');
     }
 };

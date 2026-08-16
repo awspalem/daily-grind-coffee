@@ -68,3 +68,86 @@ export function generateOrderConfirmationEmail(params) {
         html,
     };
 }
+export function generateAbandonedCartEmail(params) {
+    const { customerEmail, items, resumeUrl } = params;
+    const customerName = customerEmail.split('@')[0];
+    const itemsHtml = items.map((it) => `
+    <li style="padding: 8px 0; color: #1e1b18;">
+      <strong>${it.name}</strong>
+      <span style="font-size: 13px; color: #777;"> — ${it.weightGrams}g · ${it.grindType.replace(/_/g, ' ')}</span>
+    </li>
+  `).join('');
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8" /><title>You left something at the roastery</title></head>
+    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fcf9f5; margin: 0; padding: 24px;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #ede5dc; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+        <div style="text-align: center; border-bottom: 2px solid #d4883b; padding-bottom: 20px; margin-bottom: 24px;">
+          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY GRIND</h1>
+          <p style="color: #8c7e72; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 2px;">Small Batch Specialty Roastery</p>
+        </div>
+
+        <h2 style="color: #1c1512; font-size: 20px;">Still thinking it over, ${customerName}?</h2>
+        <p style="color: #554a41; line-height: 1.6; font-size: 15px;">
+          You left these in your cart. They're still fresh and waiting for you:
+        </p>
+
+        <ul style="list-style: none; padding: 0; margin: 20px 0;">
+          ${itemsHtml}
+        </ul>
+
+        <div style="text-align: center; margin-top: 28px;">
+          <a href="${resumeUrl}" style="background: #1c1512; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">
+            Complete Your Order
+          </a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+    return {
+        to: customerEmail,
+        subject: `☕ You left some coffee behind — The Daily Grind`,
+        html,
+    };
+}
+export function generateReviewRequestEmail(params) {
+    const { customerEmail, orderNumber, products, storefrontUrl } = params;
+    const customerName = customerEmail.split('@')[0];
+    const linksHtml = products.map((p) => `
+    <div style="text-align: center; margin-bottom: 12px;">
+      <a href="${storefrontUrl}/?review_product=${encodeURIComponent(p.productId)}" style="color: #d4883b; text-decoration: none; font-weight: bold; font-size: 14px;">
+        ★ Rate ${p.name}
+      </a>
+    </div>
+  `).join('');
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8" /><title>How was your coffee?</title></head>
+    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fcf9f5; margin: 0; padding: 24px;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #ede5dc; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+        <div style="text-align: center; border-bottom: 2px solid #d4883b; padding-bottom: 20px; margin-bottom: 24px;">
+          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY GRIND</h1>
+          <p style="color: #8c7e72; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 2px;">Small Batch Specialty Roastery</p>
+        </div>
+
+        <h2 style="color: #1c1512; font-size: 20px;">How was order #${orderNumber}, ${customerName}?</h2>
+        <p style="color: #554a41; line-height: 1.6; font-size: 15px;">
+          We hope it's been a great cup. A quick review helps other coffee lovers (and us) — it takes less than a minute:
+        </p>
+
+        <div style="margin: 24px 0;">
+          ${linksHtml}
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+    return {
+        to: customerEmail,
+        subject: `How was your coffee? Rate order #${orderNumber}`,
+        html,
+    };
+}
