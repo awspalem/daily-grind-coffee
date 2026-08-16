@@ -806,6 +806,47 @@ body {
   transform: scale(0.96);
 }
 
+.btn-add-cart:disabled {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.weight-btn:disabled {
+  opacity: 0.45;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.stock-badge {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow: var(--shadow-sm);
+}
+
+.stock-badge.sold-out {
+  background: var(--text-main);
+  color: #fff;
+}
+
+.stock-badge.low-stock {
+  background: var(--accent-gold);
+  color: var(--text-main);
+}
+
+.product-card.is-sold-out .card-media img {
+  opacity: 0.55;
+}
+
 /* Coffee Finder Quiz Modal / Section */
 .quiz-section {
   background: var(--bg-espresso);

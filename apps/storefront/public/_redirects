@@ -1,4 +1,7 @@
 # Cloudflare Pages does not proxy this to the Worker API for non-GET methods (and GET falls
 # through to the SPA shell too) — the storefront calls the Worker's URL directly instead
-# (see API_BASE in src/main.ts). This file only needs the SPA fallback.
-/* /index.html 200
+# (see API_BASE in src/main.ts). Real files (index.html, privacy.html, terms.html, shipping.html,
+# images, etc.) are served directly by Cloudflare Pages before these rules are ever consulted —
+# this only needs to handle paths with no matching static file, which should be a real 404, not
+# a silent 200 back to the homepage.
+/* /404.html 404

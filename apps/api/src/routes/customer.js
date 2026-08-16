@@ -138,4 +138,19 @@ customerApp.post('/address', async (c) => {
   `).bind(addrId, session.customerId, body.is_default ? 1 : 0, body.address.name, body.address.line1, body.address.line2 || null, body.address.city, body.address.state, body.address.postal_code, body.address.country || 'US').run();
     return c.json({ success: true, address_id: addrId });
 });
+// POST /api/customer/newsletter/subscribe — storefront footer email capture.
+customerApp.post('/newsletter/subscribe', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const email = (body.email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+        return c.json({ success: false, error: 'A valid email is required' }, 400);
+    }
+    const id = 'nws_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+    await c.env.DB.prepare(`
+    INSERT INTO newsletter_subscribers (id, email, source, status)
+    VALUES (?, ?, 'storefront_footer', 'SUBSCRIBED')
+    ON CONFLICT(email) DO UPDATE SET status = 'SUBSCRIBED', updated_at = CURRENT_TIMESTAMP
+  `).bind(id, email).run();
+    return c.json({ success: true });
+});
 export { customerApp };

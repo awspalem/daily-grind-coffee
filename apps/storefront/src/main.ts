@@ -331,6 +331,7 @@ class StorefrontApp {
     frequency: '2_WEEKS'
   };
   private chatHistory: { role: 'user' | 'assistant'; content: string }[] = [];
+  private modalFocusReturnEl: HTMLElement | null = null;
 
   constructor() {
     this.sessionId = localStorage.getItem('tdg_session_id') || `sess_${Math.random().toString(36).substring(2, 12)}`;
@@ -367,6 +368,7 @@ class StorefrontApp {
     this.setupFlavorWheel();
     this.setupFlightBuilder();
     this.setupAccountModal();
+    this.setupNewsletterForm();
     this.renderFlavorWheelSVGs();
     this.updateCartUI();
     this.handleQRCodeDeepLink();
@@ -517,8 +519,13 @@ class StorefrontApp {
     }
 
     container.innerHTML = filtered.map((prod) => {
-      const defaultVariant = prod.variants[0] || { id: 'v1', weight_grams: 250, price_inr: 450, price_usd_cents: 1850, discount_percent: 0 };
-      
+      // stock_quantity is only present when data came from the live API (see loadCatalog) —
+      // FALLBACK_PRODUCTS has no inventory backing, so treat "unknown" as "don't gate on stock".
+      const hasStockData = prod.variants.length > 0 && typeof prod.variants[0].stock_quantity === 'number';
+      const inStockVariant = hasStockData ? prod.variants.find((v: any) => v.stock_quantity > 0) : undefined;
+      const defaultVariant = inStockVariant || prod.variants[0] || { id: 'v1', weight_grams: 250, price_inr: 450, price_usd_cents: 1850, discount_percent: 0 };
+      const isProductSoldOut = hasStockData && !inStockVariant;
+
       const isWheelMatch = Boolean(activeWheelCatDef && this.matchesFlavorCategory(prod, activeWheelCatDef));
 
       const subState = this.productSubState[prod.id] || { isSub: false, frequency: '2_WEEKS' };
@@ -549,18 +556,29 @@ class StorefrontApp {
       
       const roastScore = prod.roast_level === 'LIGHT' ? 25 : prod.roast_level === 'LIGHT_MEDIUM' ? 45 : prod.roast_level === 'MEDIUM' ? 65 : prod.roast_level === 'MEDIUM_DARK' ? 78 : 90;
 
-      const weightButtons = prod.variants.map((v: any, idx: number) => `
-        <button class="weight-btn ${idx === 0 ? 'selected' : ''}" data-variant-id="${v.id}" data-price-inr="${v.price_inr}" data-price-usd="${v.price_usd_cents || v.price_cents}" data-discount="${v.discount_percent || 0}" data-weight="${v.weight_grams}">
+      const weightButtons = prod.variants.map((v: any) => {
+        const variantSoldOut = hasStockData && v.stock_quantity <= 0;
+        return `
+        <button class="weight-btn ${v.id === defaultVariant.id ? 'selected' : ''}" data-variant-id="${v.id}" data-price-inr="${v.price_inr}" data-price-usd="${v.price_usd_cents || v.price_cents}" data-discount="${v.discount_percent || 0}" data-weight="${v.weight_grams}" data-stock="${hasStockData ? v.stock_quantity : ''}" ${variantSoldOut ? 'disabled title="Sold out"' : ''}>
           ${v.weight_grams >= 1000 ? `${v.weight_grams / 1000}kg` : `${v.weight_grams}g`}
         </button>
-      `).join('');
+      `;
+      }).join('');
+
+      let stockBadgeHtml = '';
+      if (isProductSoldOut) {
+        stockBadgeHtml = `<span class="stock-badge sold-out">Sold Out</span>`;
+      } else if (hasStockData && defaultVariant.stock_quantity > 0 && defaultVariant.stock_quantity <= 8) {
+        stockBadgeHtml = `<span class="stock-badge low-stock">Only ${defaultVariant.stock_quantity} left</span>`;
+      }
 
       return `
-        <article class="product-card ${isWheelMatch ? 'wheel-match' : ''}" data-product-id="${prod.id}">
+        <article class="product-card ${isWheelMatch ? 'wheel-match' : ''} ${isProductSoldOut ? 'is-sold-out' : ''}" data-product-id="${prod.id}">
           <div class="card-media">
             <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" loading="lazy">
             <span class="origin-badge">${prod.origin_country}</span>
             <span class="roast-level-tag">${prod.roast_level.replace('_', ' ')} ROAST</span>
+            ${stockBadgeHtml}
           </div>
 
           <div class="card-body">
@@ -645,8 +663,8 @@ class StorefrontApp {
                 ${isSub ? `<span class="price-discount-tag">-10% CLUB</span>` : ''}
                 <small>/ ${defaultVariant.weight_grams}g</small>
               </div>
-              <button class="btn-add-cart" data-action="add-to-cart" data-prod-id="${prod.id}">
-                <span>Add to Cart</span>
+              <button class="btn-add-cart" data-action="add-to-cart" data-prod-id="${prod.id}" ${isProductSoldOut ? 'disabled' : ''}>
+                <span>${isProductSoldOut ? 'Sold Out' : 'Add to Cart'}</span>
               </button>
             </div>
           </div>
@@ -790,6 +808,28 @@ class StorefrontApp {
         }, 1200);
       });
     });
+
+    this.observeProductViews(container);
+  }
+
+  // Fires `product_view` once per product per session, on genuine scroll-into-view — not on
+  // every re-render (search keystrokes / filter clicks re-render the grid constantly, and a
+  // per-render ping would flood analytics_events and skew the admin funnel's view-based ratios).
+  private viewedProductIds = new Set<string>();
+  private productViewObserver: IntersectionObserver | null = null;
+  private observeProductViews(container: HTMLElement) {
+    this.productViewObserver?.disconnect();
+    this.productViewObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const prodId = (entry.target as HTMLElement).getAttribute('data-product-id');
+        if (!prodId || this.viewedProductIds.has(prodId)) continue;
+        this.viewedProductIds.add(prodId);
+        this.trackEvent('product_view', { product_id: prodId });
+        this.productViewObserver?.unobserve(entry.target);
+      }
+    }, { threshold: 0.5 });
+    container.querySelectorAll('.product-card').forEach((card) => this.productViewObserver?.observe(card));
   }
 
   private updateCardPriceDisplay(prodId: string, basePriceInr: number, basePriceUsd: number, weightGrams: number) {
@@ -1058,6 +1098,22 @@ class StorefrontApp {
     this.saveCart();
     this.updateCartUI();
     this.openCart();
+    this.trackEvent('add_to_cart', { product_id: item.product_id, metadata: { variant_id: item.variant_id, quantity: item.quantity } });
+  }
+
+  // Fire-and-forget funnel telemetry for the admin analytics dashboard (GET /api/analytics/funnel).
+  // Never blocks or throws on the caller — a dropped analytics ping should never break checkout.
+  private trackEvent(eventName: 'product_view' | 'add_to_cart' | 'checkout_started' | 'purchase', opts: { product_id?: string; metadata?: Record<string, unknown> } = {}) {
+    fetch(`${API_BASE}/api/analytics/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_name: eventName,
+        session_id: this.sessionId,
+        product_id: opts.product_id,
+        metadata: opts.metadata
+      })
+    }).catch(() => { /* analytics is best-effort */ });
   }
 
   private saveCart() {
@@ -1217,10 +1273,12 @@ class StorefrontApp {
     // Escape closes whatever's open — modals didn't have any keyboard dismissal at all.
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
+      const hadOpenBackdrop = document.querySelector('.storefront-modal-backdrop.active') !== null;
       document.querySelectorAll('.storefront-modal-backdrop.active').forEach((m) => {
         m.classList.remove('active');
         m.setAttribute('aria-hidden', 'true');
       });
+      if (hadOpenBackdrop) this.releaseFocusTrap();
       if (document.getElementById('flavor-wheel-modal')?.getAttribute('aria-hidden') === 'false') {
         this.closeFlavorWheelModal();
       }
@@ -1229,6 +1287,27 @@ class StorefrontApp {
       }
       if (document.getElementById('agent-drawer')?.classList.contains('open')) {
         this.closeAgent();
+      }
+    });
+
+    // Trap Tab focus inside whichever modal/drawer is currently open, so keyboard users can't
+    // tab out to the obscured page behind the overlay.
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab') return;
+      const openModal = document.querySelector<HTMLElement>(
+        '.storefront-modal-backdrop.active, #flavor-wheel-modal[aria-hidden="false"]'
+      );
+      if (!openModal) return;
+      const focusable = this.getFocusable(openModal);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     });
 
@@ -1397,6 +1476,7 @@ class StorefrontApp {
       const checkoutBtn = document.getElementById('btn-checkout-trigger') as HTMLButtonElement;
       checkoutBtn.disabled = true;
       checkoutBtn.textContent = 'Securing Your Bangalore Roast...';
+      this.trackEvent('checkout_started', { metadata: { item_count: this.cartItems.length } });
 
       try {
         const res = await fetch(`${API_BASE}/api/checkout/session`, {
@@ -1471,9 +1551,13 @@ class StorefrontApp {
     const modalCustInvoice = document.getElementById('modal-customer-invoice');
     document.getElementById('modal-cust-invoice-close')?.addEventListener('click', () => {
       modalCustInvoice?.classList.remove('active');
+      modalCustInvoice?.setAttribute('aria-hidden', 'true');
+      this.releaseFocusTrap();
     });
     document.getElementById('modal-cust-invoice-cancel')?.addEventListener('click', () => {
       modalCustInvoice?.classList.remove('active');
+      modalCustInvoice?.setAttribute('aria-hidden', 'true');
+      this.releaseFocusTrap();
     });
     document.getElementById('modal-cust-invoice-print')?.addEventListener('click', () => {
       this.triggerHaptic();
@@ -1484,6 +1568,8 @@ class StorefrontApp {
     const modalReviews = document.getElementById('modal-reviews');
     document.getElementById('modal-reviews-close')?.addEventListener('click', () => {
       modalReviews?.classList.remove('active');
+      modalReviews?.setAttribute('aria-hidden', 'true');
+      this.releaseFocusTrap();
     });
 
     // Star picker
@@ -1569,6 +1655,7 @@ class StorefrontApp {
     listEl.innerHTML = `<p style="color: var(--text-muted); text-align:center; padding: 1rem;">Loading reviews...</p>`;
     modal.classList.add('active');
     modal.setAttribute('aria-hidden', 'false');
+    this.trapFocusIn(modal);
 
     try {
       const res = await fetch(`${API_BASE}/api/reviews/${encodeURIComponent(productId)}`);
@@ -1597,6 +1684,45 @@ class StorefrontApp {
     }
   }
 
+  private setupNewsletterForm() {
+    const form = document.getElementById('newsletter-form') as HTMLFormElement | null;
+    const statusEl = document.getElementById('newsletter-status');
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      this.triggerHaptic();
+      const emailInput = document.getElementById('newsletter-email') as HTMLInputElement;
+      const email = emailInput.value.trim();
+      if (!email) return;
+
+      const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+      submitBtn.disabled = true;
+      if (statusEl) { statusEl.textContent = 'Subscribing...'; statusEl.style.color = 'var(--text-inverse)'; }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/customer/newsletter/subscribe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json() as { success: boolean; error?: string };
+        if (data.success) {
+          if (statusEl) { statusEl.textContent = "✓ You're on the list — welcome!"; statusEl.style.color = 'var(--accent-gold)'; }
+          form.reset();
+        } else if (statusEl) {
+          statusEl.textContent = data.error || 'Could not subscribe — please try again.';
+          statusEl.style.color = 'var(--accent-terracotta)';
+        }
+      } catch {
+        if (statusEl) {
+          statusEl.textContent = 'Could not subscribe — please check your connection.';
+          statusEl.style.color = 'var(--accent-terracotta)';
+        }
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
   private setupAccountModal() {
     const modal = document.getElementById('modal-account');
     const requestForm = document.getElementById('account-login-request-form') as HTMLFormElement;
@@ -1608,9 +1734,12 @@ class StorefrontApp {
       modal?.classList.add('active');
       modal?.setAttribute('aria-hidden', 'false');
       this.renderAccountModalState();
+      if (modal) this.trapFocusIn(modal);
     });
     document.getElementById('modal-account-close')?.addEventListener('click', () => {
       modal?.classList.remove('active');
+      modal?.setAttribute('aria-hidden', 'true');
+      this.releaseFocusTrap();
     });
 
     requestForm?.addEventListener('submit', async (e) => {
@@ -1892,6 +2021,7 @@ class StorefrontApp {
       if (modalCustInvoice) {
         modalCustInvoice.classList.add('active');
         modalCustInvoice.setAttribute('aria-hidden', 'false');
+        this.trapFocusIn(modalCustInvoice);
       }
     });
   }
@@ -1902,6 +2032,13 @@ class StorefrontApp {
     const params = new URLSearchParams(window.location.search);
     const orderNumber = params.get('order_number');
     if (!orderNumber) return;
+
+    // Guard against double-counting the same order if the confirmation URL is refreshed/revisited.
+    const purchaseTrackedKey = `tdg_purchase_tracked_${orderNumber}`;
+    if (!sessionStorage.getItem(purchaseTrackedKey)) {
+      sessionStorage.setItem(purchaseTrackedKey, '1');
+      this.trackEvent('purchase', { metadata: { order_number: orderNumber } });
+    }
 
     this.cartItems = [];
     this.discountPercentage = 0;
@@ -2758,12 +2895,32 @@ class StorefrontApp {
            catDef.subNotes.some((sn) => fullText.includes(sn.toLowerCase()));
   }
 
+  private getFocusable(container: HTMLElement): HTMLElement[] {
+    return Array.from(
+      container.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+  }
+
+  // Moves focus into a just-opened modal and remembers what to restore it to on close —
+  // without this, keyboard/screen-reader users get stranded on a trigger button behind an overlay.
+  private trapFocusIn(modal: HTMLElement) {
+    this.modalFocusReturnEl = document.activeElement as HTMLElement;
+    const focusable = this.getFocusable(modal);
+    (focusable[0] || modal).focus();
+  }
+
+  private releaseFocusTrap() {
+    this.modalFocusReturnEl?.focus();
+    this.modalFocusReturnEl = null;
+  }
+
   openFlavorWheelModal() {
     const modal = document.getElementById('flavor-wheel-modal');
     if (modal) {
       modal.classList.add('open');
       modal.setAttribute('aria-hidden', 'false');
       this.updateModalFlavorDetails(this.activeFlavorWheelCategory);
+      this.trapFocusIn(modal);
     }
   }
 
@@ -2772,6 +2929,7 @@ class StorefrontApp {
     if (modal) {
       modal.classList.remove('open');
       modal.setAttribute('aria-hidden', 'true');
+      this.releaseFocusTrap();
     }
   }
 
