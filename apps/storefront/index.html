@@ -654,10 +654,10 @@
         <p class="section-subtitle">Enter your order confirmation number to see roasting and dispatch progress.</p>
       </div>
 
-      <div style="max-width: 600px; margin: 0 auto; background: #fff; padding: 2rem; border-radius: var(--radius-lg); border: 1px solid var(--border-subtle);">
-        <form id="order-lookup-form" style="display: flex; gap: 0.6rem;">
-          <input type="text" id="order-lookup-input" placeholder="e.g. TDG-102938" required style="flex-grow: 1; padding: 0.8rem 1.2rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); font-family: inherit; font-size: 0.95rem;">
-          <button type="submit" class="btn-primary" style="padding: 0.8rem 1.5rem;">Check Status</button>
+      <div class="order-lookup-box">
+        <form id="order-lookup-form" class="order-lookup-form">
+          <input type="text" id="order-lookup-input" class="order-lookup-input" placeholder="e.g. TDG-102938" required>
+          <button type="submit" class="btn-primary order-lookup-submit">Check Status</button>
         </form>
         <div id="order-lookup-result" style="margin-top: 1.5rem; display: none;"></div>
       </div>

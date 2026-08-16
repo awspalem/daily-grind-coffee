@@ -500,6 +500,35 @@ body {
   color: #fff;
 }
 
+.order-lookup-box {
+  max-width: 600px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.order-lookup-form {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.order-lookup-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.8rem 1.2rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.order-lookup-submit {
+  flex-shrink: 0;
+  padding: 0.8rem 1.5rem;
+}
+
 /* Product Catalog Grid */
 .catalog-section {
   max-width: 1280px;
@@ -1738,16 +1767,31 @@ body {
 
 @media (max-width: 600px) {
   .hero-section {
-    padding: 2.5rem 1.2rem 3rem;
+    padding: 1.8rem 1.2rem 2.2rem;
+  }
+
+  .hero-content {
+    gap: 1.1rem;
   }
 
   .hero-title {
     font-size: clamp(2rem, 8vw, 2.6rem);
   }
 
+  .hero-description {
+    font-size: 1rem;
+  }
+
+  .hero-actions {
+    gap: 0.7rem;
+    margin-top: 0.1rem;
+  }
+
   .hero-stats {
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
+    padding-top: 1.1rem;
+    margin-top: 0.5rem;
   }
 
   .hero-floating-card {
@@ -1761,8 +1805,34 @@ body {
   }
 
   .footer-container {
-    grid-template-columns: 1fr;
-    gap: 2rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.8rem 1.2rem;
+    margin-bottom: 2rem;
+  }
+
+  .footer-brand {
+    grid-column: 1 / -1;
+  }
+
+  .site-footer {
+    padding: 2.8rem 1.2rem 1.8rem;
+  }
+
+  .footer-col ul {
+    gap: 0.55rem;
+  }
+
+  .order-lookup-box {
+    padding: 1.2rem;
+  }
+
+  .order-lookup-submit {
+    padding: 0.8rem 1.1rem;
+    font-size: 0.9rem;
+  }
+
+  .wheel-title {
+    font-size: 1.5rem;
   }
 
   .calc-result-display {
@@ -1790,7 +1860,16 @@ body {
   }
 
   #roastery-story > div > div:first-child {
-    padding: 2rem 1.5rem !important;
+    padding: 1.6rem 1.4rem !important;
+  }
+
+  #roastery-story h2 {
+    font-size: 1.7rem !important;
+    margin-bottom: 0.8rem !important;
+  }
+
+  #roastery-story p {
+    margin-bottom: 1rem !important;
   }
 
   /* Denser section rhythm */
