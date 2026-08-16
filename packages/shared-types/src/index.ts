@@ -93,7 +93,7 @@ export interface InventoryMovement {
 }
 
 export type SubscriptionFrequency = '1_WEEK' | '2_WEEKS' | '4_WEEKS';
-export type SubscriptionStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED';
+export type SubscriptionStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED' | 'PAST_DUE';
 
 export interface Subscription {
   id: string;
@@ -110,6 +110,8 @@ export interface Subscription {
   status: SubscriptionStatus;
   next_renewal_date: string;
   shipping_address_json?: string;
+  stripe_customer_id?: string;
+  stripe_payment_method_id?: string;
   created_at: string;
   updated_at: string;
 }

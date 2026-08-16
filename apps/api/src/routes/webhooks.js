@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { StripeService } from '../services/stripe';
 import { InventoryLedgerService } from '../services/inventoryLedger';
+import { ResendEmailService } from '../services/resend';
+import { generateOrderConfirmationEmail } from '../services/emailTemplate';
 const webhooksApp = new Hono();
 // Maps Shiprocket's known courier status strings onto our internal order lifecycle.
 // Exact matches only — substring checks misclassify statuses like "UNDELIVERED" as delivered.
@@ -103,7 +105,21 @@ webhooksApp.post('/stripe', async (c) => {
                         actor: 'STRIPE_WEBHOOK',
                     });
                 }
-                // Send job to Cloudflare Queue if bound
+                // If this order created Subscribe & Save rows, capture the Stripe customer + saved
+                // payment method from this session so the renewal cron (index.ts scheduled()) can
+                // charge future cycles off-session without the shopper re-entering card details.
+                const stripeSessionId = session.id;
+                if (stripeSessionId) {
+                    const { customerId, paymentMethodId } = await stripe.getSessionBillingDetails(stripeSessionId);
+                    if (customerId && paymentMethodId) {
+                        await c.env.DB.prepare(`
+              UPDATE subscriptions SET stripe_customer_id = ?, stripe_payment_method_id = ?, updated_at = CURRENT_TIMESTAMP
+              WHERE order_id = ?
+            `).bind(customerId, paymentMethodId, orderId).run();
+                    }
+                }
+                // Send job to Cloudflare Queue if bound (Queues requires a paid Workers plan and isn't
+                // currently enabled — see wrangler.toml — so this is best-effort for when it is).
                 if (c.env.JOB_QUEUE) {
                     try {
                         await c.env.JOB_QUEUE.send({
@@ -117,6 +133,35 @@ webhooksApp.post('/stripe', async (c) => {
                     }
                     catch (qErr) {
                         console.error('Queue send error:', qErr);
+                    }
+                }
+                else {
+                    // No queue available — send the confirmation email directly and synchronously instead
+                    // of silently dropping it (which is what happened before: the queue path was the only
+                    // one that ever sent an email, and it never fires without the paid plan).
+                    try {
+                        const emailData = generateOrderConfirmationEmail({
+                            orderNumber: order.order_number,
+                            customerName: order.customer_email.split('@')[0],
+                            customerEmail: order.customer_email,
+                            totalCents: order.total_cents,
+                            items: (items || []).map((it) => ({
+                                name: it.product_name,
+                                weightGrams: Number(it.weight_grams),
+                                grindType: it.grind_type,
+                                priceCents: Number(it.unit_price_cents),
+                                quantity: Number(it.quantity),
+                            })),
+                            storefrontUrl: c.env.STOREFRONT_URL || 'http://localhost:5173',
+                        });
+                        const emailService = new ResendEmailService(c.env.RESEND_API_KEY, c.env.RESEND_FROM_EMAIL);
+                        const emailResult = await emailService.send(emailData.to, emailData.subject, emailData.html);
+                        if (!emailResult.success) {
+                            console.error(`Order confirmation email not sent for ${order.order_number}:`, emailResult.error);
+                        }
+                    }
+                    catch (emailErr) {
+                        console.error('Order confirmation email generation/send error:', emailErr);
                     }
                 }
                 console.log(`Successfully completed payment fulfillment for Order ${order.order_number}`);

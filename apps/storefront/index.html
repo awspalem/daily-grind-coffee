@@ -640,10 +640,11 @@
     </div>
 
     <div class="drawer-footer">
-      <div style="background: var(--accent-gold-light); padding: 0.6rem 1rem; border-radius: var(--radius-md); font-size: 0.82rem; color: var(--accent-roast); display: flex; justify-content: space-between; align-items: center;">
-        <span>Promo Code: <strong>WELCOME10</strong> (10% off)</span>
-        <button id="btn-apply-welcome" style="background:none; border:none; color: var(--accent-terracotta); font-weight:700; cursor:pointer;">Apply</button>
+      <div style="display:flex; gap: 0.5rem; margin-bottom: 0.4rem;">
+        <input type="text" id="cart-coupon-input" placeholder="Promo code" style="flex-grow:1; padding: 0.6rem 0.9rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-family: inherit; font-size: 0.85rem; text-transform: uppercase;">
+        <button id="btn-apply-coupon" class="btn-secondary" style="padding: 0.6rem 1rem; font-size: 0.85rem;">Apply</button>
       </div>
+      <div id="cart-coupon-status" style="font-size: 0.78rem; margin-bottom: 0.6rem;"></div>
 
       <div class="cart-summary-row">
         <span>Subtotal</span>

@@ -24,6 +24,14 @@ SHIPROCKET_PICKUP_LOCATION = "Primary"
 # Without SHIPROCKET_EMAIL/PASSWORD, ShiprocketService runs in mock mode outside production
 # so order fulfillment keeps working; in production it fails loudly instead of faking data.
 
+# Resend email secrets (set via `wrangler secret put <NAME>`, not committed here):
+#   RESEND_API_KEY     — from resend.com/api-keys. Without it, order confirmation emails are
+#                          skipped (logged, not sent) rather than failing checkout.
+#   RESEND_FROM_EMAIL   — optional, e.g. "The Daily Grind <orders@yourdomain.com>". Defaults to
+#                          Resend's shared onboarding@resend.dev sender, which only delivers to
+#                          the Resend account's own verified email until a sending domain is
+#                          verified in the Resend dashboard.
+
 # Cloudflare D1 Database Binding
 [[d1_databases]]
 binding = "DB"

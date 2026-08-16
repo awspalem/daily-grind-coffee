@@ -16,6 +16,8 @@ export interface Env {
   STRIPE_WEBHOOK_SECRET?: string;
   GROQ_API_KEY?: string;
   GROQ_MODEL?: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM_EMAIL?: string;
   ADMIN_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;
   SHIPROCKET_EMAIL?: string;

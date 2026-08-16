@@ -733,60 +733,99 @@ class AdminPortal {
 
   private setupBatchLogging() {
     const form = document.getElementById('roast-batch-form') as HTMLFormElement;
-    form?.addEventListener('submit', (e) => {
+    const tbody = document.getElementById('batch-table-body');
+    if (!form || !tbody) return;
+
+    const render = (batches: any[]) => {
+      tbody.innerHTML = batches.map((b) => {
+        const lossPct = Number(b.roast_loss_percent);
+        const greenCostPerBag = (0.25 / (1 - (lossPct / 100)) * 610).toFixed(2);
+        return `
+          <tr>
+            <td data-label="Batch ID"><strong>${this.escapeHtml(b.id)}</strong></td>
+            <td data-label="Lot Name">${this.escapeHtml(b.lot_name)}</td>
+            <td data-label="Green In">${b.green_kg_in} kg</td>
+            <td data-label="Roasted Out">${b.roasted_kg_out} kg</td>
+            <td data-label="Roast Loss %"><strong style="color: var(--emerald);">${lossPct}%</strong></td>
+            <td data-label="Green Cost / Bag">₹${greenCostPerBag} / 250g</td>
+            <td data-label="Status"><span class="status-badge paid">✓ Calibrated</span></td>
+          </tr>
+        `;
+      }).join('');
+    };
+
+    const load = async () => {
+      const data = await this.adminFetch<{ success: boolean; batches: any[] }>('/api/admin/roast-batches');
+      render(data.batches || []);
+    };
+    load();
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       this.triggerHaptic();
       const lotSelect = document.getElementById('batch-lot-select') as HTMLSelectElement;
       const greenInput = document.getElementById('batch-green-in') as HTMLInputElement;
       const roastedInput = document.getElementById('batch-roasted-out') as HTMLInputElement;
+      const profileInput = document.getElementById('batch-profile') as HTMLInputElement;
 
-      const lot = lotSelect.value;
-      const greenKg = parseFloat(greenInput.value);
-      const roastedKg = parseFloat(roastedInput.value);
+      const result = await this.adminFetch<{ success: boolean; message?: string; error?: string }>('/api/admin/roast-batch', {
+        method: 'POST',
+        body: JSON.stringify({
+          lot_name: lotSelect.value,
+          green_kg_in: parseFloat(greenInput.value),
+          roasted_kg_out: parseFloat(roastedInput.value),
+          roaster_profile: profileInput.value,
+        }),
+      });
 
-      const lossPct = (((greenKg - roastedKg) / greenKg) * 100).toFixed(1);
-      const greenCostPerBag = ((0.25 / (1 - (parseFloat(lossPct) / 100))) * 610).toFixed(2);
-
-      const tbody = document.getElementById('batch-table-body');
-      if (tbody) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td data-label="Batch ID"><strong>BATCH-${Math.floor(1000 + Math.random() * 9000)}</strong></td>
-          <td data-label="Lot Name">${lot}</td>
-          <td data-label="Green In">${greenKg} kg</td>
-          <td data-label="Roasted Out">${roastedKg} kg</td>
-          <td data-label="Roast Loss %"><strong style="color: var(--emerald);">${lossPct}%</strong></td>
-          <td data-label="Green Cost / Bag">₹${greenCostPerBag} / 250g</td>
-          <td data-label="Status"><span class="status-badge paid">✓ Calibrated</span></td>
-        `;
-        tbody.prepend(tr);
+      if (result.success) {
+        await load();
+        alert(`🔥 ${result.message}`);
+      } else {
+        alert(`⚠️ Could not log batch: ${result.error || 'Unknown error'}`);
       }
-
-      alert(`🔥 Batch for ${lot} successfully logged with ${lossPct}% roast loss. Yield calibrated in database!`);
     });
   }
 
   private setupCouponsManager() {
-    document.getElementById('btn-add-coupon')?.addEventListener('click', () => {
+    const tbody = document.getElementById('coupons-table-body');
+    if (!tbody) return;
+
+    const render = (coupons: any[]) => {
+      tbody.innerHTML = coupons.map((cp) => `
+        <tr>
+          <td data-label="Coupon Code"><strong>${this.escapeHtml(cp.code)}</strong></td>
+          <td data-label="Discount">${cp.discount_type === 'PERCENT' ? `${cp.discount_value}% Off Entire Order` : `₹${(cp.discount_value / 100).toFixed(2)} Off`}</td>
+          <td data-label="Redemptions">${cp.times_used} uses</td>
+          <td data-label="Max Uses">${cp.max_uses ?? '∞'} max</td>
+          <td data-label="Status"><span class="status-badge ${cp.is_active ? 'paid' : 'low-stock'}">${cp.is_active ? 'Active' : 'Inactive'}</span></td>
+        </tr>
+      `).join('');
+    };
+
+    const load = async () => {
+      const data = await this.adminFetch<{ success: boolean; coupons: any[] }>('/api/admin/coupons');
+      render(data.coupons || []);
+    };
+    load();
+
+    document.getElementById('btn-add-coupon')?.addEventListener('click', async () => {
       this.triggerHaptic();
       const code = prompt('Enter new Promo Coupon Code (e.g. MONSOON20):', 'MONSOON20');
+      if (!code) return;
       const discount = prompt('Enter Discount Percentage (e.g. 20):', '20');
+      if (!discount) return;
 
-      if (code && discount) {
-        const tbody = document.getElementById('coupons-table-body');
-        if (tbody) {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td data-label="Coupon Code"><strong>${code.toUpperCase()}</strong></td>
-            <td data-label="Discount">${discount}% Off Entire Order</td>
-            <td data-label="Redemptions">0 uses</td>
-            <td data-label="Max Uses">250 max</td>
-            <td data-label="Status"><span class="status-badge paid">Active</span></td>
-            <td data-label="Action"><button class="btn-table-action" onclick="alert('Coupon is active')">Active</button></td>
-          `;
-          tbody.prepend(tr);
-        }
+      const result = await this.adminFetch<{ success: boolean; error?: string }>('/api/admin/coupons', {
+        method: 'POST',
+        body: JSON.stringify({ code: code.toUpperCase(), discount_type: 'PERCENT', discount_value: Number(discount) }),
+      });
+
+      if (result.success) {
+        await load();
         alert(`🎟️ Coupon code "${code.toUpperCase()}" with ${discount}% discount created successfully!`);
+      } else {
+        alert(`⚠️ Could not create coupon: ${result.error || 'Unknown error'}`);
       }
     });
   }

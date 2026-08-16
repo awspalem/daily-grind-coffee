@@ -450,18 +450,23 @@ adminApp.post('/coupons', async (c) => {
   const actor = c.get('adminActor');
   const body = await c.req.json<{
     code: string;
-    discount_type: 'PERCENTAGE' | 'FIXED_AMOUNT';
+    discount_type: 'PERCENTAGE' | 'FIXED_AMOUNT' | 'PERCENT' | 'FIXED';
     discount_value: number;
     max_redemptions?: number;
   }>();
 
   const id = 'coup_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
   const code = body.code.trim().toUpperCase();
+  // Normalize to what cart.ts / checkout.ts actually check for (coupons.discount_type = 'PERCENT'
+  // or 'FIXED') — this previously stored whatever the caller sent verbatim, including
+  // 'PERCENTAGE', which the discount-application code doesn't recognize and silently falls
+  // through to treating the value as a flat cents amount instead of a percentage.
+  const discountType = body.discount_type.startsWith('PERCENT') ? 'PERCENT' : 'FIXED';
 
   await c.env.DB.prepare(`
-    INSERT INTO coupons (id, code, discount_type, discount_value, max_redemptions, is_active)
+    INSERT INTO coupons (id, code, discount_type, discount_value, max_uses, is_active)
     VALUES (?, ?, ?, ?, ?, 1)
-  `).bind(id, code, body.discount_type, body.discount_value, body.max_redemptions || 500).run();
+  `).bind(id, code, discountType, body.discount_value, body.max_redemptions || 500).run();
 
   await recordAuditLog(
     c.env.DB,
@@ -477,6 +482,14 @@ adminApp.post('/coupons', async (c) => {
   return c.json({ success: true, coupon_id: id, code });
 });
 
+// GET /api/admin/roast-batches
+adminApp.get('/roast-batches', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    'SELECT * FROM roast_batches ORDER BY created_at DESC LIMIT 100'
+  ).all();
+  return c.json({ success: true, batches: results || [] });
+});
+
 // POST /api/admin/roast-batch (Log green in vs roasted out, record roast loss %)
 adminApp.post('/roast-batch', async (c) => {
   const actor = c.get('adminActor');
@@ -489,7 +502,23 @@ adminApp.post('/roast-batch', async (c) => {
   }>();
 
   const lossPct = Number((((body.green_kg_in - body.roasted_kg_out) / body.green_kg_in) * 100).toFixed(2));
-  const batchId = 'batch_' + Date.now();
+  const batchId = 'batch_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+
+  await c.env.DB.prepare(`
+    INSERT INTO roast_batches (id, lot_name, green_kg_in, roasted_kg_out, roast_loss_percent, roaster_profile, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(batchId, body.lot_name, body.green_kg_in, body.roasted_kg_out, lossPct, body.roaster_profile || null, body.notes || null).run();
+
+  await recordAuditLog(
+    c.env.DB,
+    actor,
+    'LOG_ROAST_BATCH',
+    'roast_batches',
+    batchId,
+    null,
+    { lot_name: body.lot_name, roast_loss_percent: lossPct },
+    c.req.header('CF-Connecting-IP')
+  );
 
   return c.json({
     success: true,

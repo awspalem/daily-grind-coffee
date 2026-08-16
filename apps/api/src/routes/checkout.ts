@@ -5,6 +5,7 @@ import { getOrCreateCart } from './cart';
 import { InventoryLedgerService } from '../services/inventoryLedger';
 import { StripeService } from '../services/stripe';
 import { turnstileValidator } from '../middleware/turnstile';
+import { validateCoupon } from '../services/coupons';
 
 const checkoutApp = new Hono<{ Bindings: Env }>();
 
@@ -19,6 +20,7 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
     currency?: string;
     cart_id?: string;
     items?: any[];
+    coupon_code?: string;
   };
 
   const token = sessionToken || body.session_token || body.cart_id;
@@ -117,6 +119,21 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
   const orderId = 'ord_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   const orderNumber = 'TDG-' + Math.floor(100000 + Math.random() * 900000);
   const subtotalCents = resolvedItems.reduce((acc, it) => acc + it.line_total_cents, 0);
+
+  // Coupons are always re-validated here against the real subtotal, never trusted from a
+  // client-sent discount amount or a stale D1 cart row — a shopper could otherwise apply a
+  // coupon in the UI, add more to cart, and check out with a discount computed against the
+  // smaller pre-addition total (or one that's expired/exhausted since it was last checked).
+  let appliedCoupon: { id: string; code: string } | null = null;
+  if (body.coupon_code) {
+    const couponResult = await validateCoupon(c.env.DB, body.coupon_code, subtotalCents);
+    if (!couponResult.valid) {
+      return c.json({ success: false, error: couponResult.error || 'Invalid coupon code' }, 400);
+    }
+    discountCents = couponResult.discountCents;
+    appliedCoupon = { id: couponResult.couponId!, code: couponResult.code! };
+  }
+
   const totalAfterDiscount = Math.max(0, subtotalCents - discountCents);
   const shippingCents = subtotalCents >= 5000 ? 0 : 500; // Free shipping over $50 / ₹1,200
   const taxCents = Math.round(totalAfterDiscount * 0.08); // 8% estimated sales tax
@@ -196,6 +213,16 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
     }
   }
 
+  if (appliedCoupon) {
+    orderStatements.push(
+      c.env.DB.prepare('UPDATE coupons SET times_used = times_used + 1 WHERE id = ?').bind(appliedCoupon.id),
+      c.env.DB.prepare(`
+        INSERT INTO coupon_redemptions (id, coupon_id, order_id, customer_email, discount_applied_cents)
+        VALUES (?, ?, ?, ?, ?)
+      `).bind('credm_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16), appliedCoupon.id, orderId, customerEmail, discountCents)
+    );
+  }
+
   await c.env.DB.batch(orderStatements);
 
   // 3. Create Stripe Checkout Session
@@ -216,6 +243,7 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
       successUrl: `${storefrontUrl}/order-confirmation?order_id=${orderId}&order_number=${orderNumber}`,
       cancelUrl: `${storefrontUrl}/cart?cancelled=true`,
       currency: c.env.CURRENCY || body.currency || 'usd',
+      saveForSubscription: resolvedItems.some((it) => Boolean(it.subscription_frequency)),
     });
 
     // Update order with Stripe session ID

@@ -1,5 +1,17 @@
 import { Hono } from 'hono';
+import { validateCoupon } from '../services/coupons';
 const cartApp = new Hono();
+// POST /api/cart/coupon/preview — stateless validation for the storefront's client-side cart
+// (which isn't synced to the D1 carts table — see checkout.ts). Informational only: checkout.ts
+// always re-validates the coupon server-side against the real order total before charging.
+cartApp.post('/coupon/preview', async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const result = await validateCoupon(c.env.DB, body.code || '', Number(body.subtotal_cents) || 0);
+    if (!result.valid) {
+        return c.json({ success: false, error: result.error }, 400);
+    }
+    return c.json({ success: true, code: result.code, discount_cents: result.discountCents });
+});
 // Helper to get or create a cart by session token
 async function getOrCreateCart(db, sessionToken) {
     const token = sessionToken || 'sess_' + crypto.randomUUID().replace(/-/g, '');

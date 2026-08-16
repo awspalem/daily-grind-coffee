@@ -316,6 +316,7 @@ class StorefrontApp {
   private activeFlavorWheelCategory: string = 'all';
   private currentCurrency: Currency = 'INR';
   private discountPercentage: number = 0;
+  private appliedCouponCode: string | null = null;
   private sessionId: string;
   private deferredInstallPrompt: any = null;
   private productSubState: Record<string, { isSub: boolean; frequency: string }> = {};
@@ -1305,11 +1306,50 @@ class StorefrontApp {
       });
     });
 
-    // Promo Code Trigger
-    document.getElementById('btn-apply-welcome')?.addEventListener('click', () => {
-      this.discountPercentage = 0.10;
+    // Promo Code Apply — validated against real coupons in D1; checkout.ts re-validates again
+    // at charge time, this is purely for cart-preview display.
+    document.getElementById('btn-apply-coupon')?.addEventListener('click', async () => {
+      this.triggerHaptic();
+      const input = document.getElementById('cart-coupon-input') as HTMLInputElement;
+      const statusEl = document.getElementById('cart-coupon-status');
+      const code = input?.value.trim();
+      if (!code) return;
+
+      const subtotalUsdCents = this.cartItems.reduce((acc, it) => acc + (it.unit_price_usd_cents * it.quantity), 0);
+      if (statusEl) {
+        statusEl.textContent = 'Checking code...';
+        statusEl.style.color = 'var(--text-muted)';
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/cart/coupon/preview`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, subtotal_cents: subtotalUsdCents })
+        });
+        const data = await res.json() as { success: boolean; discount_cents?: number; code?: string; error?: string };
+        if (data.success && data.discount_cents != null && subtotalUsdCents > 0) {
+          this.discountPercentage = data.discount_cents / subtotalUsdCents;
+          this.appliedCouponCode = data.code || code.toUpperCase();
+          if (statusEl) {
+            statusEl.textContent = `✓ ${this.appliedCouponCode} applied!`;
+            statusEl.style.color = 'var(--accent-emerald)';
+          }
+        } else {
+          this.discountPercentage = 0;
+          this.appliedCouponCode = null;
+          if (statusEl) {
+            statusEl.textContent = data.error || 'Invalid coupon code';
+            statusEl.style.color = 'var(--accent-terracotta)';
+          }
+        }
+      } catch {
+        if (statusEl) {
+          statusEl.textContent = 'Could not validate code — please try again.';
+          statusEl.style.color = 'var(--accent-terracotta)';
+        }
+      }
       this.updateCartUI();
-      alert('🎉 10% WELCOME10 coupon applied to your order!');
     });
 
     // Checkout Trigger
@@ -1331,6 +1371,7 @@ class StorefrontApp {
             customer_email: 'customer@dailygrind.coffee',
             cart_id: this.sessionId,
             currency: this.currentCurrency.toLowerCase(),
+            coupon_code: this.appliedCouponCode || undefined,
             items: this.cartItems.map((i) => ({
               variant_id: i.variant_id,
               quantity: i.quantity,
@@ -1572,14 +1613,16 @@ class StorefrontApp {
     }
 
     const { label, statusClass, desc } = this.orderStatusDisplay(order.status);
-    const itemSummary = order.items.length === 1
+    const itemSummary = this.escapeHtml(order.items.length === 1
       ? `${order.items[0].product_name} (${order.items[0].weight_grams}g · ${order.items[0].grind_type})`
-      : `${order.items[0]?.product_name || 'Coffee'} + ${order.items.length - 1} more item${order.items.length > 2 ? 's' : ''}`;
+      : `${order.items[0]?.product_name || 'Coffee'} + ${order.items.length - 1} more item${order.items.length > 2 ? 's' : ''}`);
     const totalDisplay = order.currency === 'usd'
       ? `$${(order.total_cents / 100).toFixed(2)}`
       : `₹${Math.round(order.total_cents / 100)}`;
-    const customerName = order.shipping_address?.name || order.customer_email;
-    const customerLoc = order.shipping_address ? `${order.shipping_address.city}, ${order.shipping_address.state}` : '';
+    // shipping_address fields are shopper-entered at checkout and this page is public (anyone
+    // with the order number can look it up) — escape before rendering to close a stored-XSS path.
+    const customerName = this.escapeHtml(order.shipping_address?.name || order.customer_email);
+    const customerLoc = order.shipping_address ? this.escapeHtml(`${order.shipping_address.city}, ${order.shipping_address.state}`) : '';
 
     resultBox.innerHTML = `
       <div style="background: var(--bg-primary); padding: 1.6rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-sm);">
@@ -1643,6 +1686,8 @@ class StorefrontApp {
     if (!orderNumber) return;
 
     this.cartItems = [];
+    this.discountPercentage = 0;
+    this.appliedCouponCode = null;
     this.saveCart();
     this.updateCartUI();
 
@@ -1891,6 +1936,12 @@ class StorefrontApp {
 
   private renderMarkdown(md: string): string {
     if (!md) return '';
+
+    // Escape raw HTML before any markdown processing — this is rendered via innerHTML, and the
+    // content originates from the LLM (which can be prompt-injected into emitting raw
+    // HTML/script tags). None of the markdown patterns below target &/</>, so escaping first is
+    // safe and closes that off without disturbing table/header/list/bold/italic parsing.
+    md = this.escapeHtml(md);
 
     // Handle Markdown Tables
     const lines = md.split('\n');
