@@ -1792,6 +1792,91 @@ body {
   #roastery-story > div > div:first-child {
     padding: 2rem 1.5rem !important;
   }
+
+  /* Denser section rhythm */
+  .section-header {
+    margin-bottom: 1.8rem;
+  }
+
+  .catalog-section {
+    margin-bottom: 3.5rem;
+  }
+
+  .filter-container {
+    margin-bottom: 1.5rem;
+    gap: 0.8rem;
+  }
+
+  /* Denser product cards */
+  .card-media {
+    aspect-ratio: 16/9;
+  }
+
+  .card-body {
+    padding: 1.1rem;
+    gap: 0.55rem;
+  }
+
+  .card-title {
+    font-size: 1.12rem;
+  }
+
+  .tasting-tags-list {
+    margin: 0;
+  }
+
+  .card-selectors {
+    gap: 0.6rem;
+    margin-top: 0.3rem;
+    padding-top: 0.7rem;
+  }
+
+  .selector-group {
+    gap: 0.3rem;
+  }
+
+  .selector-label {
+    font-size: 0.72rem;
+  }
+
+  .weight-btn {
+    min-height: 38px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .grind-dropdown {
+    min-height: 42px;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.84rem;
+  }
+
+  .sub-toggle-container {
+    padding: 0.3rem;
+  }
+
+  .sub-switch-btn {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.82rem;
+  }
+
+  .sub-freq-pill {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.78rem;
+  }
+
+  .card-footer {
+    padding-top: 0.7rem;
+  }
+
+  .card-price {
+    font-size: 1.2rem;
+  }
+
+  .btn-add-cart {
+    min-height: 44px;
+    padding: 0.6rem 1.1rem;
+  }
 }
 
 /* =========================================================
