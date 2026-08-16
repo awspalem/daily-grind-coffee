@@ -1327,9 +1327,15 @@
   transition: all 0.2s ease;
   flex: 1;
   min-width: 0;
+}
+
+.inv-cmd-item span {
+  display: block;
+  width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
 }
 
 .inv-cmd-item.active {
@@ -1554,7 +1560,8 @@
   .currency-toggle-wrap {
     grid-column: 1 / -1;
     justify-content: center;
-    width: 100%;
+    width: fit-content;
+    margin: 0 auto;
   }
 
   .btn-inv-primary, .btn-inv-secondary {

@@ -1815,6 +1815,8 @@ input[type="range"]::-webkit-slider-thumb {
 
   .page-headline h1 {
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .headline-full {
@@ -1834,10 +1836,14 @@ input[type="range"]::-webkit-slider-thumb {
 
   .admin-main {
     padding: 0 1rem 2rem;
-    gap: 1.6rem;
+    gap: 1.1rem;
     width: 100%;
     max-width: 100%;
     min-width: 0;
+  }
+
+  .panel-header {
+    padding: 0.85rem 1.1rem;
   }
 
   /* 2x2 Responsive KPI Grid on Mobile (No Horizontal Scrolling) */
@@ -1931,7 +1937,7 @@ input[type="range"]::-webkit-slider-thumb {
   }
 
   .page-headline h1 {
-    font-size: 1.65rem;
+    font-size: 1.3rem;
   }
 
   .sheet-drag-handle {
