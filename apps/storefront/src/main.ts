@@ -469,6 +469,57 @@ class StorefrontApp {
 
     this.renderProducts();
     this.renderFlavorWheelSVGs();
+    this.injectProductStructuredData();
+  }
+
+  // Emits Product/Offer/AggregateRating JSON-LD for the full catalog so Google can surface
+  // price and star-rating rich snippets — this SPA has no per-product URLs, so this is scoped
+  // to the whole catalog on the one page that exists rather than per-product pages.
+  private injectProductStructuredData() {
+    if (this.products.length === 0) return;
+
+    let script = document.getElementById('product-ld-json') as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = 'product-ld-json';
+      script.type = 'application/ld+json';
+      document.head.appendChild(script);
+    }
+
+    const itemListElement = this.products.map((prod, idx) => {
+      const variant = prod.variants[0];
+      const rating = this.reviewSummary[prod.id];
+      const inStock = variant ? (typeof variant.stock_quantity !== 'number' || variant.stock_quantity > 0) : true;
+
+      const product: Record<string, unknown> = {
+        '@type': 'Product',
+        name: prod.name,
+        description: prod.tagline || prod.description,
+        image: prod.image_url ? new URL(prod.image_url, window.location.origin).toString() : undefined,
+        sku: variant?.sku,
+        brand: { '@type': 'Brand', name: 'The Daily Grind' },
+        offers: variant ? {
+          '@type': 'Offer',
+          priceCurrency: this.currentCurrency,
+          price: (this.currentCurrency === 'INR' ? variant.price_inr : (variant.price_usd_cents || variant.price_cents) / 100).toFixed(2),
+          availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+          url: `${window.location.origin}/#catalog`
+        } : undefined,
+        aggregateRating: rating ? {
+          '@type': 'AggregateRating',
+          ratingValue: rating.avg_rating,
+          reviewCount: rating.review_count
+        } : undefined
+      };
+
+      return { '@type': 'ListItem', position: idx + 1, item: product };
+    });
+
+    script.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      itemListElement
+    });
   }
 
   private renderProducts() {
@@ -1099,6 +1150,14 @@ class StorefrontApp {
     this.updateCartUI();
     this.openCart();
     this.trackEvent('add_to_cart', { product_id: item.product_id, metadata: { variant_id: item.variant_id, quantity: item.quantity } });
+    this.announce(`${item.name} added to cart.`);
+  }
+
+  // Screen readers don't reliably announce a button's own text swapping to "Added!" — an
+  // aria-live region gives a consistent announcement regardless of what triggered the add.
+  private announce(message: string) {
+    const region = document.getElementById('sr-live-region');
+    if (region) region.textContent = message;
   }
 
   // Fire-and-forget funnel telemetry for the admin analytics dashboard (GET /api/analytics/funnel).

@@ -29,7 +29,9 @@
 
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <!-- iOS Safari's "Add to Home Screen" ignores SVG apple-touch-icon and falls back to a
+       blank/generic icon — it requires PNG. -->
+  <link rel="apple-touch-icon" href="/icon-180.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/src/styles/index.css">
@@ -64,6 +66,9 @@
   </script>
 </head>
 <body>
+  <a href="#main-content" class="skip-to-content-link">Skip to content</a>
+  <div id="sr-live-region" aria-live="polite" class="sr-only"></div>
+
   <!-- Free Shipping & Roasting Notice Bar -->
   <aside class="announcement-bar" aria-label="Announcement">
     <span>🔥 Freshly Roasted in <strong>Indiranagar, Bangalore</strong>: Chikmagalur Attikan & Yirgacheffe</span>
@@ -129,7 +134,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content">
     <!-- Hero Section -->
     <section class="hero-section">
       <div class="hero-content">

@@ -1,11 +1,12 @@
 // The Daily Grind — Storefront Service Worker (PWA Offline & Asset Cache)
-const CACHE_NAME = 'tdg-storefront-v1.0.0';
+const CACHE_NAME = 'tdg-storefront-v1.1.0';
 
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/favicon.svg',
+  '/icon-192.png',
   '/images/pour_over.jpg',
   '/images/roaster.jpg',
   '/images/bag_ethiopia.jpg',
