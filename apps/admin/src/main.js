@@ -64,6 +64,8 @@ class AdminPortal {
         this.setupCapExManager();
         this.setupBatchLogging();
         this.setupCouponsManager();
+        this.setupSubscriptionsManager();
+        this.setupReviewsManager();
         this.setupThermalLabelStudio();
         this.setupGSTInvoicing();
         this.setupInventoryManager();
@@ -766,6 +768,76 @@ class AdminPortal {
             }
             else {
                 alert(`⚠️ Could not create coupon: ${result.error || 'Unknown error'}`);
+            }
+        });
+    }
+    setupSubscriptionsManager() {
+        const tbody = document.getElementById('subscriptions-table-body');
+        if (!tbody)
+            return;
+        const statusBadgeClass = { ACTIVE: 'paid', PAUSED: 'shipped', CANCELLED: 'low-stock', PAST_DUE: 'low-stock' };
+        const render = (subs) => {
+            if (subs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No subscriptions yet.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = subs.map((s) => `
+        <tr>
+          <td data-label="Customer">${this.escapeHtml(s.customer_email)}</td>
+          <td data-label="Coffee">${this.escapeHtml(s.product_name)} <span style="color:var(--text-muted);">(${this.escapeHtml((s.grind_type || '').replace(/_/g, ' '))} × ${s.quantity})</span></td>
+          <td data-label="Frequency">${this.escapeHtml((s.frequency || '').replace(/_/g, ' '))}</td>
+          <td data-label="Next Renewal">${s.next_renewal_date ? new Date(s.next_renewal_date).toLocaleDateString() : '—'}</td>
+          <td data-label="Status"><span class="status-badge ${statusBadgeClass[s.status] || 'shipped'}">${s.status}</span></td>
+          <td data-label="Payment Method">${s.stripe_customer_id && s.stripe_payment_method_id ? '✓ On file' : '⚠️ None saved'}</td>
+        </tr>
+      `).join('');
+        };
+        const load = async () => {
+            const data = await this.adminFetch('/api/admin/subscriptions');
+            render(data.subscriptions || []);
+        };
+        load();
+    }
+    setupReviewsManager() {
+        const tbody = document.getElementById('reviews-table-body');
+        if (!tbody)
+            return;
+        const render = (reviews) => {
+            if (reviews.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No reviews yet.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = reviews.map((r) => `
+        <tr>
+          <td data-label="Product">${this.escapeHtml(r.product_name)}</td>
+          <td data-label="Rating">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</td>
+          <td data-label="Customer">${this.escapeHtml(r.customer_name)}</td>
+          <td data-label="Comment" style="max-width: 320px; white-space: normal;">${this.escapeHtml(r.comment)}</td>
+          <td data-label="Verified">${r.is_verified_purchase ? '✓' : '—'}</td>
+          <td data-label="Date">${new Date(r.created_at).toLocaleDateString()}</td>
+          <td data-label="Action"><button class="btn-table-action" data-delete-review="${r.id}">Delete</button></td>
+        </tr>
+      `).join('');
+        };
+        const load = async () => {
+            const data = await this.adminFetch('/api/admin/reviews');
+            render(data.reviews || []);
+        };
+        load();
+        tbody.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button[data-delete-review]');
+            if (!btn)
+                return;
+            const reviewId = btn.getAttribute('data-delete-review');
+            if (!confirm('Delete this review? This cannot be undone.'))
+                return;
+            this.triggerHaptic();
+            const result = await this.adminFetch(`/api/admin/reviews/${reviewId}`, { method: 'DELETE' });
+            if (result.success) {
+                await load();
+            }
+            else {
+                alert(`⚠️ Could not delete review: ${result.error || 'Unknown error'}`);
             }
         });
     }

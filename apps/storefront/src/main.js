@@ -1013,6 +1013,17 @@ class StorefrontApp {
                 totalEl.textContent = this.currentCurrency === 'INR' ? '₹0' : '$0.00';
             if (discountRow)
                 discountRow.style.display = 'none';
+            // An emptied cart drops any applied coupon too — otherwise a stale discount (possibly now
+            // invalid/expired/below minimum) would silently reapply to whatever gets added next,
+            // without ever being re-validated until checkout.
+            this.discountPercentage = 0;
+            this.appliedCouponCode = null;
+            const couponStatusEl = document.getElementById('cart-coupon-status');
+            const couponInputEl = document.getElementById('cart-coupon-input');
+            if (couponStatusEl)
+                couponStatusEl.textContent = '';
+            if (couponInputEl)
+                couponInputEl.value = '';
             return;
         }
         let subtotalInr = 0;
@@ -1100,6 +1111,24 @@ class StorefrontApp {
         });
     }
     setupEventListeners() {
+        // Escape closes whatever's open — modals didn't have any keyboard dismissal at all.
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape')
+                return;
+            document.querySelectorAll('.storefront-modal-backdrop.active').forEach((m) => {
+                m.classList.remove('active');
+                m.setAttribute('aria-hidden', 'true');
+            });
+            if (document.getElementById('flavor-wheel-modal')?.getAttribute('aria-hidden') === 'false') {
+                this.closeFlavorWheelModal();
+            }
+            if (document.getElementById('cart-drawer')?.classList.contains('open')) {
+                this.closeCart();
+            }
+            if (document.getElementById('agent-drawer')?.classList.contains('open')) {
+                this.closeAgent();
+            }
+        });
         // Currency Switcher
         document.getElementById('btn-currency-inr')?.addEventListener('click', () => {
             this.triggerHaptic();
@@ -1420,6 +1449,7 @@ class StorefrontApp {
             statusEl.textContent = '';
         listEl.innerHTML = `<p style="color: var(--text-muted); text-align:center; padding: 1rem;">Loading reviews...</p>`;
         modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
         try {
             const res = await fetch(`${API_BASE}/api/reviews/${encodeURIComponent(productId)}`);
             const data = await res.json();
@@ -1455,6 +1485,7 @@ class StorefrontApp {
         document.getElementById('btn-open-account')?.addEventListener('click', () => {
             this.triggerHaptic();
             modal?.classList.add('active');
+            modal?.setAttribute('aria-hidden', 'false');
             this.renderAccountModalState();
         });
         document.getElementById('modal-account-close')?.addEventListener('click', () => {
@@ -1740,6 +1771,7 @@ class StorefrontApp {
             }
             if (modalCustInvoice) {
                 modalCustInvoice.classList.add('active');
+                modalCustInvoice.setAttribute('aria-hidden', 'false');
             }
         });
     }

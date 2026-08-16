@@ -647,4 +647,40 @@ adminApp.patch('/variants/:id/status', async (c) => {
     await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_VARIANT_STATUS', 'product_variants', variantId, { is_active: current.is_active }, { is_active: body.is_active }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, is_active: body.is_active });
 });
+// ==================== Subscriptions (Subscribe & Save) ====================
+// The renewal cron (index.ts scheduled()) can silently mark a subscription PAST_DUE — declined
+// card, sold-out product, no saved payment method — with no way for the roaster to see or act
+// on it until now.
+adminApp.get('/subscriptions', async (c) => {
+    const { results } = await c.env.DB.prepare(`
+    SELECT id, customer_email, product_name, grind_type, frequency, quantity, status,
+           next_renewal_date, stripe_customer_id, stripe_payment_method_id, created_at
+    FROM subscriptions
+    ORDER BY CASE status WHEN 'PAST_DUE' THEN 0 WHEN 'ACTIVE' THEN 1 ELSE 2 END, next_renewal_date ASC
+  `).all();
+    return c.json({ success: true, subscriptions: results || [] });
+});
+// ==================== Reviews Moderation ====================
+adminApp.get('/reviews', async (c) => {
+    const { results } = await c.env.DB.prepare(`
+    SELECT r.id, r.rating, r.customer_name, r.comment, r.is_verified_purchase, r.created_at,
+           p.name as product_name
+    FROM reviews r
+    JOIN products p ON r.product_id = p.id
+    ORDER BY r.created_at DESC
+    LIMIT 200
+  `).all();
+    return c.json({ success: true, reviews: results || [] });
+});
+adminApp.delete('/reviews/:id', async (c) => {
+    const actor = c.get('adminActor');
+    const reviewId = c.req.param('id');
+    const existing = await c.env.DB.prepare('SELECT * FROM reviews WHERE id = ?').bind(reviewId).first();
+    if (!existing) {
+        return c.json({ success: false, error: 'Review not found' }, 404);
+    }
+    await c.env.DB.prepare('DELETE FROM reviews WHERE id = ?').bind(reviewId).run();
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'DELETE_REVIEW', 'reviews', reviewId, existing, null, c.req.header('CF-Connecting-IP'));
+    return c.json({ success: true });
+});
 export { adminApp };

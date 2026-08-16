@@ -684,7 +684,7 @@
 
     <div class="drawer-footer">
       <div style="display:flex; gap: 0.5rem; margin-bottom: 0.4rem;">
-        <input type="text" id="cart-coupon-input" placeholder="Promo code" style="flex-grow:1; padding: 0.6rem 0.9rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-family: inherit; font-size: 0.85rem; text-transform: uppercase;">
+        <input type="text" id="cart-coupon-input" placeholder="Promo code" aria-label="Promo code" style="flex-grow:1; padding: 0.6rem 0.9rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-family: inherit; font-size: 0.85rem; text-transform: uppercase;">
         <button id="btn-apply-coupon" class="btn-secondary" style="padding: 0.6rem 1rem; font-size: 0.85rem;">Apply</button>
       </div>
       <div id="cart-coupon-status" style="font-size: 0.78rem; margin-bottom: 0.6rem;"></div>
@@ -916,7 +916,7 @@
   </div>
 
   <!-- MODAL: Customer GST Tax Invoice (HSN 0901) -->
-  <div class="storefront-modal-backdrop" id="modal-customer-invoice">
+  <div class="storefront-modal-backdrop" id="modal-customer-invoice" role="dialog" aria-modal="true" aria-label="Tax Invoice" aria-hidden="true">
     <div class="storefront-modal-dialog">
       <div class="storefront-modal-header">
         <h3>🧾 Tax Invoice — The Daily Grind (HSN 0901)</h3>
@@ -935,7 +935,7 @@
   </div>
 
   <!-- MODAL: Product Reviews -->
-  <div class="storefront-modal-backdrop" id="modal-reviews">
+  <div class="storefront-modal-backdrop" id="modal-reviews" role="dialog" aria-modal="true" aria-label="Product Reviews" aria-hidden="true">
     <div class="storefront-modal-dialog">
       <div class="storefront-modal-header">
         <h3 id="modal-reviews-title">Reviews</h3>
@@ -967,7 +967,7 @@
   </div>
 
   <!-- MODAL: Your Account (passwordless email-code login) -->
-  <div class="storefront-modal-backdrop" id="modal-account">
+  <div class="storefront-modal-backdrop" id="modal-account" role="dialog" aria-modal="true" aria-label="Your Account" aria-hidden="true">
     <div class="storefront-modal-dialog" style="max-width: 480px;">
       <div class="storefront-modal-header">
         <h3>Your Account</h3>

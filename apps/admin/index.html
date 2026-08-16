@@ -50,6 +50,8 @@
           <li><button class="nav-item-btn" data-tab="economics">💰 Unit Economics & Margins</button></li>
           <li><button class="nav-item-btn" data-tab="roasts">🔥 Batch Roaster & Loss Log</button></li>
           <li><button class="nav-item-btn" data-tab="coupons">🎟️ Promo Coupons Engine</button></li>
+          <li><button class="nav-item-btn" data-tab="subscriptions">🔄 Subscribe & Save</button></li>
+          <li><button class="nav-item-btn" data-tab="reviews">⭐ Customer Reviews</button></li>
           <li><button class="nav-item-btn" data-tab="channels">📣 Communication Channels</button></li>
           <li><button class="nav-item-btn" data-tab="campaigns">📢 Social Media Campaigns</button></li>
           <li><button class="nav-item-btn" data-tab="limited-editions">✨ Limited Editions</button></li>
@@ -1124,6 +1126,57 @@
               </tr>
             </thead>
             <tbody id="coupons-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION: Subscribe & Save Management -->
+      <section class="section-panel" id="panel-subscriptions">
+        <div class="panel-header">
+          <h2 class="panel-title">🔄 Subscribe & Save Subscriptions</h2>
+        </div>
+
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Coffee</th>
+                <th>Frequency</th>
+                <th>Next Renewal</th>
+                <th>Status</th>
+                <th>Payment Method</th>
+              </tr>
+            </thead>
+            <tbody id="subscriptions-table-body">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION: Customer Reviews Moderation -->
+      <section class="section-panel" id="panel-reviews">
+        <div class="panel-header">
+          <h2 class="panel-title">⭐ Customer Reviews</h2>
+        </div>
+
+        <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Rating</th>
+                <th>Customer</th>
+                <th>Comment</th>
+                <th>Verified</th>
+                <th>Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="reviews-table-body">
               <!-- Rendered dynamically -->
             </tbody>
           </table>
