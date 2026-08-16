@@ -1,3 +1,29 @@
+export function generateLoginCodeEmail(params) {
+    const { email, code } = params;
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8" /><title>Your login code</title></head>
+    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fcf9f5; margin: 0; padding: 24px;">
+      <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #ede5dc; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); text-align: center;">
+        <h1 style="color: #1c1512; margin: 0 0 4px; font-size: 22px; letter-spacing: 1px;">☕ THE DAILY GRIND</h1>
+        <p style="color: #8c7e72; font-size: 12px; margin: 0 0 24px; text-transform: uppercase; letter-spacing: 2px;">Small Batch Specialty Roastery</p>
+
+        <p style="color: #554a41; font-size: 15px; margin-bottom: 8px;">Your login code:</p>
+        <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1c1512; background: #fdf8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          ${code}
+        </div>
+        <p style="color: #8c7e72; font-size: 13px;">Expires in 10 minutes. If you didn't request this, you can ignore this email.</p>
+      </div>
+    </body>
+    </html>
+  `;
+    return {
+        to: email,
+        subject: `${code} is your The Daily Grind login code`,
+        html,
+    };
+}
 export function generateOrderConfirmationEmail(params) {
     const { orderNumber, customerName, customerEmail, totalCents, items, storefrontUrl } = params;
     const itemsHtml = items.map((it) => `

@@ -275,6 +275,8 @@ class StorefrontApp {
     activeTastingNote = 'all';
     searchQuery = '';
     reviewSummary = {};
+    customerSessionToken = null;
+    customerEmail = null;
     activeFlavorWheelCategory = 'all';
     currentCurrency = 'INR';
     discountPercentage = 0;
@@ -312,6 +314,8 @@ class StorefrontApp {
                 this.cartItems = [];
             }
         }
+        this.customerSessionToken = localStorage.getItem('tdg_customer_session');
+        this.customerEmail = localStorage.getItem('tdg_customer_email');
     }
     async init() {
         this.updateCurrencyButtons();
@@ -321,6 +325,7 @@ class StorefrontApp {
         this.setupPWA();
         this.setupFlavorWheel();
         this.setupFlightBuilder();
+        this.setupAccountModal();
         this.renderFlavorWheelSVGs();
         this.updateCartUI();
         this.handleQRCodeDeepLink();
@@ -1440,6 +1445,193 @@ class StorefrontApp {
         }
         catch {
             listEl.innerHTML = `<p style="color: var(--text-muted); text-align:center; padding: 1rem;">Couldn't load reviews right now.</p>`;
+        }
+    }
+    setupAccountModal() {
+        const modal = document.getElementById('modal-account');
+        const requestForm = document.getElementById('account-login-request-form');
+        const verifyForm = document.getElementById('account-login-verify-form');
+        const loggedInView = document.getElementById('account-logged-in-view');
+        document.getElementById('btn-open-account')?.addEventListener('click', () => {
+            this.triggerHaptic();
+            modal?.classList.add('active');
+            this.renderAccountModalState();
+        });
+        document.getElementById('modal-account-close')?.addEventListener('click', () => {
+            modal?.classList.remove('active');
+        });
+        requestForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            this.triggerHaptic();
+            const emailInput = document.getElementById('account-login-email');
+            const statusEl = document.getElementById('account-login-request-status');
+            const email = emailInput.value.trim();
+            if (!email)
+                return;
+            if (statusEl) {
+                statusEl.textContent = 'Sending code...';
+                statusEl.style.color = 'var(--text-muted)';
+            }
+            try {
+                const res = await fetch(`${API_BASE}/api/customer/login/request`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    requestForm.style.display = 'none';
+                    verifyForm.style.display = 'block';
+                    verifyForm.dataset.pendingEmail = email;
+                    if (statusEl)
+                        statusEl.textContent = '';
+                }
+                else if (statusEl) {
+                    statusEl.textContent = data.error || 'Could not send code — please try again.';
+                    statusEl.style.color = 'var(--accent-terracotta)';
+                }
+            }
+            catch {
+                if (statusEl) {
+                    statusEl.textContent = 'Network error — please try again.';
+                    statusEl.style.color = 'var(--accent-terracotta)';
+                }
+            }
+        });
+        verifyForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            this.triggerHaptic();
+            const codeInput = document.getElementById('account-login-code');
+            const statusEl = document.getElementById('account-login-verify-status');
+            const email = verifyForm.dataset.pendingEmail;
+            const code = codeInput.value.trim();
+            if (!email || !code)
+                return;
+            if (statusEl) {
+                statusEl.textContent = 'Verifying...';
+                statusEl.style.color = 'var(--text-muted)';
+            }
+            try {
+                const res = await fetch(`${API_BASE}/api/customer/login/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code }),
+                });
+                const data = await res.json();
+                if (data.success && data.session_token) {
+                    const sessionToken = data.session_token;
+                    const resolvedEmail = data.email || email;
+                    this.customerSessionToken = sessionToken;
+                    this.customerEmail = resolvedEmail;
+                    localStorage.setItem('tdg_customer_session', sessionToken);
+                    localStorage.setItem('tdg_customer_email', resolvedEmail);
+                    codeInput.value = '';
+                    this.renderAccountModalState();
+                }
+                else if (statusEl) {
+                    statusEl.textContent = data.error || 'Invalid or expired code';
+                    statusEl.style.color = 'var(--accent-terracotta)';
+                }
+            }
+            catch {
+                if (statusEl) {
+                    statusEl.textContent = 'Network error — please try again.';
+                    statusEl.style.color = 'var(--accent-terracotta)';
+                }
+            }
+        });
+        loggedInView?.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target.id === 'btn-account-logout') {
+                this.triggerHaptic();
+                fetch(`${API_BASE}/api/customer/logout`, {
+                    method: 'POST',
+                    headers: { 'X-Customer-Session': this.customerSessionToken || '' },
+                }).catch(() => { });
+                this.customerSessionToken = null;
+                this.customerEmail = null;
+                localStorage.removeItem('tdg_customer_session');
+                localStorage.removeItem('tdg_customer_email');
+                this.renderAccountModalState();
+            }
+        });
+    }
+    async renderAccountModalState() {
+        const requestForm = document.getElementById('account-login-request-form');
+        const verifyForm = document.getElementById('account-login-verify-form');
+        const loggedInView = document.getElementById('account-logged-in-view');
+        const summaryEl = document.getElementById('account-summary');
+        if (!requestForm || !verifyForm || !loggedInView || !summaryEl)
+            return;
+        if (!this.customerSessionToken) {
+            requestForm.style.display = 'block';
+            requestForm.reset();
+            verifyForm.style.display = 'none';
+            loggedInView.style.display = 'none';
+            return;
+        }
+        requestForm.style.display = 'none';
+        verifyForm.style.display = 'none';
+        loggedInView.style.display = 'block';
+        summaryEl.innerHTML = `<p style="text-align:center; color: var(--text-muted); padding: 1rem;">Loading your account...</p>`;
+        try {
+            const res = await fetch(`${API_BASE}/api/customer/me`, {
+                headers: { 'X-Customer-Session': this.customerSessionToken },
+            });
+            if (res.status === 401) {
+                // Session expired/invalid server-side — clear it and fall back to login
+                this.customerSessionToken = null;
+                this.customerEmail = null;
+                localStorage.removeItem('tdg_customer_session');
+                localStorage.removeItem('tdg_customer_email');
+                this.renderAccountModalState();
+                return;
+            }
+            const data = await res.json();
+            if (!data.success || !data.customer) {
+                summaryEl.innerHTML = `<p style="text-align:center; color: var(--accent-terracotta); padding: 1rem;">Couldn't load your account right now.</p>`;
+                return;
+            }
+            const c = data.customer;
+            const ordersHtml = (c.recent_orders || []).length > 0
+                ? c.recent_orders.map((o) => {
+                    const { label, statusClass } = this.orderStatusDisplay(o.status);
+                    const totalDisplay = `$${(o.total_cents / 100).toFixed(2)}`;
+                    return `
+              <div style="display:flex; justify-content:space-between; align-items:center; padding: 0.6rem 0; border-bottom: 1px solid var(--border-subtle);">
+                <div>
+                  <strong style="font-size: 0.88rem;">${this.escapeHtml(o.order_number)}</strong>
+                  <div style="font-size: 0.78rem; color: var(--text-muted);">${new Date(o.created_at).toLocaleDateString()}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size: 0.85rem; font-weight: 700;">${totalDisplay}</div>
+                  <span style="font-size: 0.7rem; color: var(--accent-emerald); font-weight: 700;">${label}</span>
+                </div>
+              </div>
+            `;
+                }).join('')
+                : `<p style="font-size: 0.85rem; color: var(--text-muted);">No orders yet.</p>`;
+            const addressesHtml = (c.addresses || []).length > 0
+                ? c.addresses.map((a) => `
+            <div style="padding: 0.6rem 0; border-bottom: 1px solid var(--border-subtle); font-size: 0.85rem; color: var(--text-muted);">
+              ${this.escapeHtml(a.name)} — ${this.escapeHtml(a.line1)}, ${this.escapeHtml(a.city)}, ${this.escapeHtml(a.state)} ${this.escapeHtml(a.postal_code)}
+            </div>
+          `).join('')
+                : `<p style="font-size: 0.85rem; color: var(--text-muted);">No saved addresses yet.</p>`;
+            summaryEl.innerHTML = `
+        <div style="text-align:center; margin-bottom: 1.2rem;">
+          <strong style="font-size: 1rem;">${this.escapeHtml(c.email)}</strong>
+          <div style="font-size: 0.82rem; color: var(--accent-gold); font-weight: 700; margin-top: 0.3rem;">✨ ${c.loyalty_points} Loyalty Points</div>
+        </div>
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.4rem;">Recent Orders</h4>
+        <div style="margin-bottom: 1.2rem;">${ordersHtml}</div>
+        <h4 style="font-size: 0.9rem; margin-bottom: 0.4rem;">Saved Addresses</h4>
+        <div style="margin-bottom: 1.2rem;">${addressesHtml}</div>
+        <button type="button" id="btn-account-logout" class="btn-secondary" style="width:100%; padding: 0.6rem;">Log Out</button>
+      `;
+        }
+        catch {
+            summaryEl.innerHTML = `<p style="text-align:center; color: var(--accent-terracotta); padding: 1rem;">Couldn't load your account right now.</p>`;
         }
     }
     orderStatusDisplay(status) {

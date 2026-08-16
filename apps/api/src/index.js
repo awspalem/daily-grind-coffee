@@ -31,7 +31,7 @@ app.use('*', cors({
     origin: (origin) => origin || '*',
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Session-Token', 'X-Turnstile-Token', 'X-Customer-Email', 'stripe-signature', 'Cf-Access-Jwt-Assertion'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Session-Token', 'X-Turnstile-Token', 'X-Customer-Email', 'X-Customer-Session', 'stripe-signature', 'Cf-Access-Jwt-Assertion'],
     exposeHeaders: ['Content-Length', 'X-Session-Token', 'X-RateLimit-Limit', 'X-RateLimit-Remaining'],
     maxAge: 86400,
 }));
