@@ -91,6 +91,50 @@ body {
   color: #fff;
 }
 
+/* Continuously-scrolling value-proposition strip. The track's content is duplicated
+   in the markup so translateX(-50%) loops seamlessly. */
+.value-ticker {
+  background: var(--accent-gold-light);
+  border-bottom: 1px solid var(--border-subtle);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.value-ticker-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.2rem;
+  padding: 0.5rem 0;
+  animation: tickerScroll 28s linear infinite;
+  will-change: transform;
+}
+
+.value-ticker-track span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-roast);
+}
+
+.value-ticker-track span::after {
+  content: '✦';
+  margin-left: 2.2rem;
+  color: var(--accent-terracotta);
+}
+
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .value-ticker-track {
+    animation: none;
+    overflow-x: auto;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -873,6 +917,28 @@ body {
 .stock-badge.low-stock {
   background: var(--accent-gold);
   color: var(--text-main);
+}
+
+.merch-badge {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow: var(--shadow-sm);
+  color: #fff;
+}
+
+.merch-badge.bestseller {
+  background: var(--accent-terracotta);
+}
+
+.merch-badge.is-new {
+  background: var(--accent-emerald);
 }
 
 .product-card.is-sold-out .card-media img {

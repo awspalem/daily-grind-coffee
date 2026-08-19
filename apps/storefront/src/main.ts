@@ -569,6 +569,16 @@ class StorefrontApp {
       return;
     }
 
+    // Bestseller badge is derived from real review counts (top 2 reviewed roasts),
+    // never hard-coded, so it stays honest as review data changes.
+    const bestsellerIds = new Set(
+      Object.entries(this.reviewSummary)
+        .filter(([, rs]) => rs.review_count > 0)
+        .sort((a, b) => b[1].review_count - a[1].review_count)
+        .slice(0, 2)
+        .map(([id]) => id)
+    );
+
     container.innerHTML = filtered.map((prod) => {
       // stock_quantity is only present when data came from the live API (see loadCatalog) —
       // FALLBACK_PRODUCTS has no inventory backing, so treat "unknown" as "don't gate on stock".
@@ -623,6 +633,16 @@ class StorefrontApp {
         stockBadgeHtml = `<span class="stock-badge low-stock">Only ${defaultVariant.stock_quantity} left</span>`;
       }
 
+      let merchBadgeHtml = '';
+      if (bestsellerIds.has(prod.id)) {
+        merchBadgeHtml = `<span class="merch-badge bestseller">Bestseller</span>`;
+      } else {
+        const daysOld = (Date.now() - new Date(prod.created_at).getTime()) / 86400000;
+        if (Number.isFinite(daysOld) && daysOld >= 0 && daysOld <= 45) {
+          merchBadgeHtml = `<span class="merch-badge is-new">New</span>`;
+        }
+      }
+
       return `
         <article class="product-card ${isWheelMatch ? 'wheel-match' : ''} ${isProductSoldOut ? 'is-sold-out' : ''}" data-product-id="${prod.id}">
           <div class="card-media">
@@ -630,6 +650,7 @@ class StorefrontApp {
             <span class="origin-badge">${prod.origin_country}</span>
             <span class="roast-level-tag">${prod.roast_level.replace('_', ' ')} ROAST</span>
             ${stockBadgeHtml}
+            ${merchBadgeHtml}
           </div>
 
           <div class="card-body">
