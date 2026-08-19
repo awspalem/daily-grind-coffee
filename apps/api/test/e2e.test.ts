@@ -47,7 +47,7 @@ class MockD1Database {
       {
         id: 'ord_123',
         order_number: 'TDG-102938',
-        customer_email: 'tester@dailygrind.coffee',
+        customer_email: 'tester@dailyroast.in',
         status: 'PAID',
         total_cents: 3900,
         currency: 'usd',
@@ -186,7 +186,7 @@ test('Phase 1 & 2: StripeService creates checkout session and validates HMAC SHA
   const session = await stripe.createCheckoutSession({
     orderId: 'ord_123',
     orderNumber: 'TDG-102938',
-    customerEmail: 'tester@dailygrind.coffee',
+    customerEmail: 'tester@dailyroast.in',
     items: [{ name: 'Ethiopia Yirgacheffe', unitPriceCents: 1950, quantity: 2 }],
     shippingCents: 0,
     successUrl: 'http://localhost:5173/confirmation',

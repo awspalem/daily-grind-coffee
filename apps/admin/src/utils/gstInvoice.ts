@@ -48,8 +48,8 @@ export interface GSTInvoiceData {
 }
 
 export const ROASTERY_GST_PROFILE = {
-  legalName: 'THE DAILY GRIND SPECIALTY ROASTERS PRIVATE LIMITED',
-  tradeName: 'The Daily Grind Roastery',
+  legalName: 'THE DAILY ROAST SPECIALTY ROASTERS PRIVATE LIMITED',
+  tradeName: 'The Daily Roast Roastery',
   address: '12th Main Road, HAL 2nd Stage, Indiranagar',
   city: 'Bengaluru',
   state: 'Karnataka',
@@ -59,7 +59,7 @@ export const ROASTERY_GST_PROFILE = {
   pan: 'AABCT0123M',
   stateCode: '29',
   fssaiNumber: '11224333000456',
-  email: 'roastery@dailygrind.coffee',
+  email: 'roastery@dailyroast.in',
   phone: '+91 80 4123 9870',
   website: 'https://daily-grind-storefront.pages.dev'
 };
@@ -308,7 +308,7 @@ export function renderGSTInvoiceHTML(inv: GSTInvoiceData): string {
           <p>We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct. Specialty coffee freshly roasted to order under FSSAI license standard. Storage: Store sealed in cool, dry conditions away from moisture.</p>
         </div>
         <div class="inv-signatory">
-          <div style="font-size: 0.8rem; font-weight: 600; color: #666; margin-bottom: 0.4rem;">For THE DAILY GRIND SPECIALTY ROASTERS PVT LTD</div>
+          <div style="font-size: 0.8rem; font-weight: 600; color: #666; margin-bottom: 0.4rem;">For THE DAILY ROAST SPECIALTY ROASTERS PVT LTD</div>
           <div class="inv-digital-stamp">
             <span style="color: #d97746; font-size: 1.1rem;">☕</span>
             <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #1c1512;">Bangalore Roastery Authority</span>

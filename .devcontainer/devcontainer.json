@@ -1,5 +1,5 @@
 {
-  "name": "The Daily Grind (Cloudflare Edge + AI)",
+  "name": "The Daily Roast (Cloudflare Edge + AI)",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
   "customizations": {
     "vscode": {

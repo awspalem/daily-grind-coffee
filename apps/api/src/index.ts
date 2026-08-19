@@ -193,7 +193,7 @@ export default {
           // Cart recovery email — a fresh checkout attempt (not a resurrected one) re-checks
           // stock/price for real at submission time, so it's fine that we already released the
           // reservation above.
-          if (order.customer_email && !order.customer_email.endsWith('@dailygrind.coffee') && items && items.length > 0) {
+          if (order.customer_email && !order.customer_email.endsWith('@dailyroast.in') && items && items.length > 0) {
             try {
               const emailData = generateAbandonedCartEmail({
                 customerEmail: order.customer_email,
@@ -383,7 +383,7 @@ export default {
             WHERE oi.order_id = ?
           `).bind(order.id).all<{ productId: string; name: string }>();
 
-          if (order.customer_email && !order.customer_email.endsWith('@dailygrind.coffee') && products && products.length > 0) {
+          if (order.customer_email && !order.customer_email.endsWith('@dailyroast.in') && products && products.length > 0) {
             try {
               const emailData = generateReviewRequestEmail({
                 customerEmail: order.customer_email,

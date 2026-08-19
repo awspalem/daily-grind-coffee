@@ -1,4 +1,4 @@
-name: Deploy The Daily Grind to Cloudflare
+name: Deploy The Daily Roast to Cloudflare
 
 on:
   push:

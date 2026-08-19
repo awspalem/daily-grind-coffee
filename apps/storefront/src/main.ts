@@ -1,4 +1,4 @@
-// The Daily Grind — Bangalore Specialty Coffee Storefront Interactive Client
+// The Daily Roast — Bangalore Specialty Coffee Storefront Interactive Client
 import type { Cart, CartItem, Order, Product, ProductVariant } from '@daily-grind/shared-types';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 
@@ -497,7 +497,7 @@ class StorefrontApp {
         description: prod.tagline || prod.description,
         image: prod.image_url ? new URL(prod.image_url, window.location.origin).toString() : undefined,
         sku: variant?.sku,
-        brand: { '@type': 'Brand', name: 'The Daily Grind' },
+        brand: { '@type': 'Brand', name: 'The Daily Roast' },
         offers: variant ? {
           '@type': 'Offer',
           priceCurrency: this.currentCurrency,
@@ -1563,7 +1563,7 @@ class StorefrontApp {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
           body: JSON.stringify({
-            customer_email: 'customer@dailygrind.coffee',
+            customer_email: 'customer@dailyroast.in',
             cart_id: this.sessionId,
             currency: this.currentCurrency.toLowerCase(),
             coupon_code: this.appliedCouponCode || undefined,
@@ -2757,7 +2757,7 @@ class StorefrontApp {
     });
 
     window.addEventListener('appinstalled', () => {
-      console.log('[PWA] The Daily Grind installed successfully');
+      console.log('[PWA] The Daily Roast installed successfully');
       this.deferredInstallPrompt = null;
     });
   }

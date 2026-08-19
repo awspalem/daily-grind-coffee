@@ -122,7 +122,7 @@ export function generateThermalLabelHTML(config: BagLabelConfig): string {
           <div class="tl-brand-row">
             <span class="tl-logo-icon">☕</span>
             <div class="tl-brand-titles">
-              <div class="tl-brand-name">THE DAILY GRIND</div>
+              <div class="tl-brand-name">THE DAILY ROAST</div>
               <div class="tl-brand-sub">SPECIALTY COFFEE ROASTERS · BANGALORE</div>
             </div>
           </div>

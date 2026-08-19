@@ -1,4 +1,4 @@
-// The Daily Grind — Storefront Service Worker (PWA Offline & Asset Cache)
+// The Daily Roast — Storefront Service Worker (PWA Offline & Asset Cache)
 const CACHE_NAME = 'tdg-storefront-v1.1.0';
 
 const PRECACHE_ASSETS = [

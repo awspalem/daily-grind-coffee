@@ -1,4 +1,4 @@
-# ☕ The Daily Grind — Cloudflare-First Specialty Coffee Platform
+# ☕ The Daily Roast — Cloudflare-First Specialty Coffee Platform
 
 [![Platform](https://img.shields.io/badge/Platform-Cloudflare%20Edge-f38020?logo=cloudflare)](https://developers.cloudflare.com/)
 [![Database](https://img.shields.io/badge/Database-Cloudflare%20D1%20(SQL)-blue)](https://developers.cloudflare.com/d1/)
@@ -81,7 +81,7 @@ npm run dev:admin
 
 ## 🛡️ Cloudflare Free-Tier Capacity Budget
 
-| Service | Allocation | Role in Daily Grind |
+| Service | Allocation | Role in Daily Roast |
 | :--- | :--- | :--- |
 | **Workers** | 100,000 req/day | API Gateway, Agent Dispatcher |
 | **D1 Database** | 5M read / 100k write rows/day | Transactional Source of Truth & Ledger |
@@ -94,4 +94,4 @@ npm run dev:admin
 ---
 
 ## 📄 License
-MIT © 2026 The Daily Grind Roasting Co.
+MIT © 2026 The Daily Roast Roasting Co.

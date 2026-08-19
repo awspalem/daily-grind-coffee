@@ -114,7 +114,7 @@ adminApp.post('/inventory/adjust', async (c) => {
     // Record in Audit Log
     await recordAuditLog(
       c.env.DB,
-      actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+      actor || { id: 'admin', email: 'admin@dailyroast.in' },
       'INVENTORY_ADJUSTMENT',
       'variant_inventory',
       body.variant_id,
@@ -272,7 +272,7 @@ adminApp.post('/orders/:id/status', async (c) => {
   // Audit Log
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'ORDER_STATUS_UPDATE',
     'orders',
     orderId,
@@ -565,7 +565,7 @@ adminApp.post('/channels', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'CREATE_CHANNEL',
     'communication_channels',
     id,
@@ -614,7 +614,7 @@ adminApp.post('/campaigns', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'CREATE_CAMPAIGN',
     'social_campaigns',
     id,
@@ -649,7 +649,7 @@ adminApp.patch('/campaigns/:id/status', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'UPDATE_CAMPAIGN_STATUS',
     'social_campaigns',
     campaignId,
@@ -699,7 +699,7 @@ adminApp.post('/limited-editions', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'CREATE_LIMITED_EDITION',
     'limited_editions',
     id,
@@ -734,7 +734,7 @@ adminApp.patch('/limited-editions/:id/status', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'UPDATE_LIMITED_EDITION_STATUS',
     'limited_editions',
     editionId,
@@ -782,7 +782,7 @@ adminApp.post('/promotions', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'CREATE_PROMOTION',
     'promotions',
     id,
@@ -817,7 +817,7 @@ adminApp.patch('/promotions/:id/status', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'UPDATE_PROMOTION_STATUS',
     'promotions',
     promotionId,
@@ -933,7 +933,7 @@ adminApp.post('/products', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'CREATE_PRODUCT',
     'products',
     productId,
@@ -982,7 +982,7 @@ adminApp.patch('/products/:id', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'UPDATE_PRODUCT',
     'products',
     productId,
@@ -1034,7 +1034,7 @@ adminApp.post('/products/:id/variants', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'CREATE_VARIANT',
     'product_variants',
     variantId,
@@ -1066,7 +1066,7 @@ adminApp.patch('/variants/:id/status', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'UPDATE_VARIANT_STATUS',
     'product_variants',
     variantId,
@@ -1118,7 +1118,7 @@ adminApp.delete('/reviews/:id', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailygrind.coffee' },
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
     'DELETE_REVIEW',
     'reviews',
     reviewId,

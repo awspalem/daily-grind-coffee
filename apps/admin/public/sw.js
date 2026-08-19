@@ -1,4 +1,4 @@
-// The Daily Grind — Admin Command Center Service Worker (PWA Offline & Asset Cache)
+// The Daily Roast — Admin Command Center Service Worker (PWA Offline & Asset Cache)
 const CACHE_NAME = 'tdg-admin-v1.0.0';
 
 const PRECACHE_ASSETS = [

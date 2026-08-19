@@ -1,4 +1,4 @@
-// The Daily Grind — Roastery Command Center Interactive Engine
+// The Daily Roast — Roastery Command Center Interactive Engine
 import { ROASTERY_LOT_PRESETS, generateThermalLabelHTML, BagLabelConfig } from './utils/thermalLabel';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 
@@ -1253,7 +1253,7 @@ class AdminPortal {
 
     document.getElementById('btn-add-channel')?.addEventListener('click', async () => {
       this.triggerHaptic();
-      const name = prompt('Channel name (e.g. Instagram — @dailygrind.coffee):');
+      const name = prompt('Channel name (e.g. Instagram — @dailyroast.in):');
       if (!name) return;
       const channelType = prompt('Channel type (EMAIL, SMS, WHATSAPP, INSTAGRAM, FACEBOOK, OTHER):', 'INSTAGRAM');
       if (!channelType) return;

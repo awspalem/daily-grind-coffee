@@ -1,4 +1,4 @@
--- The Daily Grind: Catalog Seeds
+-- The Daily Roast: Catalog Seeds
 
 -- Categories
 INSERT OR IGNORE INTO categories (id, slug, name, description, display_order) VALUES
@@ -240,8 +240,8 @@ INSERT OR IGNORE INTO coupons (id, code, discount_type, discount_value, minimum_
 
 -- Marketing Hub: Communication Channels
 INSERT OR IGNORE INTO communication_channels (id, name, channel_type, handle_or_address, status, notes) VALUES
-('chan_ig', 'Instagram — @dailygrind.coffee', 'INSTAGRAM', '@dailygrind.coffee', 'ACTIVE', 'Primary visual channel for roast drops and brew content'),
-('chan_email', 'Weekly Roast Notes newsletter', 'EMAIL', 'hello@dailygrind.coffee', 'ACTIVE', 'Weekly email digest of new lots and brewing guides'),
+('chan_ig', 'Instagram — @dailyroast.in', 'INSTAGRAM', '@dailyroast.in', 'ACTIVE', 'Primary visual channel for roast drops and brew content'),
+('chan_email', 'Weekly Roast Notes newsletter', 'EMAIL', 'hello@dailyroast.in', 'ACTIVE', 'Weekly email digest of new lots and brewing guides'),
 ('chan_whatsapp', 'WhatsApp Broadcast', 'WHATSAPP', '+91-80-4000-1234', 'PLANNED', 'Planned for limited-edition drop alerts to repeat customers');
 
 -- Marketing Hub: Social Campaigns

@@ -345,7 +345,7 @@ Each pouch is freshly roasted on our convection hot-air roaster and sealed withi
     // Default welcome & assistance
     return {
       role: 'assistant',
-      content: `Namaskara! Welcome to **The Daily Grind** roastery in Indiranagar, Bengaluru.
+      content: `Namaskara! Welcome to **The Daily Roast** roastery in Indiranagar, Bengaluru.
 
 I am **Maya**, your Master Barista & Roastery Sommelier. I can assist you with:
 - 🌿 **Indian Micro-Lots:** Chikmagalur Attikan Honey & Araku Valley Red Honey

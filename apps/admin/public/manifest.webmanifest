@@ -1,7 +1,7 @@
 {
-  "name": "The Daily Grind - Admin",
-  "short_name": "The Daily Grind - Admin",
-  "description": "Operational Command Center for The Daily Grind Bangalore Roastery.",
+  "name": "The Daily Roast - Admin",
+  "short_name": "The Daily Roast - Admin",
+  "description": "Operational Command Center for The Daily Roast Bangalore Roastery.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

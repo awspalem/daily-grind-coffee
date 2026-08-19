@@ -1,7 +1,7 @@
 export class ResendEmailService {
   constructor(
     private apiKey?: string,
-    private fromEmail: string = 'The Daily Grind <onboarding@resend.dev>'
+    private fromEmail: string = 'The Daily Roast <onboarding@resend.dev>'
   ) {}
 
   async send(to: string, subject: string, html: string): Promise<{ success: boolean; error?: string }> {

@@ -13,7 +13,7 @@ export function generateLoginCodeEmail(params: { email: string; code: string }):
     <head><meta charset="utf-8" /><title>Your login code</title></head>
     <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fcf9f5; margin: 0; padding: 24px;">
       <div style="max-width: 480px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #ede5dc; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); text-align: center;">
-        <h1 style="color: #1c1512; margin: 0 0 4px; font-size: 22px; letter-spacing: 1px;">☕ THE DAILY GRIND</h1>
+        <h1 style="color: #1c1512; margin: 0 0 4px; font-size: 22px; letter-spacing: 1px;">☕ THE DAILY ROAST</h1>
         <p style="color: #8c7e72; font-size: 12px; margin: 0 0 24px; text-transform: uppercase; letter-spacing: 2px;">Small Batch Specialty Roastery</p>
 
         <p style="color: #554a41; font-size: 15px; margin-bottom: 8px;">Your login code:</p>
@@ -28,7 +28,7 @@ export function generateLoginCodeEmail(params: { email: string; code: string }):
 
   return {
     to: email,
-    subject: `${code} is your The Daily Grind login code`,
+    subject: `${code} is your The Daily Roast login code`,
     html,
   };
 }
@@ -64,7 +64,7 @@ export function generateOrderConfirmationEmail(params: {
     <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fcf9f5; margin: 0; padding: 24px;">
       <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #ede5dc; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
         <div style="text-align: center; border-bottom: 2px solid #d4883b; padding-bottom: 20px; margin-bottom: 24px;">
-          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY GRIND</h1>
+          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY ROAST</h1>
           <p style="color: #8c7e72; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 2px;">Small Batch Specialty Roastery</p>
         </div>
 
@@ -109,7 +109,7 @@ export function generateOrderConfirmationEmail(params: {
 
   return {
     to: customerEmail,
-    subject: `☕ Order Confirmation #${orderNumber} — The Daily Grind Roastery`,
+    subject: `☕ Order Confirmation #${orderNumber} — The Daily Roast Roastery`,
     html,
   };
 }
@@ -136,7 +136,7 @@ export function generateAbandonedCartEmail(params: {
     <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fcf9f5; margin: 0; padding: 24px;">
       <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #ede5dc; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
         <div style="text-align: center; border-bottom: 2px solid #d4883b; padding-bottom: 20px; margin-bottom: 24px;">
-          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY GRIND</h1>
+          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY ROAST</h1>
           <p style="color: #8c7e72; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 2px;">Small Batch Specialty Roastery</p>
         </div>
 
@@ -161,7 +161,7 @@ export function generateAbandonedCartEmail(params: {
 
   return {
     to: customerEmail,
-    subject: `☕ You left some coffee behind — The Daily Grind`,
+    subject: `☕ You left some coffee behind — The Daily Roast`,
     html,
   };
 }
@@ -190,7 +190,7 @@ export function generateReviewRequestEmail(params: {
     <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fcf9f5; margin: 0; padding: 24px;">
       <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #ede5dc; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
         <div style="text-align: center; border-bottom: 2px solid #d4883b; padding-bottom: 20px; margin-bottom: 24px;">
-          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY GRIND</h1>
+          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY ROAST</h1>
           <p style="color: #8c7e72; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 2px;">Small Batch Specialty Roastery</p>
         </div>
 

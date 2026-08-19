@@ -1,4 +1,4 @@
-// The Daily Grind — Investor Readiness & Sales Velocity Portal Interactive Engine
+// The Daily Roast — Investor Readiness & Sales Velocity Portal Interactive Engine
 
 interface Milestone {
   id: string;
@@ -571,7 +571,7 @@ class InvestorPortal {
 
   private copyPitchMemoToClipboard() {
     const memo = `
-☕ THE DAILY GRIND — SEED STAGE INVESTOR EXECUTIVE SUMMARY
+☕ THE DAILY ROAST — SEED STAGE INVESTOR EXECUTIVE SUMMARY
 ========================================================================
 HQ: Indiranagar, Bangalore · Specialty Coffee Sourcing & Roasting Hub
 Target Raise: ${this.formatMoney(this.modelRaiseInr, true)} at ${this.formatMoney(this.modelPreMoneyInr, true)} Pre-Money Valuation
@@ -597,7 +597,7 @@ Live Storefront: https://daily-grind-storefront.pages.dev
 - 15% Edge Tech, Packaging Automation & Working Capital Runway (${Math.round(this.modelRaiseInr / 225000)} Months).
 
 4. SYNDICATE CONTACT:
-Founders: roasters@dailygrind.coffee · Bangalore Hub
+Founders: roasters@dailyroast.in · Bangalore Hub
 Legal: FSSAI Central License Active · GSTIN: 29AABCT0123M1Z5
 ========================================================================
     `.trim();
@@ -631,7 +631,7 @@ Legal: FSSAI Central License Active · GSTIN: 29AABCT0123M1Z5
 
   private exportInvestorJSON() {
     const payload = {
-      company: 'The Daily Grind Coffee Roasters Private Limited',
+      company: 'The Daily Roast Coffee Roasters Private Limited',
       hub: 'Bangalore, India',
       currency: this.currency,
       generated_at: new Date().toISOString(),
@@ -665,7 +665,7 @@ Legal: FSSAI Central License Active · GSTIN: 29AABCT0123M1Z5
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(payload, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute('href', dataStr);
-    dlAnchorElem.setAttribute('download', `the_daily_grind_investor_readiness_${new Date().toISOString().slice(0, 10)}.json`);
+    dlAnchorElem.setAttribute('download', `the_daily_roast_investor_readiness_${new Date().toISOString().slice(0, 10)}.json`);
     dlAnchorElem.click();
     this.showToast('Downloaded Investor Data JSON Package');
   }

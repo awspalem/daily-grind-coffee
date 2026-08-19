@@ -21,7 +21,7 @@ export async function zeroTrustAdminGuard(c: Context<{ Bindings: Env; Variables:
   const cfJwt = c.req.header('Cf-Access-Jwt-Assertion');
   const authHeader = c.req.header('Authorization');
 
-  const actorEmail = cfEmail || 'admin-local@dailygrind.coffee';
+  const actorEmail = cfEmail || 'admin-local@dailyroast.in';
   const actorId = 'actor_admin_01';
   const isProduction = c.env.ENVIRONMENT === 'production';
 
@@ -54,7 +54,7 @@ export async function zeroTrustAdminGuard(c: Context<{ Bindings: Env; Variables:
   if (!isProduction && !c.env.ADMIN_TOKEN) {
     c.set('adminActor' as any, {
       id: 'local_dev_admin',
-      email: 'roaster@dailygrind.coffee',
+      email: 'roaster@dailyroast.in',
       role: 'ADMIN',
     });
     return next();
