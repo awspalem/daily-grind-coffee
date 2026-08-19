@@ -61,7 +61,7 @@ export const ROASTERY_GST_PROFILE = {
   fssaiNumber: '11224333000456',
   email: 'roastery@dailyroast.in',
   phone: '+91 80 4123 9870',
-  website: 'https://daily-grind-storefront.pages.dev'
+  website: 'https://dailyroast.in'
 };
 
 export function numberToWordsINR(amount: number): string {

@@ -46,7 +46,7 @@ class InvestorPortal {
       categoryLabel: 'Direct Channels',
       title: 'Direct-to-Consumer Storefront Live with Zero Marketplace Commission',
       summary: 'High-speed D2C storefront deployed on Cloudflare edge. Multi-currency cart, guest checkout, thermal bag QR code integration saving 25% commissions.',
-      proof: 'Live at daily-grind-storefront.pages.dev · 0% commission vs Swiggy/Amazon 25% fee.',
+      proof: 'Live at dailyroast.in · 0% commission vs Swiggy/Amazon 25% fee.',
       isVerified: true,
       scoreWeight: 12.5
     },
@@ -575,7 +575,7 @@ class InvestorPortal {
 ========================================================================
 HQ: Indiranagar, Bangalore · Specialty Coffee Sourcing & Roasting Hub
 Target Raise: ${this.formatMoney(this.modelRaiseInr, true)} at ${this.formatMoney(this.modelPreMoneyInr, true)} Pre-Money Valuation
-Live Storefront: https://daily-grind-storefront.pages.dev
+Live Storefront: https://dailyroast.in
 
 1. TRACTION & REVENUE RUN-RATE:
 - Current ARR: ${this.formatMoney(2214000, true)} (₹1.84L / $2.2k MRR) with +22.4% MoM Velocity

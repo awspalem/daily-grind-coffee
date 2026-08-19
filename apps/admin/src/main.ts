@@ -4,11 +4,7 @@ import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoi
 
 // Cloudflare Pages' `_redirects` 200-status rewrite does not proxy the Worker API reliably, so
 // we call the Worker's own URL directly (see apps/storefront/src/main.ts for the same fix).
-// TEMPORARY: pointed at the workers.dev URL until the custom domain (daily-grind-api.
-// rohithpalem.in) is live — see the comment in apps/api/wrangler.toml. Cloudflare Access can't
-// protect a workers.dev subdomain, so admin API calls will 401 until that domain is restored;
-// expected/safe (fail-closed) rather than the previous wide-open state.
-const API_BASE = 'https://daily-grind-api.awspalem.workers.dev';
+const API_BASE = 'https://api.dailyroast.in';
 
 interface PricingRow {
   variant_id: string;
@@ -1560,7 +1556,7 @@ class AdminPortal {
     document.getElementById('btn-copy-brew-link')?.addEventListener('click', () => {
       this.triggerHaptic();
       const config = getActiveConfig();
-      const link = `https://daily-grind-storefront.pages.dev/#brew-guide?lot=${encodeURIComponent(config.lotSlug)}&grind=${encodeURIComponent(config.grindType.toLowerCase().replace(/[^a-z0-9]/g, '-'))}&batch=${encodeURIComponent(config.batchId)}`;
+      const link = `https://dailyroast.in/#brew-guide?lot=${encodeURIComponent(config.lotSlug)}&grind=${encodeURIComponent(config.grindType.toLowerCase().replace(/[^a-z0-9]/g, '-'))}&batch=${encodeURIComponent(config.batchId)}`;
       
       navigator.clipboard?.writeText(link).then(() => {
         const btn = document.getElementById('btn-copy-brew-link');

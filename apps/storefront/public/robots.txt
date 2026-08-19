@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://daily-grind-storefront.pages.dev/sitemap.xml
+Sitemap: https://dailyroast.in/sitemap.xml

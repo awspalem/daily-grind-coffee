@@ -8,7 +8,7 @@ export type Currency = 'INR' | 'USD';
 // (POST requests 405 at the Pages edge, GET requests fall through to the SPA shell instead of
 // reaching the Worker) — so we call the Worker's own URL directly. The Worker already sends
 // permissive CORS headers (access-control-allow-origin: *), so no proxy is needed.
-const API_BASE = 'https://daily-grind-api.awspalem.workers.dev';
+const API_BASE = 'https://api.dailyroast.in';
 
 interface LocalCartItem {
   id: string;

@@ -81,19 +81,17 @@ crons = ["0 4 * * *"] # Daily 4:00 AM UTC stock audit & backup
 [env.production]
 name = "daily-grind-api"
 
-# Custom domain (needed so Cloudflare Access can protect this API — Access cannot be applied to
-# a bare *.workers.dev subdomain) is DISABLED for now: the CLOUDFLARE_API_TOKEN used in CI lacks
-# the Zone:Workers Routes:Edit permission needed to auto-provision it, which was hard-failing
-# every deploy. Once that token permission is granted, re-add:
-#   [[env.production.routes]]
-#   pattern = "daily-grind-api.rohithpalem.in"
-#   custom_domain = true
-# and switch API_BASE in apps/admin/src/main.ts back to that hostname.
+# Custom domain api.dailyroast.in was added manually via the Cloudflare dashboard (Workers &
+# Pages > daily-grind-api > Custom Domains) rather than through this config, since the
+# CLOUDFLARE_API_TOKEN used in CI lacks the Zone:Workers Routes:Edit permission that a
+# wrangler.toml-managed [[routes]] block would need. If that token permission is ever granted,
+# a [[env.production.routes]] block could replace the dashboard-managed domain, but there's no
+# need to do so while the dashboard version keeps working.
 
 [env.production.vars]
 ENVIRONMENT = "production"
-STOREFRONT_URL = "https://daily-grind-storefront.pages.dev" # real working Pages URL — swap for a custom domain once one is set up
-ADMIN_URL = "https://daily-grind-admin.pages.dev" # real working Pages URL — swap for a custom domain once one is set up
+STOREFRONT_URL = "https://dailyroast.in"
+ADMIN_URL = "https://admin.dailyroast.in"
 CURRENCY = "usd"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 SHIPROCKET_PICKUP_LOCATION = "Primary"

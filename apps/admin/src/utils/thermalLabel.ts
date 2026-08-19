@@ -101,7 +101,7 @@ export interface BagLabelConfig {
 }
 
 export function generateThermalLabelHTML(config: BagLabelConfig): string {
-  const baseUrl = config.brewGuideBaseUrl || 'https://daily-grind-storefront.pages.dev';
+  const baseUrl = config.brewGuideBaseUrl || 'https://dailyroast.in';
   const qrTargetUrl = `${baseUrl}/#brew-guide?lot=${encodeURIComponent(config.lotSlug)}&grind=${encodeURIComponent(config.grindType.toLowerCase().replace(/[^a-z0-9]/g, '-'))}&batch=${encodeURIComponent(config.batchId)}`;
   
   // Render high-precision vector SVG QR Code
@@ -198,7 +198,7 @@ export function generateThermalLabelHTML(config: BagLabelConfig): string {
             <p class="tl-qr-desc">
               Scan to dial in exact water temperature, brew ratios, and step-by-step extraction for <strong>${config.lotName}</strong>.
             </p>
-            <div class="tl-qr-url">daily-grind-storefront.pages.dev/#brew-guide</div>
+            <div class="tl-qr-url">dailyroast.in/#brew-guide</div>
           </div>
         </div>
 
