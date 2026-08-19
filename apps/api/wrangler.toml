@@ -24,13 +24,12 @@ SHIPROCKET_PICKUP_LOCATION = "Primary"
 # Without SHIPROCKET_EMAIL/PASSWORD, ShiprocketService runs in mock mode outside production
 # so order fulfillment keeps working; in production it fails loudly instead of faking data.
 
-# Resend email secrets (set via `wrangler secret put <NAME>`, not committed here):
-#   RESEND_API_KEY     — from resend.com/api-keys. Without it, order confirmation emails are
-#                          skipped (logged, not sent) rather than failing checkout.
-#   RESEND_FROM_EMAIL   — optional, e.g. "The Daily Roast <orders@yourdomain.com>". Defaults to
-#                          Resend's shared onboarding@resend.dev sender, which only delivers to
-#                          the Resend account's own verified email until a sending domain is
-#                          verified in the Resend dashboard.
+# RESEND_API_KEY — from resend.com/api-keys, set via `wrangler secret put RESEND_API_KEY`, not
+# committed here (it's a real credential). Without it, order confirmation emails are skipped
+# (logged, not sent) rather than failing checkout.
+#
+# RESEND_FROM_EMAIL is set below as a plain var, not a secret — it's just a display address
+# (resend.com/domains confirmed dailyroast.in as a verified sending domain), not a credential.
 
 # Cloudflare D1 Database Binding
 [[d1_databases]]
@@ -95,6 +94,7 @@ ADMIN_URL = "https://admin.dailyroast.in"
 CURRENCY = "usd"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 SHIPROCKET_PICKUP_LOCATION = "Primary"
+RESEND_FROM_EMAIL = "The Daily Roast <orders@dailyroast.in>"
 
 # Named environments do NOT inherit top-level bindings in Wrangler — each one needs its
 # own copy, confirmed via `wrangler deploy --env production --dry-run`.
