@@ -33,11 +33,14 @@ Orders shipping elsewhere keep the pre-existing manual `tracking_number`/`carrie
    `apps/api/.dev.vars` and fill in a token. Register the same token and the deployed webhook
    URL in the Shiprocket dashboard under **Settings > API > Webhooks**.
 
-4. **Fill in real values in `wrangler.toml`'s `[env.production]` block** — placeholder domains
-   (`STOREFRONT_URL`, `ADMIN_URL`) and the placeholder `CONFIG_KV` namespace id all need
-   replacing with real ones. Bindings do not inherit from the top-level `[vars]`/binding blocks
-   in Wrangler, so `[env.production]` carries its own copies of `d1_databases`, `kv_namespaces`,
-   `ai`, and `triggers` — verified via `wrangler deploy --env production --dry-run`.
+4. ~~Fill in real values in `wrangler.toml`'s `[env.production]` block~~ — done: `STOREFRONT_URL`
+   and `ADMIN_URL` point at `dailyroast.in`/`admin.dailyroast.in`. The `CONFIG_KV` namespace id
+   stays a placeholder in the committed file by design — the CI deploy workflow discovers or
+   creates the real namespace and rewrites that line before every deploy (see
+   `.github/workflows/deploy.yml`'s "Configure KV and Queues" step). Bindings do not inherit
+   from the top-level `[vars]`/binding blocks in Wrangler, so `[env.production]` carries its own
+   copies of `d1_databases`, `kv_namespaces`, `ai`, and `triggers` — verified via
+   `wrangler deploy --env production --dry-run`.
 
 5. **Currency conversion assumption — confirm or override.** Product prices in the DB
    (`product_variants.price_cents`) are USD cents, but Shiprocket's order-value fields are

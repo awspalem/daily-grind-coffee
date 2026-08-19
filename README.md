@@ -7,6 +7,8 @@
 
 An enterprise-grade, free-tier-first specialty coffee roastery e-commerce platform and autonomous AI agent ecosystem built natively on **Cloudflare's Edge Stack** with **Groq** reasoning.
 
+**Live:** [dailyroast.in](https://dailyroast.in) (storefront) · [admin.dailyroast.in](https://admin.dailyroast.in) (staff portal, Zero Trust-gated) · [api.dailyroast.in](https://api.dailyroast.in) (Worker API)
+
 ---
 
 ## 🌟 Key Architecture & Features
