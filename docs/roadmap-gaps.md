@@ -1,6 +1,10 @@
 # The Daily Roast — Product Gap Register & Build Roadmap
 
-Status date: 2026-08-25. Grounded in the code as it stands on `main` (c0cd479).
+Status date: 2026-08-25. Originally grounded in the code as it stood on `main` (c0cd479).
+
+**Phases 0–5 have since landed** (migrations `0011`–`0016`). See *Delivery status* at the foot of
+this document for what shipped, what is still open, and what has not been exercised against a
+running API. Phase 6 remains untouched and is the natural next pass.
 
 Each gap records what exists today, what's missing, and what it depends on. Phases are ordered
 so that each one only needs what the phases above it have already landed.
@@ -117,14 +121,17 @@ pre-wired every mount point:
 **Reserved migration numbers** — one per feature, assigned up front so parallel branches don't
 collide:
 
-| Number | Owner |
-| --- | --- |
-| `0011_foundation_entitlements.sql` | Phase 0 (done) |
-| `0012_*` | Phase 1 — customer profile |
-| `0013_*` | Phase 2 — loyalty |
-| `0014_*` | Phase 3 — referral |
-| `0015_*` | Phase 4 — subscription plans & tiers |
-| `0016_*` | Phase 5 — experiences & bookings |
+| Number | Owner | Status |
+| --- | --- | --- |
+| `0011_foundation_entitlements.sql` | Phase 0 — entitlement grants & ledger | Landed |
+| `0012_customer_profile.sql` | Phase 1 — customer profile | Landed |
+| `0013_loyalty.sql` | Phase 2 — loyalty | Landed |
+| `0014_referral.sql` | Phase 3 — referral | Landed |
+| `0015_subscription_plans.sql` | Phase 4 — subscription plans & tiers | Landed |
+| `0016_experiences_bookings.sql` | Phase 5 — experiences & bookings | Landed |
+
+All six apply cleanly in order against a fresh SQLite database. (`0004` still errors on duplicate
+columns — pre-existing, unrelated, and harmless because the columns already exist.)
 
 Also: the tracked `.js` files beside every `.ts` under `src/` are stale `tsc -b` output. The real
 entry points are the `.ts` files (`wrangler.toml main = "src/index.ts"`,
@@ -142,3 +149,40 @@ webhook into a retry loop.
 (points redemption and referral-code attribution both happen at checkout). Plan purchase and
 experience booking must create their own Stripe sessions from their own routes rather than
 editing `checkout.ts`.
+
+
+---
+
+## Delivery status
+
+### Landed
+
+| Phase | What shipped |
+| --- | --- |
+| 0 | Entitlement grants + ledger (`0011`), `middleware/customerAuth.ts`, `services/entitlements.ts`, the `hooks/` lifecycle dispatcher, and the per-feature route / UI / type seams. |
+| 1 | `customer_profiles`, `customer_preferences`, `customer_channel_optins`; taste graph and RFM segmentation in `services/customerProfile.ts`; `/api/profile` (profile, order history, re-order, address book CRUD, preferences, recommendations); "Your Coffee Profile" storefront section; customer context injected into the AI Barista. |
+| 2 | `loyalty_ledger` + rollups; earning on delivery, review bonus, subscription streak, referral reward; FIFO lot expiry evaluated lazily at read time; redemption at checkout with floor/cap and refund reversal; tiers; storefront section with balance, tier progress and statement. |
+| 3 | `referral_codes` / `referrals` / `referral_visits`; durable per-customer code, share targets, `?ref=` capture; dual-sided reward paid on delivery; self-referral and repeat-referee guards; referrer dashboard. |
+| 4 | `subscription_plans` with tier, term, price and an entitlement spec; plan checkout; pause / resume / skip / swap / edit / save-offer / cancel; upcoming-shipment projection, renewal notices, prepaid-term shipments, dunning recovery; storefront plan grid + subscription manager; admin plan CRUD. |
+| 5 | `experiences` / `experience_slots` / `bookings` / `experience_blackouts`; one primitive covering teleconsult, roastery tour, cupping and estate visit; hold → confirm with paid **or** entitlement funding, waitlist, reschedule, cancel, no-show; `.ics` invites, confirmation and T-24h/T-1h reminder email; storefront booking flow; admin catalog, slot CRUD, roster, attendance and blackouts. |
+
+Periodic upkeep lives in `apps/api/src/services/maintenance.ts`: hourly (booking-hold expiry,
+Stripe reconciliation, reminders, entitlement-grant expiry) and daily (renewal notices, prepaid
+shipments). `wrangler.toml` carries both `0 4 * * *` and `0 * * * *`; they coincide at 04:00 and
+Cloudflare fires both, which is harmless because every job is idempotent.
+
+### Still open
+
+| # | Item |
+| - | --- |
+| 0.2 | **Currency is still `usd`.** `env.CURRENCY` forces the Stripe charge currency regardless of what the shopper selected. Because loyalty points and the referral discount are denominated in paise and the services are never told the currency, `checkout.ts` now **refuses both outside an INR order** rather than converting — applying a paise figure to a USD order would discount ~85× too much. Settling 0.2 is what unlocks rewards for every order. |
+| 0.3 | Compiled `.js` still tracked beside every `.ts` under `src/`. |
+| — | **`orders.customer_id` is only populated going forward.** `checkout.ts` now stamps it, but historical rows have only `customer_email`, so every ownership predicate is `(o.customer_id = ? OR LOWER(o.customer_email) = ?)`. A backfill would let those dual predicates be simplified. |
+| — | **`reviews` has no `customer_id`** — only a self-reported order number. That is why the review bonus is *claimed* (`POST /api/loyalty/claim-review`, keyed on the order so six bags cannot become six bonuses) rather than pushed when a review is written. |
+| — | **No automated tests cover `0012`–`0016`.** The existing suite (11 tests) predates all of it. Everything here is build-green and typecheck-green; none of it has been exercised against a running API or a live Stripe session. |
+
+### Not started
+
+Phase 6 in full — batch traceability, back-in-stock alerts, wishlist, gifting, replenishment
+automation, self-serve returns, reviews upgrade, B2B, catalog search, notification centre,
+brew-guide personalisation, PWA push.

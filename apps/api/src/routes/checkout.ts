@@ -155,6 +155,22 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
   let referralStatement: any = null;
   let referralCode: string | null = null;
   let referralDiscountCents = 0;
+
+  // Both the referral discount and the points rate are denominated in paise (see
+  // REFERRAL_RATES.REFEREE_DISCOUNT_CENTS and LOYALTY_RATES.POINT_VALUE_CENTS), and neither
+  // service is told the order's currency. Applying either to a `usd` order would take the paise
+  // figure off as US cents — a discount roughly 85× too large. Until gap 0.2 is settled and the
+  // shop is single-currency, both are refused outside INR rather than silently converted.
+  //
+  // The gate is the *order's* currency (what `subtotalCents` is denominated in and what the
+  // order row records), not `env.CURRENCY` — which still forces the Stripe charge to `usd`
+  // regardless. That mismatch is gap 0.2 and is unchanged here.
+  const orderCurrency = String(body.currency || 'usd').toLowerCase();
+  const rewardsRedeemable = orderCurrency === 'inr';
+
+  if (body.referral_code && !rewardsRedeemable) {
+    return c.json({ success: false, error: 'Referral codes can only be used on orders priced in rupees' }, 400);
+  }
   if (body.referral_code) {
     const referral = await checkReferral(c.env.DB, {
       code: body.referral_code,
@@ -189,6 +205,9 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
   if (requestedPoints > 0) {
     if (!customerSession) {
       return c.json({ success: false, error: 'Sign in to redeem loyalty points' }, 401);
+    }
+    if (!rewardsRedeemable) {
+      return c.json({ success: false, error: 'Points can only be redeemed on orders priced in rupees' }, 400);
     }
     const redeemable = Math.max(0, subtotalCents - couponDiscountCents - referralDiscountCents);
     const redemption = await prepareOrderRedemption(

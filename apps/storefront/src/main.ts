@@ -1572,8 +1572,11 @@ class StorefrontApp {
         const subtotalCents = this.cartItems.reduce((sum, i) => sum + Math.round(
           (this.currentCurrency === 'INR' ? i.unit_price_inr * 100 : i.unit_price_usd_cents) * i.quantity
         ), 0);
-        const redeemPoints = await redeemPointsForSubtotal(subtotalCents);
-        const referralCode = getStoredReferralCode();
+        // Points and the referral discount are both denominated in paise, and the API refuses
+        // them outside an INR order rather than converting — so don't offer them either.
+        const rewardsUsable = this.currentCurrency === 'INR';
+        const redeemPoints = rewardsUsable ? await redeemPointsForSubtotal(subtotalCents) : 0;
+        const referralCode = rewardsUsable ? getStoredReferralCode() : null;
 
         const sessionToken = getSessionToken();
         const res = await fetch(`${API_BASE}/api/checkout/session`, {
