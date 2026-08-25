@@ -1,17 +1,20 @@
 /**
  * Storefront DOM contract, checked against the real index.html and the real stylesheet.
  *
- * This suite exists because of a specific escape. `registerNavPill` appended a bare <a> to
- * <nav>, as a sibling of `ul.nav-links` rather than an item inside it. Everything about the
- * nav's appearance and behaviour hangs off that parent — `.nav-links a` removes the underline,
- * the `ul` supplies the gap, and `@media (max-width: 768px) { .nav-links { display: none } }`
- * is what takes the nav off phones. The stray anchors therefore rendered as default blue
- * underlined links with no spacing, survived on mobile where the nav is meant to vanish, and
- * pushed the header wider than the viewport.
+ * This suite exists because of two escapes, both invisible to `tsc` and to the bundler.
  *
- * None of that is visible to `tsc` or to a bundler: the markup was valid, the types were fine,
- * and the build was green. It shipped to production twice. What follows asserts the structural
- * relationships the CSS actually depends on.
+ * First, `registerNavPill` appended a bare <a> to <nav>, outside `ul.nav-links` — so the pills
+ * rendered as default blue underlined links, ran together with no gap, and survived the 768px
+ * rule that hides the nav on phones.
+ *
+ * Then, with the pills correctly inside the list, the desktop header simply could not hold
+ * them: seven links, the brand and four action controls already nearly filled the 1280px
+ * container, so five more wrapped every label onto two lines and collided the currency toggle
+ * with the last link.
+ *
+ * The header is therefore left exactly as authored, and feature links live in the footer. The
+ * assertions below encode that rule in both directions: nothing may be added to the header, and
+ * what is added to the footer must sit in the structure the footer CSS expects.
  */
 
 import test from 'node:test';
@@ -60,28 +63,56 @@ const FEATURE_PILLS: Array<[string, string]> = [
   ['experiences', 'Experiences'],
 ];
 
-test('nav: every feature pill is an <li> inside ul.nav-links', async () => {
+test('nav: the header is left exactly as authored', async () => {
+  const { document, registerNavPill } = await loadPage();
+  const before = document.querySelector('header')!.innerHTML;
+
+  for (const [id, label] of FEATURE_PILLS) registerNavPill(id, label);
+
+  assert.equal(
+    document.querySelector('header')!.innerHTML,
+    before,
+    'the header row has no overflow handling — a feature may not add to it'
+  );
+  assert.equal(document.querySelectorAll('header [data-feature-nav]').length, 0);
+});
+
+test('nav: the original seven nav links are all still there', async () => {
   const { document, registerNavPill } = await loadPage();
   for (const [id, label] of FEATURE_PILLS) registerNavPill(id, label);
 
-  const list = document.querySelector('ul.nav-links')!;
-  const pills = [...document.querySelectorAll('[data-feature-nav]')];
+  const items = [...document.querySelectorAll('.nav-links > li')];
+  assert.equal(items.length, 7, 'this is the configuration that fits inside 1280px');
+  assert.deepEqual(
+    items.map((li) => li.querySelector('a')?.textContent),
+    ['Our Roasts', '3x 100g Flight', 'Flavor Wheel', 'Coffee Quiz', 'Brewing Guides', 'Bangalore Roastery', 'Track Order']
+  );
+});
 
+test('nav: feature links land in a footer column, wrapped in <li> inside its <ul>', async () => {
+  const { document, registerNavPill } = await loadPage();
+  for (const [id, label] of FEATURE_PILLS) registerNavPill(id, label);
+
+  const column = document.querySelector('[data-feature-nav-column]')!;
+  assert.ok(column, 'the account column must be created on first use');
+  assert.ok(column.classList.contains('footer-col'), 'it must carry the class the footer CSS targets');
+  assert.equal(column.parentElement, document.querySelector('.footer-container'));
+  assert.ok(column.querySelector('h4'), 'the sibling columns all carry a heading');
+
+  const list = column.querySelector('ul')!;
+  const pills = [...document.querySelectorAll('[data-feature-nav]')];
   assert.equal(pills.length, FEATURE_PILLS.length);
   for (const pill of pills) {
     assert.equal(pill.parentElement?.tagName, 'LI', `${pill.textContent} must be wrapped in an <li>`);
-    assert.equal(pill.parentElement!.parentElement, list, `${pill.textContent} must sit inside ul.nav-links`);
+    assert.equal(pill.parentElement!.parentElement, list, `${pill.textContent} must sit inside the column list`);
   }
 });
 
-test('nav: nothing is appended to <nav> as a sibling of the list', async () => {
+test('nav: the account column is created once, not once per feature', async () => {
   const { document, registerNavPill } = await loadPage();
   for (const [id, label] of FEATURE_PILLS) registerNavPill(id, label);
 
-  // A single <ul> child is the whole invariant: anything else is outside the cascade and
-  // outside the mobile hide.
-  const children = [...document.querySelector('header nav')!.children];
-  assert.deepEqual(children.map((c) => c.tagName), ['UL']);
+  assert.equal(document.querySelectorAll('[data-feature-nav-column]').length, 1);
 });
 
 test('nav: registering the same pill twice adds nothing', async () => {
@@ -93,12 +124,12 @@ test('nav: registering the same pill twice adds nothing', async () => {
   assert.equal(document.querySelectorAll('[data-feature-nav="experiences"]').length, 1);
 });
 
-test('nav: no two entries carry the same label', async () => {
+test('nav: no two feature entries carry the same label', async () => {
   const { document, registerNavPill } = await loadPage();
   for (const [id, label] of FEATURE_PILLS) registerNavPill(id, label);
 
-  const labels = [...document.querySelectorAll('.nav-links a')].map((a) => a.textContent?.trim());
-  assert.equal(new Set(labels).size, labels.length, `duplicate nav labels: ${labels.join(' | ')}`);
+  const labels = [...document.querySelectorAll('[data-feature-nav]')].map((a) => a.textContent?.trim());
+  assert.equal(new Set(labels).size, labels.length, `duplicate labels: ${labels.join(' | ')}`);
 });
 
 test('nav: every pill points at a section the page will actually have', async () => {
@@ -110,14 +141,16 @@ test('nav: every pill points at a section the page will actually have', async ()
   }
 });
 
-test('nav: the header does not grow unbounded as features are added', async () => {
+test('nav: the footer column grows instead of the header', async () => {
   const { document, registerNavPill } = await loadPage();
   for (const [id, label] of FEATURE_PILLS) registerNavPill(id, label);
 
-  // The desktop header lays the links out in a single flex row with a 2rem gap. There is no
-  // overflow treatment, so the count is the only thing keeping it on one line.
-  const items = document.querySelectorAll('.nav-links > li').length;
-  assert.ok(items <= 12, `${items} nav items — the header row has no overflow handling`);
+  // Footer columns are a wrapping grid, so adding to them is safe in a way adding to the
+  // single-row header is not.
+  assert.equal(
+    document.querySelectorAll('[data-feature-nav-column] li').length,
+    FEATURE_PILLS.length
+  );
 });
 
 // ---------------------------------------------------------------- the CSS the markup relies on
@@ -127,7 +160,8 @@ test('nav: the mobile rule that hides the whole nav is still present', () => {
   assert.match(CSS, rule, 'phones rely on .nav-links being hidden wholesale');
 });
 
-test('nav: link styling comes from the list, which is why pills must live in it', () => {
-  assert.match(CSS, /\.nav-links a\s*\{[\s\S]*?text-decoration:\s*none/);
-  assert.match(CSS, /\.nav-links\s*\{[\s\S]*?gap:/, 'the spacing between entries is the ul’s gap');
+test('nav: the footer column styling the links rely on exists', () => {
+  assert.match(CSS, /\.footer-col h4\s*\{/, 'the column heading is styled by class, not inherited');
+  assert.match(CSS, /\.footer-col a\s*\{[\s\S]*?text-decoration:\s*none/,
+    'without this rule the links render as default blue underlines, exactly as in the header');
 });

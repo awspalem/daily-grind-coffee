@@ -65,6 +65,18 @@ function inr(cents: number): string {
   return '₹' + Math.round((cents || 0) / 100).toLocaleString('en-IN');
 }
 
+/**
+ * Same, but keeps the paise when there are any.
+ *
+ * A single point is worth 50 paise. Rounding that to the nearest rupee prints either ₹1 or ₹0,
+ * and multiplying it up to dodge the rounding prints ₹50 — which is what shipped, overstating
+ * the value of a point to every visitor by a hundredfold. Sub-rupee amounts have to survive.
+ */
+export function inrPrecise(cents: number): string {
+  const rupees = (cents || 0) / 100;
+  return '₹' + (Number.isInteger(rupees) ? rupees.toLocaleString('en-IN') : rupees.toFixed(2));
+}
+
 function shortDate(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -150,7 +162,9 @@ function injectStyles(): void {
 }
 
 function renderSignedOut(host: HTMLElement, config: Record<string, any> | null): void {
-  const perPoint = config ? inr(Number(config.point_value_cents) * 100) : null;
+  // `point_value_cents` is already minor units (50 = fifty paise), unlike
+  // `rupees_per_point_earned` below, which is whole rupees and does need scaling.
+  const perPoint = config ? inrPrecise(Number(config.point_value_cents)) : null;
   host.innerHTML = `
     <h2 class="section-title">The Daily Roast Club</h2>
     <p class="section-subtitle">Earn points on every delivered order and take them off your next bag.</p>

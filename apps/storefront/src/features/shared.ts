@@ -69,18 +69,33 @@ export function mountFeatureSection(id: string, className = 'catalog-section'): 
 }
 
 /**
- * Adds a header nav entry that scrolls to a feature section. Idempotent.
+ * Adds a link to the footer's "Your Account" column, creating that column on first use.
+ * Idempotent.
  *
- * The entry goes *inside* `ul.nav-links`, as an `<li>`, exactly like the static items in
- * index.html. That is not cosmetic tidiness — every bit of the nav's appearance and behaviour
- * hangs off that parent. `.nav-links a` supplies the colour and removes the underline, the `ul`
- * supplies the `gap`, and `@media (max-width: 768px) { .nav-links { display: none } }` is what
- * takes the whole nav off small screens. An anchor appended to `<nav>` as a sibling of the `ul`
- * inherits none of it: it renders as a default blue underlined link with no spacing, survives on
- * mobile where the nav is meant to vanish, and stretches the header past the viewport width.
+ * Deliberately *not* the header. `ul.nav-links` is a single flex row inside a 1280px container
+ * that already carries seven links beside the brand and four action controls — it was close to
+ * full before any of this existed, and five more collapsed it: every label wrapped to two lines,
+ * the brand broke onto three, and the currency toggle overlapped the last link. There is no
+ * overflow treatment to fall back on, so the header is left exactly as it was.
+ *
+ * The footer is the right home anyway: it already carries "Track My Order" in the same spirit,
+ * its columns wrap on their own, and these are account destinations rather than browse
+ * destinations.
  */
 export function registerNavPill(targetId: string, label: string): void {
-  const list = document.querySelector('ul.nav-links');
+  const container = document.querySelector('.footer-container');
+  if (!container) return;
+
+  let column = container.querySelector<HTMLElement>('[data-feature-nav-column]');
+  if (!column) {
+    column = document.createElement('div');
+    column.className = 'footer-col';
+    column.setAttribute('data-feature-nav-column', '');
+    column.innerHTML = '<h4>Your Account</h4><ul></ul>';
+    container.appendChild(column);
+  }
+
+  const list = column.querySelector('ul');
   if (!list || list.querySelector(`[data-feature-nav="${targetId}"]`)) return;
 
   const link = document.createElement('a');
