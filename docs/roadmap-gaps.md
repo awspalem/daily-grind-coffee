@@ -179,7 +179,32 @@ Cloudflare fires both, which is harmless because every job is idempotent.
 | 0.3 | Compiled `.js` still tracked beside every `.ts` under `src/`. |
 | — | **`orders.customer_id` is only populated going forward.** `checkout.ts` now stamps it, but historical rows have only `customer_email`, so every ownership predicate is `(o.customer_id = ? OR LOWER(o.customer_email) = ?)`. A backfill would let those dual predicates be simplified. |
 | — | **`reviews` has no `customer_id`** — only a self-reported order number. That is why the review bonus is *claimed* (`POST /api/loyalty/claim-review`, keyed on the order so six bags cannot become six bonuses) rather than pushed when a review is written. |
-| — | **No automated tests cover `0012`–`0016`.** The existing suite (11 tests) predates all of it. Everything here is build-green and typecheck-green; none of it has been exercised against a running API or a live Stripe session. |
+| — | **The payment halves are untested and unbuilt.** The provider is undecided (Stripe / Razorpay / UPI), so `settleBookingPayment`, plan checkout and `restorePaymentMethod` are deliberately out of test scope. Nothing has been exercised against a live payment session. |
+
+### Test coverage
+
+`apps/api/test/helpers/d1.ts` is a D1-compatible adapter over `node:sqlite` that applies the real
+migrations, so the phase 0–5 services are tested against real SQL — `ON CONFLICT` idempotency
+guards, `SUM(points_delta)` over a ledger, the `seats_booked + n <= seats_total` capacity
+predicate — rather than against a stub that returns success for every write. `batch()` runs in a
+transaction, matching D1. `npm test` now globs `test/*.test.ts`; it previously ran one hardcoded
+file, so a new test file would have been silently skipped.
+
+| Suite | Tests | Covers |
+| --- | --- | --- |
+| `e2e.test.ts` | 11 | Pre-existing: inventory ledger, Stripe HMAC, backups, email, Workers AI, MCP, quota, Groq. |
+| `entitlements.test.ts` | 13 | 4.2 — grant/consume/release, overspend refused rather than thrown, soonest-expiry-first across grants, derived idempotency keys on multi-grant spends, unlimited grants, start/expiry windows, batch atomicity. |
+| `loyalty.test.ts` | 16 | 2.1–2.5 — earn rates and tier multipliers, redemption floor and basket cap, retried checkout debiting once, refund clawback and restore, lazy lot expiry, tier boundaries, abandoned-checkout reclaim. |
+| `bookings.test.ts` | 20 | 5.1–5.6 — capacity and oversell, waitlist and promotion, hold expiry, entitlement-funded confirmation, cancellation windows and the staff override, reschedule, attendance. |
+| `referral.test.ts` | 19 | 3.1–3.4 — all six fraud guards, de-duplicated visit counts, the UNIQUE index failing a concurrent second claim, payout on delivery and reversal on refund. |
+| `plans.test.ts` | 18 | 4.1–4.4 — annual term granting and expiring perks, replay-safe grants, PREPAID excluded from the renewal charger, pause/resume/skip/cancel, shipment projection. |
+
+**What this found:** `entitlement_grants` held two datetime formats — the column default writes
+`YYYY-MM-DD HH:MM:SS`, while `grantPlanEntitlements` bound an ISO string with a `T`. SQLite
+compares them as text and `'T'` sorts above `' '`, so a grant issued *now* failed
+`starts_at <= CURRENT_TIMESTAMP` and stayed invisible until the next midnight UTC: buy an annual
+plan, and the consultation credits appeared tomorrow. Lapsed grants lingered a day for the same
+reason, as did loyalty lot expiry. Every such comparison now wraps both sides in `datetime()`.
 
 ### Not started
 
