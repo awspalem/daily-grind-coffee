@@ -14,6 +14,11 @@ import { mcpApp } from './routes/mcp';
 import { mediaApp } from './routes/media';
 import { customerApp } from './routes/customer';
 import { reviewsApp } from './routes/reviews';
+import { profileApp } from './routes/profile';
+import { loyaltyApp } from './routes/loyalty';
+import { referralApp } from './routes/referral';
+import { subscriptionsApp } from './routes/subscriptions';
+import { experiencesApp } from './routes/experiences';
 import { rateLimiter } from './middleware/rateLimit';
 import { generateOrderConfirmationEmail, generateAbandonedCartEmail, generateReviewRequestEmail } from './services/emailTemplate';
 import { D1BackupService } from './services/backupService';
@@ -66,6 +71,11 @@ app.route('/api/mcp', mcpApp);
 app.route('/api/media', mediaApp);
 app.route('/api/customer', customerApp);
 app.route('/api/reviews', reviewsApp);
+app.route('/api/profile', profileApp);
+app.route('/api/loyalty', loyaltyApp);
+app.route('/api/referral', referralApp);
+app.route('/api/subscriptions', subscriptionsApp);
+app.route('/api/experiences', experiencesApp);
 
 // 404 Handler
 app.notFound((c) => {

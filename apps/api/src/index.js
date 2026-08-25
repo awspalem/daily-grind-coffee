@@ -13,6 +13,11 @@ import { mcpApp } from './routes/mcp';
 import { mediaApp } from './routes/media';
 import { customerApp } from './routes/customer';
 import { reviewsApp } from './routes/reviews';
+import { profileApp } from './routes/profile';
+import { loyaltyApp } from './routes/loyalty';
+import { referralApp } from './routes/referral';
+import { subscriptionsApp } from './routes/subscriptions';
+import { experiencesApp } from './routes/experiences';
 import { rateLimiter } from './middleware/rateLimit';
 import { generateOrderConfirmationEmail, generateAbandonedCartEmail, generateReviewRequestEmail } from './services/emailTemplate';
 import { D1BackupService } from './services/backupService';
@@ -61,6 +66,11 @@ app.route('/api/mcp', mcpApp);
 app.route('/api/media', mediaApp);
 app.route('/api/customer', customerApp);
 app.route('/api/reviews', reviewsApp);
+app.route('/api/profile', profileApp);
+app.route('/api/loyalty', loyaltyApp);
+app.route('/api/referral', referralApp);
+app.route('/api/subscriptions', subscriptionsApp);
+app.route('/api/experiences', experiencesApp);
 // 404 Handler
 app.notFound((c) => {
     return c.json({ success: false, error: 'Route not found' }, 404);
@@ -172,7 +182,7 @@ export default {
                     // Cart recovery email — a fresh checkout attempt (not a resurrected one) re-checks
                     // stock/price for real at submission time, so it's fine that we already released the
                     // reservation above.
-                    if (order.customer_email && !order.customer_email.endsWith('@dailygrind.coffee') && items && items.length > 0) {
+                    if (order.customer_email && !order.customer_email.endsWith('@dailyroast.in') && items && items.length > 0) {
                         try {
                             const emailData = generateAbandonedCartEmail({
                                 customerEmail: order.customer_email,
@@ -334,7 +344,7 @@ export default {
             JOIN product_variants v ON oi.variant_id = v.id
             WHERE oi.order_id = ?
           `).bind(order.id).all();
-                    if (order.customer_email && !order.customer_email.endsWith('@dailygrind.coffee') && products && products.length > 0) {
+                    if (order.customer_email && !order.customer_email.endsWith('@dailyroast.in') && products && products.length > 0) {
                         try {
                             const emailData = generateReviewRequestEmail({
                                 customerEmail: order.customer_email,

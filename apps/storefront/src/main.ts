@@ -1,6 +1,12 @@
 // The Daily Roast — Bangalore Specialty Coffee Storefront Interactive Client
 import type { Cart, CartItem, Order, Product, ProductVariant } from '@daily-grind/shared-types';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
+import { initProfile } from './features/profile';
+import { initLoyalty } from './features/loyalty';
+import { initReferral } from './features/referral';
+import { initSubscriptions } from './features/subscriptions';
+import { initExperiences } from './features/experiences';
+
 
 export type Currency = 'INR' | 'USD';
 
@@ -3093,4 +3099,13 @@ class StorefrontApp {
 const app = new StorefrontApp();
 (window as any).storefrontApp = app;
 app.init();
+
+// Feature modules (see src/features/). Each owns its own DOM and nav entry, so features can be
+// built independently without ever editing this file again.
+initProfile(app);
+initLoyalty(app);
+initReferral(app);
+initSubscriptions(app);
+initExperiences(app);
+
 

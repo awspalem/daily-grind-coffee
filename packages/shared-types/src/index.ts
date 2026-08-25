@@ -1,3 +1,10 @@
+// Feature-scoped contracts. Each feature owns its own file so parallel work never collides here.
+export * from './profile';
+export * from './loyalty';
+export * from './referral';
+export * from './plans';
+export * from './experiences';
+
 export type RoastLevel = 'LIGHT' | 'MEDIUM_LIGHT' | 'MEDIUM' | 'MEDIUM_DARK' | 'DARK';
 
 export type GrindType = 

@@ -13,7 +13,7 @@ async function processCheckout(c, isSessionRoute = false) {
     if (!token) {
         return c.json({ success: false, error: 'Session token required' }, 400);
     }
-    const customerEmail = body.customer_email || 'customer@dailygrind.coffee';
+    const customerEmail = body.customer_email || 'customer@dailyroast.in';
     const shippingAddress = body.shipping_address || {
         name: customerEmail.split('@')[0],
         email: customerEmail,

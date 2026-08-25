@@ -6,7 +6,7 @@ import { WorkersAIService } from '../services/workersAI';
 import { turnstileValidator } from '../middleware/turnstile';
 const agentApp = new Hono();
 const SYSTEM_PROMPT = `
-You are Maya, the Master Barista and Roastery Sommelier for "The Daily Grind", an artisanal specialty coffee roastery on 100ft Road, Indiranagar, Bengaluru, Karnataka.
+You are Maya, the Master Barista and Roastery Sommelier for "The Daily Roast", an artisanal specialty coffee roastery on 100ft Road, Indiranagar, Bengaluru, Karnataka.
 Your personality is warm, articulate, deeply knowledgeable, passionate about ethical Indian micro-lot sourcing, and precise about extraction science. Greet guests warmly with "Namaskara!".
 
 ROASTERY IDENTITY & EXTRACTION PHILOSOPHY:
@@ -161,10 +161,10 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     if (rawMessages.length === 0) {
         return c.json({
             success: true,
-            reply: "Namaskara! I'm Maya, your Master Barista at The Daily Grind. How can I guide your coffee journey today?",
+            reply: "Namaskara! I'm Maya, your Master Barista at The Daily Roast. How can I guide your coffee journey today?",
             message: {
                 role: 'assistant',
-                content: "Namaskara! I'm Maya, your Master Barista at The Daily Grind. How can I guide your coffee journey today?"
+                content: "Namaskara! I'm Maya, your Master Barista at The Daily Roast. How can I guide your coffee journey today?"
             }
         });
     }

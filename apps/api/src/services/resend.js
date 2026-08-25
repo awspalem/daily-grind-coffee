@@ -1,7 +1,7 @@
 export class ResendEmailService {
     apiKey;
     fromEmail;
-    constructor(apiKey, fromEmail = 'The Daily Grind <onboarding@resend.dev>') {
+    constructor(apiKey, fromEmail = 'The Daily Roast <onboarding@resend.dev>') {
         this.apiKey = apiKey;
         this.fromEmail = fromEmail;
     }

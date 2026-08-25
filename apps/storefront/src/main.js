@@ -1,9 +1,14 @@
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
+import { initProfile } from './features/profile';
+import { initLoyalty } from './features/loyalty';
+import { initReferral } from './features/referral';
+import { initSubscriptions } from './features/subscriptions';
+import { initExperiences } from './features/experiences';
 // Cloudflare Pages' `_redirects` 200-status rewrite does not proxy the Worker API reliably
 // (POST requests 405 at the Pages edge, GET requests fall through to the SPA shell instead of
 // reaching the Worker) — so we call the Worker's own URL directly. The Worker already sends
 // permissive CORS headers (access-control-allow-origin: *), so no proxy is needed.
-const API_BASE = 'https://daily-grind-api.awspalem.workers.dev';
+const API_BASE = 'https://api.dailyroast.in';
 // Curated Bangalore & Global Specialty Catalog
 const FALLBACK_PRODUCTS = [
     {
@@ -293,6 +298,7 @@ class StorefrontApp {
         frequency: '2_WEEKS'
     };
     chatHistory = [];
+    modalFocusReturnEl = null;
     constructor() {
         this.sessionId = localStorage.getItem('tdg_session_id') || `sess_${Math.random().toString(36).substring(2, 12)}`;
         localStorage.setItem('tdg_session_id', this.sessionId);
@@ -326,6 +332,7 @@ class StorefrontApp {
         this.setupFlavorWheel();
         this.setupFlightBuilder();
         this.setupAccountModal();
+        this.setupNewsletterForm();
         this.renderFlavorWheelSVGs();
         this.updateCartUI();
         this.handleQRCodeDeepLink();
@@ -423,6 +430,52 @@ class StorefrontApp {
         }
         this.renderProducts();
         this.renderFlavorWheelSVGs();
+        this.injectProductStructuredData();
+    }
+    // Emits Product/Offer/AggregateRating JSON-LD for the full catalog so Google can surface
+    // price and star-rating rich snippets — this SPA has no per-product URLs, so this is scoped
+    // to the whole catalog on the one page that exists rather than per-product pages.
+    injectProductStructuredData() {
+        if (this.products.length === 0)
+            return;
+        let script = document.getElementById('product-ld-json');
+        if (!script) {
+            script = document.createElement('script');
+            script.id = 'product-ld-json';
+            script.type = 'application/ld+json';
+            document.head.appendChild(script);
+        }
+        const itemListElement = this.products.map((prod, idx) => {
+            const variant = prod.variants[0];
+            const rating = this.reviewSummary[prod.id];
+            const inStock = variant ? (typeof variant.stock_quantity !== 'number' || variant.stock_quantity > 0) : true;
+            const product = {
+                '@type': 'Product',
+                name: prod.name,
+                description: prod.tagline || prod.description,
+                image: prod.image_url ? new URL(prod.image_url, window.location.origin).toString() : undefined,
+                sku: variant?.sku,
+                brand: { '@type': 'Brand', name: 'The Daily Roast' },
+                offers: variant ? {
+                    '@type': 'Offer',
+                    priceCurrency: this.currentCurrency,
+                    price: (this.currentCurrency === 'INR' ? variant.price_inr : (variant.price_usd_cents || variant.price_cents) / 100).toFixed(2),
+                    availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+                    url: `${window.location.origin}/#catalog`
+                } : undefined,
+                aggregateRating: rating ? {
+                    '@type': 'AggregateRating',
+                    ratingValue: rating.avg_rating,
+                    reviewCount: rating.review_count
+                } : undefined
+            };
+            return { '@type': 'ListItem', position: idx + 1, item: product };
+        });
+        script.textContent = JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
+            itemListElement
+        });
     }
     renderProducts() {
         const container = document.getElementById('product-grid-container');
@@ -463,8 +516,20 @@ class StorefrontApp {
       `;
             return;
         }
+        // Bestseller badge is derived from real review counts (top 2 reviewed roasts),
+        // never hard-coded, so it stays honest as review data changes.
+        const bestsellerIds = new Set(Object.entries(this.reviewSummary)
+            .filter(([, rs]) => rs.review_count > 0)
+            .sort((a, b) => b[1].review_count - a[1].review_count)
+            .slice(0, 2)
+            .map(([id]) => id));
         container.innerHTML = filtered.map((prod) => {
-            const defaultVariant = prod.variants[0] || { id: 'v1', weight_grams: 250, price_inr: 450, price_usd_cents: 1850, discount_percent: 0 };
+            // stock_quantity is only present when data came from the live API (see loadCatalog) —
+            // FALLBACK_PRODUCTS has no inventory backing, so treat "unknown" as "don't gate on stock".
+            const hasStockData = prod.variants.length > 0 && typeof prod.variants[0].stock_quantity === 'number';
+            const inStockVariant = hasStockData ? prod.variants.find((v) => v.stock_quantity > 0) : undefined;
+            const defaultVariant = inStockVariant || prod.variants[0] || { id: 'v1', weight_grams: 250, price_inr: 450, price_usd_cents: 1850, discount_percent: 0 };
+            const isProductSoldOut = hasStockData && !inStockVariant;
             const isWheelMatch = Boolean(activeWheelCatDef && this.matchesFlavorCategory(prod, activeWheelCatDef));
             const subState = this.productSubState[prod.id] || { isSub: false, frequency: '2_WEEKS' };
             this.productSubState[prod.id] = subState;
@@ -488,17 +553,39 @@ class StorefrontApp {
                 return `<span class="taste-tag">${n}</span>`;
             }).join('');
             const roastScore = prod.roast_level === 'LIGHT' ? 25 : prod.roast_level === 'LIGHT_MEDIUM' ? 45 : prod.roast_level === 'MEDIUM' ? 65 : prod.roast_level === 'MEDIUM_DARK' ? 78 : 90;
-            const weightButtons = prod.variants.map((v, idx) => `
-        <button class="weight-btn ${idx === 0 ? 'selected' : ''}" data-variant-id="${v.id}" data-price-inr="${v.price_inr}" data-price-usd="${v.price_usd_cents || v.price_cents}" data-discount="${v.discount_percent || 0}" data-weight="${v.weight_grams}">
+            const weightButtons = prod.variants.map((v) => {
+                const variantSoldOut = hasStockData && v.stock_quantity <= 0;
+                return `
+        <button class="weight-btn ${v.id === defaultVariant.id ? 'selected' : ''}" data-variant-id="${v.id}" data-price-inr="${v.price_inr}" data-price-usd="${v.price_usd_cents || v.price_cents}" data-discount="${v.discount_percent || 0}" data-weight="${v.weight_grams}" data-stock="${hasStockData ? v.stock_quantity : ''}" ${variantSoldOut ? 'disabled title="Sold out"' : ''}>
           ${v.weight_grams >= 1000 ? `${v.weight_grams / 1000}kg` : `${v.weight_grams}g`}
         </button>
-      `).join('');
+      `;
+            }).join('');
+            let stockBadgeHtml = '';
+            if (isProductSoldOut) {
+                stockBadgeHtml = `<span class="stock-badge sold-out">Sold Out</span>`;
+            }
+            else if (hasStockData && defaultVariant.stock_quantity > 0 && defaultVariant.stock_quantity <= 8) {
+                stockBadgeHtml = `<span class="stock-badge low-stock">Only ${defaultVariant.stock_quantity} left</span>`;
+            }
+            let merchBadgeHtml = '';
+            if (bestsellerIds.has(prod.id)) {
+                merchBadgeHtml = `<span class="merch-badge bestseller">Bestseller</span>`;
+            }
+            else {
+                const daysOld = (Date.now() - new Date(prod.created_at).getTime()) / 86400000;
+                if (Number.isFinite(daysOld) && daysOld >= 0 && daysOld <= 45) {
+                    merchBadgeHtml = `<span class="merch-badge is-new">New</span>`;
+                }
+            }
             return `
-        <article class="product-card ${isWheelMatch ? 'wheel-match' : ''}" data-product-id="${prod.id}">
+        <article class="product-card ${isWheelMatch ? 'wheel-match' : ''} ${isProductSoldOut ? 'is-sold-out' : ''}" data-product-id="${prod.id}">
           <div class="card-media">
             <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" loading="lazy">
             <span class="origin-badge">${prod.origin_country}</span>
             <span class="roast-level-tag">${prod.roast_level.replace('_', ' ')} ROAST</span>
+            ${stockBadgeHtml}
+            ${merchBadgeHtml}
           </div>
 
           <div class="card-body">
@@ -583,8 +670,8 @@ class StorefrontApp {
                 ${isSub ? `<span class="price-discount-tag">-10% CLUB</span>` : ''}
                 <small>/ ${defaultVariant.weight_grams}g</small>
               </div>
-              <button class="btn-add-cart" data-action="add-to-cart" data-prod-id="${prod.id}">
-                <span>Add to Cart</span>
+              <button class="btn-add-cart" data-action="add-to-cart" data-prod-id="${prod.id}" ${isProductSoldOut ? 'disabled' : ''}>
+                <span>${isProductSoldOut ? 'Sold Out' : 'Add to Cart'}</span>
               </button>
             </div>
           </div>
@@ -714,6 +801,28 @@ class StorefrontApp {
                 }, 1200);
             });
         });
+        this.observeProductViews(container);
+    }
+    // Fires `product_view` once per product per session, on genuine scroll-into-view — not on
+    // every re-render (search keystrokes / filter clicks re-render the grid constantly, and a
+    // per-render ping would flood analytics_events and skew the admin funnel's view-based ratios).
+    viewedProductIds = new Set();
+    productViewObserver = null;
+    observeProductViews(container) {
+        this.productViewObserver?.disconnect();
+        this.productViewObserver = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+                if (!entry.isIntersecting)
+                    continue;
+                const prodId = entry.target.getAttribute('data-product-id');
+                if (!prodId || this.viewedProductIds.has(prodId))
+                    continue;
+                this.viewedProductIds.add(prodId);
+                this.trackEvent('product_view', { product_id: prodId });
+                this.productViewObserver?.unobserve(entry.target);
+            }
+        }, { threshold: 0.5 });
+        container.querySelectorAll('.product-card').forEach((card) => this.productViewObserver?.observe(card));
     }
     updateCardPriceDisplay(prodId, basePriceInr, basePriceUsd, weightGrams) {
         const priceDisplay = document.getElementById(`price-display-${prodId}`);
@@ -960,6 +1069,29 @@ class StorefrontApp {
         this.saveCart();
         this.updateCartUI();
         this.openCart();
+        this.trackEvent('add_to_cart', { product_id: item.product_id, metadata: { variant_id: item.variant_id, quantity: item.quantity } });
+        this.announce(`${item.name} added to cart.`);
+    }
+    // Screen readers don't reliably announce a button's own text swapping to "Added!" — an
+    // aria-live region gives a consistent announcement regardless of what triggered the add.
+    announce(message) {
+        const region = document.getElementById('sr-live-region');
+        if (region)
+            region.textContent = message;
+    }
+    // Fire-and-forget funnel telemetry for the admin analytics dashboard (GET /api/analytics/funnel).
+    // Never blocks or throws on the caller — a dropped analytics ping should never break checkout.
+    trackEvent(eventName, opts = {}) {
+        fetch(`${API_BASE}/api/analytics/event`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                event_name: eventName,
+                session_id: this.sessionId,
+                product_id: opts.product_id,
+                metadata: opts.metadata
+            })
+        }).catch(() => { });
     }
     saveCart() {
         localStorage.setItem('tdg_cart', JSON.stringify(this.cartItems));
@@ -1115,10 +1247,13 @@ class StorefrontApp {
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Escape')
                 return;
+            const hadOpenBackdrop = document.querySelector('.storefront-modal-backdrop.active') !== null;
             document.querySelectorAll('.storefront-modal-backdrop.active').forEach((m) => {
                 m.classList.remove('active');
                 m.setAttribute('aria-hidden', 'true');
             });
+            if (hadOpenBackdrop)
+                this.releaseFocusTrap();
             if (document.getElementById('flavor-wheel-modal')?.getAttribute('aria-hidden') === 'false') {
                 this.closeFlavorWheelModal();
             }
@@ -1127,6 +1262,28 @@ class StorefrontApp {
             }
             if (document.getElementById('agent-drawer')?.classList.contains('open')) {
                 this.closeAgent();
+            }
+        });
+        // Trap Tab focus inside whichever modal/drawer is currently open, so keyboard users can't
+        // tab out to the obscured page behind the overlay.
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Tab')
+                return;
+            const openModal = document.querySelector('.storefront-modal-backdrop.active, #flavor-wheel-modal[aria-hidden="false"]');
+            if (!openModal)
+                return;
+            const focusable = this.getFocusable(openModal);
+            if (!focusable.length)
+                return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            }
+            else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
             }
         });
         // Currency Switcher
@@ -1280,12 +1437,13 @@ class StorefrontApp {
             const checkoutBtn = document.getElementById('btn-checkout-trigger');
             checkoutBtn.disabled = true;
             checkoutBtn.textContent = 'Securing Your Bangalore Roast...';
+            this.trackEvent('checkout_started', { metadata: { item_count: this.cartItems.length } });
             try {
                 const res = await fetch(`${API_BASE}/api/checkout/session`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
                     body: JSON.stringify({
-                        customer_email: 'customer@dailygrind.coffee',
+                        customer_email: 'customer@dailyroast.in',
                         cart_id: this.sessionId,
                         currency: this.currentCurrency.toLowerCase(),
                         coupon_code: this.appliedCouponCode || undefined,
@@ -1353,9 +1511,13 @@ class StorefrontApp {
         const modalCustInvoice = document.getElementById('modal-customer-invoice');
         document.getElementById('modal-cust-invoice-close')?.addEventListener('click', () => {
             modalCustInvoice?.classList.remove('active');
+            modalCustInvoice?.setAttribute('aria-hidden', 'true');
+            this.releaseFocusTrap();
         });
         document.getElementById('modal-cust-invoice-cancel')?.addEventListener('click', () => {
             modalCustInvoice?.classList.remove('active');
+            modalCustInvoice?.setAttribute('aria-hidden', 'true');
+            this.releaseFocusTrap();
         });
         document.getElementById('modal-cust-invoice-print')?.addEventListener('click', () => {
             this.triggerHaptic();
@@ -1365,6 +1527,8 @@ class StorefrontApp {
         const modalReviews = document.getElementById('modal-reviews');
         document.getElementById('modal-reviews-close')?.addEventListener('click', () => {
             modalReviews?.classList.remove('active');
+            modalReviews?.setAttribute('aria-hidden', 'true');
+            this.releaseFocusTrap();
         });
         // Star picker
         document.querySelectorAll('.review-star-btn').forEach((btn) => {
@@ -1450,6 +1614,7 @@ class StorefrontApp {
         listEl.innerHTML = `<p style="color: var(--text-muted); text-align:center; padding: 1rem;">Loading reviews...</p>`;
         modal.classList.add('active');
         modal.setAttribute('aria-hidden', 'false');
+        this.trapFocusIn(modal);
         try {
             const res = await fetch(`${API_BASE}/api/reviews/${encodeURIComponent(productId)}`);
             const data = await res.json();
@@ -1477,6 +1642,52 @@ class StorefrontApp {
             listEl.innerHTML = `<p style="color: var(--text-muted); text-align:center; padding: 1rem;">Couldn't load reviews right now.</p>`;
         }
     }
+    setupNewsletterForm() {
+        const form = document.getElementById('newsletter-form');
+        const statusEl = document.getElementById('newsletter-status');
+        form?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            this.triggerHaptic();
+            const emailInput = document.getElementById('newsletter-email');
+            const email = emailInput.value.trim();
+            if (!email)
+                return;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            if (statusEl) {
+                statusEl.textContent = 'Subscribing...';
+                statusEl.style.color = 'var(--text-inverse)';
+            }
+            try {
+                const res = await fetch(`${API_BASE}/api/customer/newsletter/subscribe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (statusEl) {
+                        statusEl.textContent = "✓ You're on the list — welcome!";
+                        statusEl.style.color = 'var(--accent-gold)';
+                    }
+                    form.reset();
+                }
+                else if (statusEl) {
+                    statusEl.textContent = data.error || 'Could not subscribe — please try again.';
+                    statusEl.style.color = 'var(--accent-terracotta)';
+                }
+            }
+            catch {
+                if (statusEl) {
+                    statusEl.textContent = 'Could not subscribe — please check your connection.';
+                    statusEl.style.color = 'var(--accent-terracotta)';
+                }
+            }
+            finally {
+                submitBtn.disabled = false;
+            }
+        });
+    }
     setupAccountModal() {
         const modal = document.getElementById('modal-account');
         const requestForm = document.getElementById('account-login-request-form');
@@ -1487,9 +1698,13 @@ class StorefrontApp {
             modal?.classList.add('active');
             modal?.setAttribute('aria-hidden', 'false');
             this.renderAccountModalState();
+            if (modal)
+                this.trapFocusIn(modal);
         });
         document.getElementById('modal-account-close')?.addEventListener('click', () => {
             modal?.classList.remove('active');
+            modal?.setAttribute('aria-hidden', 'true');
+            this.releaseFocusTrap();
         });
         requestForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1772,6 +1987,7 @@ class StorefrontApp {
             if (modalCustInvoice) {
                 modalCustInvoice.classList.add('active');
                 modalCustInvoice.setAttribute('aria-hidden', 'false');
+                this.trapFocusIn(modalCustInvoice);
             }
         });
     }
@@ -1782,6 +1998,12 @@ class StorefrontApp {
         const orderNumber = params.get('order_number');
         if (!orderNumber)
             return;
+        // Guard against double-counting the same order if the confirmation URL is refreshed/revisited.
+        const purchaseTrackedKey = `tdg_purchase_tracked_${orderNumber}`;
+        if (!sessionStorage.getItem(purchaseTrackedKey)) {
+            sessionStorage.setItem(purchaseTrackedKey, '1');
+            this.trackEvent('purchase', { metadata: { order_number: orderNumber } });
+        }
         this.cartItems = [];
         this.discountPercentage = 0;
         this.appliedCouponCode = null;
@@ -2382,7 +2604,7 @@ class StorefrontApp {
             this.deferredInstallPrompt = e;
         });
         window.addEventListener('appinstalled', () => {
-            console.log('[PWA] The Daily Grind installed successfully');
+            console.log('[PWA] The Daily Roast installed successfully');
             this.deferredInstallPrompt = null;
         });
     }
@@ -2582,12 +2804,27 @@ class StorefrontApp {
         return catDef.keywords.some((kw) => fullText.includes(kw.toLowerCase())) ||
             catDef.subNotes.some((sn) => fullText.includes(sn.toLowerCase()));
     }
+    getFocusable(container) {
+        return Array.from(container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+    }
+    // Moves focus into a just-opened modal and remembers what to restore it to on close —
+    // without this, keyboard/screen-reader users get stranded on a trigger button behind an overlay.
+    trapFocusIn(modal) {
+        this.modalFocusReturnEl = document.activeElement;
+        const focusable = this.getFocusable(modal);
+        (focusable[0] || modal).focus();
+    }
+    releaseFocusTrap() {
+        this.modalFocusReturnEl?.focus();
+        this.modalFocusReturnEl = null;
+    }
     openFlavorWheelModal() {
         const modal = document.getElementById('flavor-wheel-modal');
         if (modal) {
             modal.classList.add('open');
             modal.setAttribute('aria-hidden', 'false');
             this.updateModalFlavorDetails(this.activeFlavorWheelCategory);
+            this.trapFocusIn(modal);
         }
     }
     closeFlavorWheelModal() {
@@ -2595,6 +2832,7 @@ class StorefrontApp {
         if (modal) {
             modal.classList.remove('open');
             modal.setAttribute('aria-hidden', 'true');
+            this.releaseFocusTrap();
         }
     }
     handleQRCodeDeepLink() {
@@ -2669,3 +2907,10 @@ class StorefrontApp {
 const app = new StorefrontApp();
 window.storefrontApp = app;
 app.init();
+// Feature modules (see src/features/). Each owns its own DOM and nav entry, so features can be
+// built independently without ever editing this file again.
+initProfile(app);
+initLoyalty(app);
+initReferral(app);
+initSubscriptions(app);
+initExperiences(app);

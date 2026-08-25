@@ -68,7 +68,7 @@ export const ROASTERY_LOT_PRESETS = [
     }
 ];
 export function generateThermalLabelHTML(config) {
-    const baseUrl = config.brewGuideBaseUrl || 'https://daily-grind-storefront.pages.dev';
+    const baseUrl = config.brewGuideBaseUrl || 'https://dailyroast.in';
     const qrTargetUrl = `${baseUrl}/#brew-guide?lot=${encodeURIComponent(config.lotSlug)}&grind=${encodeURIComponent(config.grindType.toLowerCase().replace(/[^a-z0-9]/g, '-'))}&batch=${encodeURIComponent(config.batchId)}`;
     // Render high-precision vector SVG QR Code
     const qrSvg = QRCodeEncoder.renderSVG(qrTargetUrl, {
@@ -87,7 +87,7 @@ export function generateThermalLabelHTML(config) {
           <div class="tl-brand-row">
             <span class="tl-logo-icon">☕</span>
             <div class="tl-brand-titles">
-              <div class="tl-brand-name">THE DAILY GRIND</div>
+              <div class="tl-brand-name">THE DAILY ROAST</div>
               <div class="tl-brand-sub">SPECIALTY COFFEE ROASTERS · BANGALORE</div>
             </div>
           </div>
@@ -163,7 +163,7 @@ export function generateThermalLabelHTML(config) {
             <p class="tl-qr-desc">
               Scan to dial in exact water temperature, brew ratios, and step-by-step extraction for <strong>${config.lotName}</strong>.
             </p>
-            <div class="tl-qr-url">daily-grind-storefront.pages.dev/#brew-guide</div>
+            <div class="tl-qr-url">dailyroast.in/#brew-guide</div>
           </div>
         </div>
 

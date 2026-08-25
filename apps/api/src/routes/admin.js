@@ -90,7 +90,7 @@ adminApp.post('/inventory/adjust', async (c) => {
             actor: actor?.email || 'ADMIN_PORTAL',
         });
         // Record in Audit Log
-        await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'INVENTORY_ADJUSTMENT', 'variant_inventory', body.variant_id, null, { delta: body.quantity_delta, type: body.movement_type, newStock: result.newAvailableStock, reason: body.reason }, c.req.header('CF-Connecting-IP'));
+        await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'INVENTORY_ADJUSTMENT', 'variant_inventory', body.variant_id, null, { delta: body.quantity_delta, type: body.movement_type, newStock: result.newAvailableStock, reason: body.reason }, c.req.header('CF-Connecting-IP'));
         return c.json({ success: true, new_available_stock: result.newAvailableStock });
     }
     catch (err) {
@@ -207,7 +207,7 @@ adminApp.post('/orders/:id/status', async (c) => {
     WHERE id = ?
   `).bind(body.status, trackingNumber, carrier, shiprocketOrderId, shiprocketShipmentId, shiprocketStatus, orderId).run();
     // Audit Log
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'ORDER_STATUS_UPDATE', 'orders', orderId, { status: oldOrder?.status }, { status: body.status, tracking: trackingNumber, shiprocket_shipment_id: shiprocketShipmentId }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'ORDER_STATUS_UPDATE', 'orders', orderId, { status: oldOrder?.status }, { status: body.status, tracking: trackingNumber, shiprocket_shipment_id: shiprocketShipmentId }, c.req.header('CF-Connecting-IP'));
     return c.json({
         success: true,
         message: `Order ${orderId} updated to ${body.status}`,
@@ -381,7 +381,7 @@ adminApp.post('/channels', async (c) => {
     INSERT INTO communication_channels (id, name, channel_type, handle_or_address, status, notes)
     VALUES (?, ?, ?, ?, ?, ?)
   `).bind(id, body.name, body.channel_type, body.handle_or_address || null, body.status || 'PLANNED', body.notes || null).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_CHANNEL', 'communication_channels', id, null, { name: body.name, channel_type: body.channel_type }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'CREATE_CHANNEL', 'communication_channels', id, null, { name: body.name, channel_type: body.channel_type }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, channel_id: id });
 });
 // GET /api/admin/campaigns
@@ -401,7 +401,7 @@ adminApp.post('/campaigns', async (c) => {
     INSERT INTO social_campaigns (id, name, channel_id, objective, status, start_date, end_date, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(id, body.name, body.channel_id || null, body.objective || null, body.status || 'DRAFT', body.start_date || null, body.end_date || null, body.notes || null).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_CAMPAIGN', 'social_campaigns', id, null, { name: body.name, status: body.status || 'DRAFT' }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'CREATE_CAMPAIGN', 'social_campaigns', id, null, { name: body.name, status: body.status || 'DRAFT' }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, campaign_id: id });
 });
 const CAMPAIGN_STATUSES = ['DRAFT', 'SCHEDULED', 'LIVE', 'COMPLETED'];
@@ -418,7 +418,7 @@ adminApp.patch('/campaigns/:id/status', async (c) => {
         return c.json({ success: false, error: 'Campaign not found' }, 404);
     }
     await c.env.DB.prepare('UPDATE social_campaigns SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.status, campaignId).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_CAMPAIGN_STATUS', 'social_campaigns', campaignId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'UPDATE_CAMPAIGN_STATUS', 'social_campaigns', campaignId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, status: body.status });
 });
 // GET /api/admin/limited-editions
@@ -438,7 +438,7 @@ adminApp.post('/limited-editions', async (c) => {
     INSERT INTO limited_editions (id, name, description, product_name, product_id, sku, launch_date, end_date, total_units, units_sold, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'UPCOMING')
   `).bind(id, body.name, body.description || null, body.product_name || null, body.product_id || null, body.sku || null, body.launch_date || null, body.end_date || null, body.total_units || null).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_LIMITED_EDITION', 'limited_editions', id, null, { name: body.name, total_units: body.total_units }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'CREATE_LIMITED_EDITION', 'limited_editions', id, null, { name: body.name, total_units: body.total_units }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, limited_edition_id: id });
 });
 const LIMITED_EDITION_STATUSES = ['UPCOMING', 'LIVE', 'SOLD_OUT', 'ENDED'];
@@ -455,7 +455,7 @@ adminApp.patch('/limited-editions/:id/status', async (c) => {
         return c.json({ success: false, error: 'Limited edition not found' }, 404);
     }
     await c.env.DB.prepare('UPDATE limited_editions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.status, editionId).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_LIMITED_EDITION_STATUS', 'limited_editions', editionId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'UPDATE_LIMITED_EDITION_STATUS', 'limited_editions', editionId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, status: body.status });
 });
 // GET /api/admin/promotions
@@ -475,7 +475,7 @@ adminApp.post('/promotions', async (c) => {
     INSERT INTO promotions (id, name, description, promo_type, start_date, end_date, linked_coupon_id, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'SCHEDULED')
   `).bind(id, body.name, body.description || null, body.promo_type || 'SALE', body.start_date || null, body.end_date || null, body.linked_coupon_id || null).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_PROMOTION', 'promotions', id, null, { name: body.name, promo_type: body.promo_type || 'SALE' }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'CREATE_PROMOTION', 'promotions', id, null, { name: body.name, promo_type: body.promo_type || 'SALE' }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, promotion_id: id });
 });
 const PROMOTION_STATUSES = ['SCHEDULED', 'ACTIVE', 'ENDED'];
@@ -492,7 +492,7 @@ adminApp.patch('/promotions/:id/status', async (c) => {
         return c.json({ success: false, error: 'Promotion not found' }, 404);
     }
     await c.env.DB.prepare('UPDATE promotions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind(body.status, promotionId).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_PROMOTION_STATUS', 'promotions', promotionId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'UPDATE_PROMOTION_STATUS', 'promotions', promotionId, { status: current.status }, { status: body.status }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, status: body.status });
 });
 // ==================== Product Catalog Management ====================
@@ -574,7 +574,7 @@ adminApp.post('/products', async (c) => {
         reason: `New product "${body.name}" created`,
         actor: actor?.email || 'ADMIN_PORTAL',
     });
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_PRODUCT', 'products', productId, null, { name: body.name, slug, variant_id: variantId, sku }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'CREATE_PRODUCT', 'products', productId, null, { name: body.name, slug, variant_id: variantId, sku }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, product_id: productId, variant_id: variantId, slug, sku });
 });
 // PATCH /api/admin/products/:id
@@ -596,7 +596,7 @@ adminApp.patch('/products/:id', async (c) => {
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).bind(body.name ?? null, body.description ?? null, body.image_url ?? null, body.is_featured === undefined ? null : (body.is_featured ? 1 : 0), body.is_active === undefined ? null : (body.is_active ? 1 : 0), productId).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_PRODUCT', 'products', productId, { is_active: current.is_active, name: current.name }, body, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'UPDATE_PRODUCT', 'products', productId, { is_active: current.is_active, name: current.name }, body, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true });
 });
 // POST /api/admin/products/:id/variants — add a new weight/price option to an existing product
@@ -627,7 +627,7 @@ adminApp.post('/products/:id/variants', async (c) => {
         reason: `New variant added to product ${productId}`,
         actor: actor?.email || 'ADMIN_PORTAL',
     });
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'CREATE_VARIANT', 'product_variants', variantId, null, { product_id: productId, weight_grams: body.weight_grams, sku }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'CREATE_VARIANT', 'product_variants', variantId, null, { product_id: productId, weight_grams: body.weight_grams, sku }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, variant_id: variantId, sku });
 });
 // PATCH /api/admin/variants/:id/status
@@ -644,7 +644,7 @@ adminApp.patch('/variants/:id/status', async (c) => {
     }
     await c.env.DB.prepare('UPDATE product_variants SET is_active = ? WHERE id = ?')
         .bind(body.is_active ? 1 : 0, variantId).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'UPDATE_VARIANT_STATUS', 'product_variants', variantId, { is_active: current.is_active }, { is_active: body.is_active }, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'UPDATE_VARIANT_STATUS', 'product_variants', variantId, { is_active: current.is_active }, { is_active: body.is_active }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, is_active: body.is_active });
 });
 // ==================== Subscriptions (Subscribe & Save) ====================
@@ -680,7 +680,7 @@ adminApp.delete('/reviews/:id', async (c) => {
         return c.json({ success: false, error: 'Review not found' }, 404);
     }
     await c.env.DB.prepare('DELETE FROM reviews WHERE id = ?').bind(reviewId).run();
-    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailygrind.coffee' }, 'DELETE_REVIEW', 'reviews', reviewId, existing, null, c.req.header('CF-Connecting-IP'));
+    await recordAuditLog(c.env.DB, actor || { id: 'admin', email: 'admin@dailyroast.in' }, 'DELETE_REVIEW', 'reviews', reviewId, existing, null, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true });
 });
 export { adminApp };

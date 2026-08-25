@@ -7,7 +7,7 @@ export async function zeroTrustAdminGuard(c, next) {
     const cfEmail = c.req.header('Cf-Access-Authenticated-User-Email');
     const cfJwt = c.req.header('Cf-Access-Jwt-Assertion');
     const authHeader = c.req.header('Authorization');
-    const actorEmail = cfEmail || 'admin-local@dailygrind.coffee';
+    const actorEmail = cfEmail || 'admin-local@dailyroast.in';
     const actorId = 'actor_admin_01';
     const isProduction = c.env.ENVIRONMENT === 'production';
     // Primary path: Cloudflare Access has already verified the user and forwarded a signed JWT.
@@ -37,7 +37,7 @@ export async function zeroTrustAdminGuard(c, next) {
     if (!isProduction && !c.env.ADMIN_TOKEN) {
         c.set('adminActor', {
             id: 'local_dev_admin',
-            email: 'roaster@dailygrind.coffee',
+            email: 'roaster@dailyroast.in',
             role: 'ADMIN',
         });
         return next();

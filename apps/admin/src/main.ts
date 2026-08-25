@@ -1,3 +1,5 @@
+import { initAdminPlans } from './features/plans';
+import { initAdminExperiences } from './features/experiences';
 // The Daily Roast — Roastery Command Center Interactive Engine
 import { ROASTERY_LOT_PRESETS, generateThermalLabelHTML, BagLabelConfig } from './utils/thermalLabel';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
@@ -1755,3 +1757,8 @@ class AdminPortal {
 
 const adminApp = new AdminPortal();
 adminApp.init();
+
+// Feature modules (see src/features/). Each mounts its own panel and nav entry.
+initAdminPlans(adminApp);
+initAdminExperiences(adminApp);
+

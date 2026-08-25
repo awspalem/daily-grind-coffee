@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { turnstileValidator } from '../middleware/turnstile';
 import { ResendEmailService } from '../services/resend';
 import { generateLoginCodeEmail } from '../services/emailTemplate';
+import { resolveCustomerSession } from '../middleware/customerAuth';
 const customerApp = new Hono();
 async function sha256Hex(input) {
     const data = new TextEncoder().encode(input);
@@ -10,17 +11,6 @@ async function sha256Hex(input) {
 }
 function generateSixDigitCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
-}
-async function resolveSession(db, token) {
-    if (!token)
-        return null;
-    const session = await db.prepare('SELECT customer_id FROM customer_sessions WHERE token = ? AND expires_at > CURRENT_TIMESTAMP').bind(token).first();
-    if (!session)
-        return null;
-    const customer = await db.prepare('SELECT id, email FROM customers WHERE id = ?').bind(session.customer_id).first();
-    if (!customer)
-        return null;
-    return { customerId: customer.id, email: customer.email };
 }
 // POST /api/customer/login/request — emails a one-time 6-digit code, valid for 10 minutes.
 // Turnstile-protected: without it, this endpoint would let anyone spam arbitrary email
@@ -89,7 +79,7 @@ customerApp.post('/logout', async (c) => {
 // Previously trusted a bare X-Customer-Email header with no proof of ownership — anyone could
 // read anyone else's order history and saved addresses just by typing their email.
 customerApp.get('/me', async (c) => {
-    const session = await resolveSession(c.env.DB, c.req.header('X-Customer-Session'));
+    const session = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
     if (!session) {
         return c.json({ success: false, error: 'Not authenticated' }, 401);
     }
@@ -122,7 +112,7 @@ customerApp.get('/me', async (c) => {
 // POST /api/customer/address — requires a verified session; address is now always attached to
 // the authenticated customer rather than whatever email the caller claimed in the body.
 customerApp.post('/address', async (c) => {
-    const session = await resolveSession(c.env.DB, c.req.header('X-Customer-Session'));
+    const session = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
     if (!session) {
         return c.json({ success: false, error: 'Not authenticated' }, 401);
     }
