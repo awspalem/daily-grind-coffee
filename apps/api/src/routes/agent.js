@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { GroqService } from '../services/groq';
+import { DEFAULT_MODEL, GroqService } from '../services/groq';
 import { CoffeeDatabase } from '@daily-grind/db';
 import { getOrCreateCart } from './cart';
 import { WorkersAIService } from '../services/workersAI';
@@ -150,7 +150,7 @@ const AGENT_TOOLS = [
 agentApp.post('/chat', turnstileValidator, async (c) => {
     const sessionToken = c.req.header('X-Session-Token');
     const body = await c.req.json().catch(() => ({}));
-    const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL || 'llama-3.3-70b-versatile');
+    const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL || DEFAULT_MODEL);
     const db = new CoffeeDatabase(c.env.DB);
     const ai = new WorkersAIService(c.env.AI);
     let rawMessages = [];

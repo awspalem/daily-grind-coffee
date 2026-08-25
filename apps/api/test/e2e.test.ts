@@ -7,7 +7,7 @@ import { McpServer } from '../src/services/mcpServer';
 import { FreeTierQuotaMonitor } from '../src/services/quotaMonitor';
 import { D1BackupService } from '../src/services/backupService';
 import { generateOrderConfirmationEmail } from '../src/services/emailTemplate';
-import { GroqService } from '../src/services/groq';
+import { DEFAULT_MODEL, FALLBACK_MODEL, GroqService } from '../src/services/groq';
 
 // Comprehensive Mock D1 Database
 class MockD1Database {
@@ -345,8 +345,8 @@ test('Phase 6: 3x 100g Curated Taster Flight correctly bundles 3 distinct estate
 });
 
 // ---------------------- AI BARISTA MAYA & GROQ ENGINE TESTS ----------------------
-test('Maya Engine: GroqService defaults to llama-3.3-70b-versatile and handles model fallback', async () => {
-  const groq = new GroqService(undefined, 'llama-3.3-70b-versatile');
+test('Maya Engine: GroqService defaults to GPT-OSS 120B and handles model fallback', async () => {
+  const groq = new GroqService(undefined, DEFAULT_MODEL);
   
   // Test South Indian Filter Kaapi recipe
   const kaapiRes = await groq.chatCompletion([
@@ -387,7 +387,7 @@ test('Maya Engine: GroqService defaults to llama-3.3-70b-versatile and handles m
 });
 
 test('Maya Engine: Multi-Turn Conversation Memory retains context across questions', async () => {
-  const groq = new GroqService(undefined, 'llama-3.3-70b-versatile');
+  const groq = new GroqService(undefined, DEFAULT_MODEL);
 
   // Turn 1
   const history: { role: 'user' | 'assistant'; content: string }[] = [
@@ -408,3 +408,23 @@ test('Maya Engine: Multi-Turn Conversation Memory retains context across questio
 });
 
 
+
+test('Maya Engine: the configured model reaches Groq instead of being rewritten', () => {
+  // The constructor used to rewrite any id containing `gpt-oss` back to Llama, as a guard
+  // against a model Groq had decommissioned at the time. GPT-OSS is now the default, so that
+  // guard would have quietly undone the switch: config, docs and the badge would all read
+  // GPT-OSS while every request still went to Llama.
+  assert.strictEqual(DEFAULT_MODEL, 'openai/gpt-oss-120b');
+  assert.strictEqual(FALLBACK_MODEL, 'openai/gpt-oss-20b');
+
+  assert.strictEqual(new GroqService(undefined, DEFAULT_MODEL).modelId, DEFAULT_MODEL);
+  assert.strictEqual(
+    new GroqService(undefined, 'openai/gpt-oss-20b').modelId,
+    'openai/gpt-oss-20b',
+    'an explicitly configured GPT-OSS model must survive the constructor'
+  );
+
+  // A genuinely decommissioned id still falls back rather than erroring at the API.
+  assert.strictEqual(new GroqService(undefined, 'llama3-70b-8192').modelId, DEFAULT_MODEL);
+  assert.strictEqual(new GroqService(undefined, '').modelId, DEFAULT_MODEL);
+});

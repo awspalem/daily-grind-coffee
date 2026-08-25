@@ -43,7 +43,7 @@ const mockEnv: Env = {
   STOREFRONT_URL: 'http://localhost:5173',
   ADMIN_URL: 'http://localhost:5174',
   CURRENCY: 'usd',
-  GROQ_MODEL: 'llama-3.3-70b-versatile',
+  GROQ_MODEL: 'openai/gpt-oss-120b',
 };
 
 async function testLiveAgent() {

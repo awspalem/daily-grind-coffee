@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '../types/env';
-import { GroqService, type GroqChatMessage, type GroqToolDefinition } from '../services/groq';
+import { DEFAULT_MODEL, GroqService, type GroqChatMessage, type GroqToolDefinition } from '../services/groq';
 import { CoffeeDatabase } from '@daily-grind/db';
 import { getOrCreateCart } from './cart';
 import { WorkersAIService } from '../services/workersAI';
@@ -160,7 +160,7 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     messages?: { role: 'user' | 'assistant' | 'system'; content: string }[];
   }>().catch(() => ({} as any));
 
-  const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL || 'llama-3.3-70b-versatile');
+  const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL || DEFAULT_MODEL);
   const db = new CoffeeDatabase(c.env.DB);
   const ai = new WorkersAIService(c.env.AI);
 

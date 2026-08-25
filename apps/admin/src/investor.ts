@@ -104,7 +104,7 @@ class InvestorPortal {
       id: 'm8_ai_barista',
       category: 'tech',
       categoryLabel: 'Proprietary IP',
-      title: 'AI Barista Proprietary Retention Engine (Llama 3.3 70B on Groq)',
+      title: 'AI Barista Proprietary Retention Engine (GPT-OSS 120B on Groq)',
       summary: 'Maya AI coffee flavor sommelier running ultra-fast sub-second edge inference on Groq for personalized grind, water chemistry, and brew recipes.',
       proof: 'Direct Groq LLM API integration with streaming response · Boosts customer repeat conversion by 28%.',
       isVerified: true,
@@ -587,7 +587,7 @@ Live Storefront: https://dailyroast.in
 2. CORE COMPETITIVE ADVANTAGES:
 - Direct Sourcing: Direct-trade partnerships with Attikan Estate (Chikmagalur 1,750m) & Araku Valley (1,200m) at ₹610/kg vs ₹850 broker spot.
 - Edge Architecture: $0/mo serverless overhead on Cloudflare Workers, D1, R2, and Pages.
-- Maya AI Sommelier: Proprietary retention engine running sub-second Llama 3.3 70B on Groq.
+- Maya AI Sommelier: Proprietary retention engine running sub-second GPT-OSS 120B on Groq.
 - Zero-Commission Channel: Proprietary D2C eliminates 25% marketplace commissions, saving ₹67.50/bag.
 
 3. USE OF FUNDS (${this.formatMoney(this.modelRaiseInr, true)}):

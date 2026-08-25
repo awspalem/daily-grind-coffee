@@ -15,6 +15,15 @@ export interface GroqToolDefinition {
   };
 }
 
+/** Groq's id for GPT-OSS 120B. The `openai/` prefix is part of the id, not a provider switch. */
+export const DEFAULT_MODEL = 'openai/gpt-oss-120b';
+
+/** The smaller sibling, used when the primary model errors. */
+export const FALLBACK_MODEL = 'openai/gpt-oss-20b';
+
+/** Ids Groq no longer serves. A request naming one of these fails outright. */
+const DECOMMISSIONED_MODELS = ['llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it'];
+
 export class GroqService {
   private apiKey?: string;
   private model: string;
@@ -22,17 +31,24 @@ export class GroqService {
 
   constructor(
     apiKey?: string,
-    model: string = 'llama-3.3-70b-versatile',
-    fallbackModel: string = 'llama-3.1-8b-instant'
+    model: string = DEFAULT_MODEL,
+    fallbackModel: string = FALLBACK_MODEL
   ) {
     this.apiKey = apiKey;
-    // Ensure we don't use old decommissioned or invalid models
-    if (!model || model.includes('gpt-oss') || model.includes('llama3-70b-8192')) {
-      this.model = 'llama-3.3-70b-versatile';
+    // Guard against ids Groq has decommissioned. `gpt-oss` used to be on this list and is now
+    // the default — leaving it here would have silently rewritten every request back to Llama,
+    // so a config change alone would have looked applied while changing nothing.
+    if (!model || DECOMMISSIONED_MODELS.some((id) => model.includes(id))) {
+      this.model = DEFAULT_MODEL;
     } else {
       this.model = model;
     }
     this.fallbackModel = fallbackModel;
+  }
+
+  /** The id actually sent to Groq, after the decommissioned-model guard above. */
+  get modelId(): string {
+    return this.model;
   }
 
   async chatCompletion(

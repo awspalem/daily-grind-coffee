@@ -8,7 +8,7 @@ ENVIRONMENT = "development"
 STOREFRONT_URL = "http://localhost:5173"
 ADMIN_URL = "http://localhost:5174"
 CURRENCY = "usd"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 SHIPROCKET_PICKUP_LOCATION = "Primary"
 
 # Shiprocket secrets (set via `wrangler secret put <NAME>`, not committed here):
@@ -92,7 +92,7 @@ ENVIRONMENT = "production"
 STOREFRONT_URL = "https://dailyroast.in"
 ADMIN_URL = "https://admin.dailyroast.in"
 CURRENCY = "usd"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 SHIPROCKET_PICKUP_LOCATION = "Primary"
 RESEND_FROM_EMAIL = "The Daily Roast <orders@dailyroast.in>"
 
