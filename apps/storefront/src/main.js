@@ -1,7 +1,8 @@
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
+import { getSessionToken } from './features/shared';
 import { initProfile } from './features/profile';
-import { initLoyalty } from './features/loyalty';
-import { initReferral } from './features/referral';
+import { initLoyalty, redeemPointsForSubtotal } from './features/loyalty';
+import { initReferral, clearStoredReferralCode, getStoredReferralCode } from './features/referral';
 import { initSubscriptions } from './features/subscriptions';
 import { initExperiences } from './features/experiences';
 // Cloudflare Pages' `_redirects` 200-status rewrite does not proxy the Worker API reliably
@@ -1439,14 +1440,29 @@ class StorefrontApp {
             checkoutBtn.textContent = 'Securing Your Bangalore Roast...';
             this.trackEvent('checkout_started', { metadata: { item_count: this.cartItems.length } });
             try {
+                // Loyalty and referral both settle server-side: the points figure is re-derived from the
+                // ledger and the referral code re-validated against the real basket before either can
+                // move a rupee. Sending them is a request, not an instruction.
+                const subtotalCents = this.cartItems.reduce((sum, i) => sum + Math.round((this.currentCurrency === 'INR' ? i.unit_price_inr * 100 : i.unit_price_usd_cents) * i.quantity), 0);
+                const redeemPoints = await redeemPointsForSubtotal(subtotalCents);
+                const referralCode = getStoredReferralCode();
+                const sessionToken = getSessionToken();
                 const res = await fetch(`${API_BASE}/api/checkout/session`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-Token': this.sessionId,
+                        // Points may only be spent by the session that owns them — checkout.ts reads the
+                        // customer from this header and never from the body.
+                        ...(sessionToken ? { 'X-Customer-Session': sessionToken } : {}),
+                    },
                     body: JSON.stringify({
                         customer_email: 'customer@dailyroast.in',
                         cart_id: this.sessionId,
                         currency: this.currentCurrency.toLowerCase(),
                         coupon_code: this.appliedCouponCode || undefined,
+                        redeem_points: redeemPoints || undefined,
+                        referral_code: referralCode || undefined,
                         items: this.cartItems.map((i) => ({
                             variant_id: i.variant_id,
                             quantity: i.quantity,
@@ -1459,6 +1475,10 @@ class StorefrontApp {
                     })
                 });
                 const data = await res.json();
+                // One referral link buys one first order; the code is spent whether or not Stripe is
+                // configured on this deploy, so clear it on any accepted checkout.
+                if (data.checkout_url || data.order_number)
+                    clearStoredReferralCode();
                 if (data.checkout_url) {
                     window.location.href = data.checkout_url;
                 }

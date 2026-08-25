@@ -67,7 +67,7 @@ binding = "AI"
 
 # Scheduled Cron Triggers
 [triggers]
-crons = ["0 4 * * *"] # Daily 4:00 AM UTC stock audit & backup
+crons = ["0 4 * * *", "0 * * * *"] # Daily 4:00 AM UTC nightly block; hourly booking/entitlement upkeep
 
 # Production environment overrides — deploy with `wrangler deploy --env production`.
 # Without this, `ENVIRONMENT` stays "development" even on a live deploy, which keeps
@@ -116,7 +116,7 @@ binding = "MEDIA_BUCKET"
 bucket_name = "daily-grind-media"
 
 [env.production.triggers]
-crons = ["0 4 * * *"]
+crons = ["0 4 * * *", "0 * * * *"]
 
 # Secrets are per-environment too: `wrangler secret put SHIPROCKET_EMAIL --env production`
 # (repeat for SHIPROCKET_PASSWORD and SHIPROCKET_WEBHOOK_TOKEN).

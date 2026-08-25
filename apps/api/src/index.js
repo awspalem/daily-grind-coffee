@@ -24,6 +24,9 @@ import { D1BackupService } from './services/backupService';
 import { InventoryLedgerService } from './services/inventoryLedger';
 import { ResendEmailService } from './services/resend';
 import { StripeService } from './services/stripe';
+import { runDailyPlanMaintenance, runHourlyMaintenance } from './services/maintenance';
+/** Must match the hourly entry in wrangler.toml's [triggers] crons. */
+const HOURLY_CRON = '0 * * * *';
 const app = new Hono();
 // Middleware Pipeline
 app.use('*', logger());
@@ -126,6 +129,14 @@ export default {
     // Cloudflare Cron Scheduled Handler (Phase 2, 3 & 5)
     async scheduled(controller, env, ctx) {
         console.log(`Cron triggered at ${new Date().toISOString()} (cron: ${controller.cron})`);
+        // Time-sensitive upkeep for bookings, entitlements and plans — booking holds, waitlist
+        // promotion, T-24h/T-1h reminders and grant expiry. Runs on every tick, including the
+        // nightly one.
+        await runHourlyMaintenance(env);
+        // The hourly trigger stops here. Everything below is the nightly block (backups, abandoned
+        // carts, renewals, review requests) and must not run twelve times a day.
+        if (controller.cron === HOURLY_CRON)
+            return;
         const emailService = new ResendEmailService(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL);
         // 1. Audit low-stock items
         const { results: lowStock } = await env.DB.prepare(`
@@ -366,6 +377,9 @@ export default {
         catch (reviewErr) {
             console.error('[CRON REVIEW REQUEST ERROR]', reviewErr);
         }
+        // 7. Plan-subscription email: pre-billing renewal notices, and shipments due on a prepaid
+        // annual term (which is charged once up front, so the renewal charger above skips it).
+        await runDailyPlanMaintenance(env);
         console.log('[CRON DONE] Nightly inventory check, cart cleanup, reservation cleanup, subscription renewals, review requests & D1 R2 backup completed successfully.');
     }
 };

@@ -134,16 +134,15 @@ experiencesApp.post('/bookings', async (c) => {
         return c.json({ success: false, error: 'Experience not available' }, 404);
     }
     const customer = await c.env.DB
-        .prepare('SELECT first_name, last_name, phone FROM customers WHERE id = ?')
+        .prepare('SELECT full_name, phone FROM customers WHERE id = ?')
         .bind(session.customerId)
         .first();
-    const fullName = [customer?.first_name, customer?.last_name].filter(Boolean).join(' ') || null;
     const result = await createBooking(c.env.DB, {
         experience,
         slot,
         customerId: session.customerId,
         customerEmail: session.email,
-        customerName: fullName,
+        customerName: customer?.full_name || null,
         contactPhone: trimNote(body.contactPhone, 32) || customer?.phone || null,
         partySize: Number(body.partySize) || 1,
         dietaryNotes: experience.collects_notes ? trimNote(body.dietaryNotes) : null,
