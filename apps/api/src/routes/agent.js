@@ -4,6 +4,8 @@ import { CoffeeDatabase } from '@daily-grind/db';
 import { getOrCreateCart } from './cart';
 import { WorkersAIService } from '../services/workersAI';
 import { turnstileValidator } from '../middleware/turnstile';
+import { resolveCustomerSession } from '../middleware/customerAuth';
+import { getTasteProfile, summariseProfileForAgent } from '../services/customerProfile';
 const agentApp = new Hono();
 const SYSTEM_PROMPT = `
 You are Maya, the Master Barista and Roastery Sommelier for "The Daily Roast", an artisanal specialty coffee roastery on 100ft Road, Indiranagar, Bengaluru, Karnataka.
@@ -168,8 +170,28 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
             }
         });
     }
+    // Personalisation (gap 1.5): when the caller carries a customer session, Maya gets a compact
+    // summary of their taste graph as a second system message. Deliberately additive and
+    // best-effort — an anonymous visitor, an expired token or a profile failure must all leave the
+    // chat working exactly as before, so nothing here can 401 or throw into the request.
+    let customerContext = null;
+    try {
+        const customerSession = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
+        if (customerSession) {
+            const profile = await getTasteProfile(c.env.DB, customerSession.customerId, customerSession.email);
+            const prefs = await c.env.DB
+                .prepare('SELECT default_grind, default_weight_grams, brew_method FROM customer_preferences WHERE customer_id = ?')
+                .bind(customerSession.customerId)
+                .first();
+            customerContext = summariseProfileForAgent(profile, prefs);
+        }
+    }
+    catch (err) {
+        console.error('[agent] customer context unavailable, continuing anonymously:', err);
+    }
     const fullMessages = [
         { role: 'system', content: SYSTEM_PROMPT },
+        ...(customerContext ? [{ role: 'system', content: customerContext }] : []),
         ...rawMessages,
     ];
     const responseMessage = await groq.chatCompletion(fullMessages, AGENT_TOOLS);
