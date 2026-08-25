@@ -246,6 +246,39 @@ export function seedCustomer(
   return { id, email };
 }
 
+/**
+ * A category, product and variant. The real catalog lives in `packages/db/seeds`, which is not a
+ * migration, so anything with a foreign key to a variant — a subscription, an order line — has
+ * to build one. Every NOT NULL column in `products` is filled in here rather than at each call
+ * site, which is why this lives beside the adapter.
+ */
+export function seedProductVariant(
+  db: TestD1,
+  opts: { variantId?: string; priceCents?: number; sku?: string } = {}
+): { productId: string; variantId: string } {
+  const variantId = opts.variantId ?? 'var_test';
+  const productId = `prod_${variantId}`;
+
+  if (!db.get('SELECT id FROM categories WHERE id = ?', 'cat_test')) {
+    db.run(`INSERT INTO categories (id, slug, name, display_order) VALUES ('cat_test', 'test', 'Test', 1)`);
+  }
+
+  db.run(
+    `INSERT INTO products (id, slug, name, description, category_id, origin_country, region,
+                           process_method, roast_level, tasting_notes, image_url, is_active)
+     VALUES (?, ?, 'Test Lot', 'A lot for tests', 'cat_test', 'India', 'Chikmagalur',
+             'WASHED', 'MEDIUM', '["Cocoa"]', 'https://example.com/x.jpg', 1)`,
+    productId, `test-lot-${variantId}`
+  );
+  db.run(
+    `INSERT INTO product_variants (id, product_id, sku, weight_grams, price_cents, grind_options, is_active)
+     VALUES (?, ?, ?, 250, ?, '["WHOLE_BEAN"]', 1)`,
+    variantId, productId, opts.sku ?? `TDG-TEST-${variantId}`, opts.priceCents ?? 95_000
+  );
+
+  return { productId, variantId };
+}
+
 /** Minimal env for the services that take one rather than a bare DB. */
 export function testEnv(db: TestD1, overrides: Record<string, unknown> = {}): any {
   return {

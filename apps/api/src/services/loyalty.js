@@ -160,8 +160,8 @@ async function openLots(db, customerId, onlyLapsed = false) {
       WHERE customer_id = ?
         AND entry_type = 'EARN'
         AND points_consumed < points_delta
-        ${onlyLapsed ? 'AND expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP' : ''}
-      ORDER BY expires_at IS NULL, expires_at ASC, created_at ASC
+        ${onlyLapsed ? "AND expires_at IS NOT NULL AND datetime(expires_at) <= datetime('now')" : ''}
+      ORDER BY expires_at IS NULL, datetime(expires_at) ASC, created_at ASC
     `)
         .bind(customerId)
         .all();
@@ -431,7 +431,7 @@ export async function getSummary(db, customerId) {
         AND entry_type = 'EARN'
         AND points_consumed < points_delta
         AND expires_at IS NOT NULL
-        AND expires_at <= datetime('now', ?)
+        AND datetime(expires_at) <= datetime('now', ?)
     `)
         .bind(customerId, `+${LOYALTY_RATES.EXPIRY_WARNING_DAYS} days`)
         .first();

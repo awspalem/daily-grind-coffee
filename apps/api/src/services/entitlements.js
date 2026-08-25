@@ -1,16 +1,28 @@
+/**
+ * Every time comparison wraps both sides in `datetime()`.
+ *
+ * The columns hold two formats: rows inserted without an explicit value take the column default
+ * `CURRENT_TIMESTAMP` (`2026-08-25 21:05:00`), while `grantPlanEntitlements` binds an ISO string
+ * from `Date#toISOString` (`2026-08-25T21:05:00.000Z`). SQLite compares those as plain text, and
+ * `'T'` sorts above `' '` — so a grant issued *now* with an ISO `starts_at` failed
+ * `starts_at <= CURRENT_TIMESTAMP` and stayed invisible until the next midnight UTC. An annual
+ * member's consultations have to be spendable the moment they pay for them.
+ *
+ * `datetime()` parses both forms and emits one, so the comparison is on instants, not on text.
+ */
 const ACTIVE_GRANT_SQL = `
   SELECT * FROM entitlement_grants
   WHERE customer_id = ?
     AND status = 'ACTIVE'
-    AND starts_at <= CURRENT_TIMESTAMP
-    AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+    AND datetime(starts_at) <= datetime('now')
+    AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))
 `;
 function newId(prefix) {
     return prefix + '_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 }
 /** Every currently-usable grant for a customer, optionally narrowed to one code. */
 export async function listActiveGrants(db, customerId, code) {
-    const sql = ACTIVE_GRANT_SQL + (code ? ' AND entitlement_code = ?' : '') + ' ORDER BY expires_at IS NULL, expires_at ASC';
+    const sql = ACTIVE_GRANT_SQL + (code ? ' AND entitlement_code = ?' : '') + " ORDER BY expires_at IS NULL, datetime(expires_at) ASC";
     const stmt = code ? db.prepare(sql).bind(customerId, code) : db.prepare(sql).bind(customerId);
     const { results } = await stmt.all();
     return (results || []);
@@ -162,7 +174,7 @@ export async function expireStaleGrants(db) {
         .prepare(`
       UPDATE entitlement_grants
       SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP
-      WHERE status = 'ACTIVE' AND expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP
+      WHERE status = 'ACTIVE' AND expires_at IS NOT NULL AND datetime(expires_at) <= datetime('now')
     `)
         .run();
     return res?.meta?.changes ?? 0;
