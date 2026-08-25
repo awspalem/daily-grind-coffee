@@ -4,16 +4,24 @@ import { InventoryLedgerService } from '../services/inventoryLedger';
 import { StripeService } from '../services/stripe';
 import { turnstileValidator } from '../middleware/turnstile';
 import { validateCoupon } from '../services/coupons';
+import { resolveCustomerSession } from '../middleware/customerAuth';
+import { prepareOrderRedemption } from '../services/loyalty';
+import { checkReferral, referralAttachStatement } from '../services/referral';
 const checkoutApp = new Hono();
 // Core checkout processing handler
 async function processCheckout(c, isSessionRoute = false) {
     const sessionToken = c.req.header('X-Session-Token');
     const body = (await c.req.json());
+    // Points may only ever be spent by the session that owns them — never by an email in the
+    // request body, which anyone could type.
+    const customerSession = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
     const token = sessionToken || body.session_token || body.cart_id;
     if (!token) {
         return c.json({ success: false, error: 'Session token required' }, 400);
     }
-    const customerEmail = body.customer_email || 'customer@dailyroast.in';
+    // A signed-in shopper's own address wins over whatever the form posted, so the order is
+    // attributable to the account that will earn and spend points against it.
+    const customerEmail = customerSession?.email || body.customer_email || 'customer@dailyroast.in';
     const shippingAddress = body.shipping_address || {
         name: customerEmail.split('@')[0],
         email: customerEmail,
@@ -102,6 +110,59 @@ async function processCheckout(c, isSessionRoute = false) {
         discountCents = couponResult.discountCents;
         appliedCoupon = { id: couponResult.couponId, code: couponResult.code };
     }
+    // `discountCents` is the total that reaches the order and Stripe; the coupon, referral and
+    // points shares are tracked separately because each is reversed by a different mechanism
+    // (coupon_redemptions, the referrals row, the loyalty ledger).
+    const couponDiscountCents = discountCents;
+    // Referral attribution (Phase 3.2). Re-validated here against the real subtotal and the real
+    // shipping address for the same reason coupons are: the preview endpoint is advisory only.
+    let referralStatement = null;
+    let referralCode = null;
+    let referralDiscountCents = 0;
+    if (body.referral_code) {
+        const referral = await checkReferral(c.env.DB, {
+            code: body.referral_code,
+            refereeEmail: customerEmail,
+            refereePhone: shippingAddress.phone,
+            shippingLine1: shippingAddress.line1,
+            shippingPostal: shippingAddress.postal_code,
+            subtotalCents: Math.max(0, subtotalCents - couponDiscountCents),
+        });
+        if (!referral.valid) {
+            return c.json({ success: false, error: referral.error || 'Referral code cannot be applied' }, 400);
+        }
+        referralCode = referral.code;
+        referralDiscountCents = referral.discount_cents;
+        referralStatement = referralAttachStatement(c.env.DB, {
+            referrerCustomerId: referral.referrerCustomerId,
+            code: referralCode,
+            refereeCustomerId: customerSession?.customerId ?? null,
+            refereeEmail: customerEmail,
+            refereePhone: shippingAddress.phone,
+            orderId,
+            discountCents: referralDiscountCents,
+        });
+    }
+    // Points redemption (Phase 2.3). The cap is applied to what is left *after* the coupon and
+    // referral discounts, so the three together can never exceed the value of the basket.
+    let loyaltyStatements = [];
+    let loyaltyPoints = 0;
+    let loyaltyDiscountCents = 0;
+    const requestedPoints = Math.floor(Number(body.redeem_points) || 0);
+    if (requestedPoints > 0) {
+        if (!customerSession) {
+            return c.json({ success: false, error: 'Sign in to redeem loyalty points' }, 401);
+        }
+        const redeemable = Math.max(0, subtotalCents - couponDiscountCents - referralDiscountCents);
+        const redemption = await prepareOrderRedemption(c.env.DB, customerSession.customerId, orderId, requestedPoints, redeemable);
+        if (!redemption.success) {
+            return c.json({ success: false, error: redemption.error || 'Points could not be redeemed' }, 400);
+        }
+        loyaltyPoints = redemption.points;
+        loyaltyDiscountCents = redemption.discountCents;
+        loyaltyStatements = redemption.statements;
+    }
+    discountCents = couponDiscountCents + referralDiscountCents + loyaltyDiscountCents;
     const totalAfterDiscount = Math.max(0, subtotalCents - discountCents);
     const shippingCents = subtotalCents >= 5000 ? 0 : 500; // Free shipping over $50 / ₹1,200
     const taxCents = Math.round(totalAfterDiscount * 0.08); // 8% estimated sales tax
@@ -109,11 +170,16 @@ async function processCheckout(c, isSessionRoute = false) {
     const orderStatements = [
         c.env.DB.prepare(`
       INSERT INTO orders (
-        id, order_number, customer_email, status, subtotal_cents,
+        id, order_number, customer_id, customer_email, status, subtotal_cents,
         shipping_cents, tax_cents, discount_cents, total_cents,
-        currency, shipping_address_json, created_at, updated_at
-      ) VALUES (?, ?, ?, 'PENDING_PAYMENT', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `).bind(orderId, orderNumber, customerEmail, subtotalCents, shippingCents, taxCents, discountCents, totalCents, body.currency || 'usd', JSON.stringify(shippingAddress)),
+        currency, shipping_address_json,
+        loyalty_points_redeemed, loyalty_discount_cents, referral_code,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 'PENDING_PAYMENT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).bind(orderId, orderNumber, 
+        // Stamping the account onto the order is what lets loyalty accrual, tiers and the refund
+        // clawback find the right customer without guessing from the email.
+        customerSession?.customerId ?? null, customerEmail, subtotalCents, shippingCents, taxCents, discountCents, totalCents, body.currency || 'usd', JSON.stringify(shippingAddress), loyaltyPoints, loyaltyDiscountCents, referralCode),
     ];
     for (const item of resolvedItems) {
         const orderItemId = 'oi_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
@@ -140,10 +206,52 @@ async function processCheckout(c, isSessionRoute = false) {
         orderStatements.push(c.env.DB.prepare('UPDATE coupons SET times_used = times_used + 1 WHERE id = ?').bind(appliedCoupon.id), c.env.DB.prepare(`
         INSERT INTO coupon_redemptions (id, coupon_id, order_id, customer_email, discount_applied_cents)
         VALUES (?, ?, ?, ?, ?)
-      `).bind('credm_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16), appliedCoupon.id, orderId, customerEmail, discountCents));
+      // The coupon's own share only — the referral and points discounts are recorded by their
+      // own tables, and folding them in here would over-report the coupon's cost.
+      `).bind('credm_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16), appliedCoupon.id, orderId, customerEmail, couponDiscountCents));
     }
-    await c.env.DB.batch(orderStatements);
+    // The referral row and the points debit go in the same batch as the order: a discounted order
+    // with no matching ledger entry behind it is money given away for nothing.
+    if (referralStatement)
+        orderStatements.push(referralStatement);
+    orderStatements.push(...loyaltyStatements);
+    try {
+        await c.env.DB.batch(orderStatements);
+    }
+    catch (err) {
+        // The one expected failure here is the partial UNIQUE index on `referrals.referee_email_norm`
+        // firing because a concurrent checkout already claimed this referee. Failing the order is
+        // correct: the alternative is a second discounted order with no referral behind it.
+        console.error('Checkout batch failed:', err);
+        const message = referralStatement
+            ? 'This referral code has already been used for this email. Please try again without it.'
+            : 'Could not place the order, please try again';
+        return c.json({ success: false, error: message }, 409);
+    }
     // 3. Create Stripe Checkout Session
+    //
+    // `createCheckoutSession` takes line items and a shipping amount, and has no discount or
+    // coupon parameter — so a discount recorded in D1 was previously never reaching Stripe and
+    // the shopper was charged the full price anyway. Rather than reach into services/stripe.ts
+    // (owned elsewhere), the discount is spread across the line items here so the session total
+    // tracks `totalAfterDiscount`. Per-unit reductions are floored, so the charge can land a few
+    // paise above the D1 total on a multi-unit line — never below it, and never above the
+    // undiscounted price.
+    const discountedLineItems = (() => {
+        const items = resolvedItems.map((it) => ({ ...it, unit_price_cents: it.price_cents }));
+        if (discountCents <= 0 || subtotalCents <= 0)
+            return items;
+        let remaining = Math.min(discountCents, subtotalCents);
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            const isLast = i === items.length - 1;
+            const share = isLast ? remaining : Math.min(remaining, Math.round((it.line_total_cents * discountCents) / subtotalCents));
+            const perUnit = Math.min(it.price_cents, Math.floor(share / it.quantity));
+            it.unit_price_cents = Math.max(0, it.price_cents - perUnit);
+            remaining -= perUnit * it.quantity;
+        }
+        return items;
+    })();
     const stripe = new StripeService(c.env.STRIPE_SECRET_KEY, c.env.STRIPE_WEBHOOK_SECRET);
     const storefrontUrl = c.env.STOREFRONT_URL || 'http://localhost:5173';
     try {
@@ -151,9 +259,9 @@ async function processCheckout(c, isSessionRoute = false) {
             orderId,
             orderNumber,
             customerEmail,
-            items: resolvedItems.map((it) => ({
+            items: discountedLineItems.map((it) => ({
                 name: `${it.product_name} (${it.weight_grams}g, ${it.grind_type})${it.subscription_frequency ? ` [${it.subscription_frequency.replace('_', ' ')} Sub]` : ''}`,
-                unitPriceCents: it.price_cents,
+                unitPriceCents: it.unit_price_cents,
                 quantity: it.quantity,
             })),
             shippingCents,
@@ -170,6 +278,11 @@ async function processCheckout(c, isSessionRoute = false) {
             order_number: orderNumber,
             checkout_url: session.url,
             session_id: session.id,
+            discount_cents: discountCents,
+            loyalty_points_redeemed: loyaltyPoints,
+            loyalty_discount_cents: loyaltyDiscountCents,
+            referral_code: referralCode,
+            referral_discount_cents: referralDiscountCents,
         });
     }
     catch (err) {
