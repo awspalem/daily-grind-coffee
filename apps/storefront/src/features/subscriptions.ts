@@ -231,7 +231,8 @@ async function renderManager(): Promise<void> {
     return;
   }
 
-  registerNavPill(MANAGER_SECTION, 'My club');
+  // Deliberately no second nav entry: the 'Club' pill registered above already carries the
+  // reader into this part of the page, and the header is shared with six other links.
 
   section.innerHTML = `
     <div class="section-header">

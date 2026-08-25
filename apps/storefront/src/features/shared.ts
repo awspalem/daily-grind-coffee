@@ -68,16 +68,29 @@ export function mountFeatureSection(id: string, className = 'catalog-section'): 
   return section;
 }
 
-/** Adds a header nav entry that scrolls to a feature section. Idempotent. */
+/**
+ * Adds a header nav entry that scrolls to a feature section. Idempotent.
+ *
+ * The entry goes *inside* `ul.nav-links`, as an `<li>`, exactly like the static items in
+ * index.html. That is not cosmetic tidiness — every bit of the nav's appearance and behaviour
+ * hangs off that parent. `.nav-links a` supplies the colour and removes the underline, the `ul`
+ * supplies the `gap`, and `@media (max-width: 768px) { .nav-links { display: none } }` is what
+ * takes the whole nav off small screens. An anchor appended to `<nav>` as a sibling of the `ul`
+ * inherits none of it: it renders as a default blue underlined link with no spacing, survives on
+ * mobile where the nav is meant to vanish, and stretches the header past the viewport width.
+ */
 export function registerNavPill(targetId: string, label: string): void {
-  const nav = document.querySelector('.header-nav, nav.site-nav, header nav');
-  if (!nav || nav.querySelector(`[data-feature-nav="${targetId}"]`)) return;
+  const list = document.querySelector('ul.nav-links');
+  if (!list || list.querySelector(`[data-feature-nav="${targetId}"]`)) return;
 
   const link = document.createElement('a');
   link.href = `#${targetId}`;
   link.textContent = label;
   link.setAttribute('data-feature-nav', targetId);
-  nav.appendChild(link);
+
+  const item = document.createElement('li');
+  item.appendChild(link);
+  list.appendChild(item);
 }
 
 /** Escapes text destined for innerHTML. Every feature renders customer-supplied strings. */
