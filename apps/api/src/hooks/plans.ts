@@ -1,0 +1,4 @@
+import type { FeatureHooks } from './types';
+
+/** plans lifecycle handlers. Owned by one feature — implement only what this feature needs. */
+export const plansHooks: FeatureHooks = {};

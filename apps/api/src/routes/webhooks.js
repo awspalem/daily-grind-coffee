@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { StripeService } from '../services/stripe';
+import { featureHooks } from '../hooks';
 import { InventoryLedgerService } from '../services/inventoryLedger';
 import { ResendEmailService } from '../services/resend';
 import { generateOrderConfirmationEmail } from '../services/emailTemplate';
@@ -105,6 +106,10 @@ webhooksApp.post('/stripe', async (c) => {
                         actor: 'STRIPE_WEBHOOK',
                     });
                 }
+                // Let features react to the paid order (loyalty accrual, referral attribution, plan
+                // entitlement grants). Failures are logged inside the dispatcher, never surfaced to
+                // Stripe as a 500 — that would trigger a retry of the whole webhook.
+                await featureHooks.onOrderPaid(c.env, { orderId, order, items: (items || []) });
                 // If this order created Subscribe & Save rows, capture the Stripe customer + saved
                 // payment method from this session so the renewal cron (index.ts scheduled()) can
                 // charge future cycles off-session without the shopper re-entering card details.
@@ -237,6 +242,11 @@ webhooksApp.post('/shiprocket', async (c) => {
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).bind(mappedStatus, awb || null, courierName || null, currentStatus || null, order.id).run();
+    if (mappedStatus === 'DELIVERED') {
+        // Delivery is the point at which rewards stop being reversible — referral payouts and
+        // loyalty accrual hang off this, not off payment.
+        await featureHooks.onOrderDelivered(c.env, { orderId: order.id, order: { ...order, status: 'DELIVERED' } });
+    }
     return c.json({ received: true, matched: true }, 200);
 });
 export { webhooksApp };

@@ -7,6 +7,7 @@ import { D1BackupService } from '../services/backupService';
 import { GroqService } from '../services/groq';
 import { ShiprocketService } from '../services/shiprocket';
 import type { InventoryMovementType, OrderStatus } from '@daily-grind/shared-types';
+import { featureHooks } from '../hooks';
 
 const adminApp = new Hono<{ Bindings: Env; Variables: { adminActor: AdminActor } }>();
 
@@ -350,6 +351,9 @@ adminApp.post('/orders/:id/refund', async (c) => {
       UPDATE orders SET status = 'REFUNDED', updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(orderId)
   ]);
+
+  // Let features unwind anything the order had earned (loyalty points, referral payouts).
+  await featureHooks.onOrderRefunded(c.env, { orderId, order: { ...order, status: 'REFUNDED' } });
 
   await recordAuditLog(
     c.env.DB,

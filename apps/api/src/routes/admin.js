@@ -4,6 +4,7 @@ import { zeroTrustAdminGuard, recordAuditLog } from '../middleware/zeroTrust';
 import { FreeTierQuotaMonitor } from '../services/quotaMonitor';
 import { D1BackupService } from '../services/backupService';
 import { ShiprocketService } from '../services/shiprocket';
+import { featureHooks } from '../hooks';
 const adminApp = new Hono();
 // Apply Zero Trust Admin Protection across all /api/admin routes
 adminApp.use('*', zeroTrustAdminGuard);
@@ -262,6 +263,8 @@ adminApp.post('/orders/:id/refund', async (c) => {
       UPDATE orders SET status = 'REFUNDED', updated_at = CURRENT_TIMESTAMP WHERE id = ?
     `).bind(orderId)
     ]);
+    // Let features unwind anything the order had earned (loyalty points, referral payouts).
+    await featureHooks.onOrderRefunded(c.env, { orderId, order: { ...order, status: 'REFUNDED' } });
     await recordAuditLog(c.env.DB, actor, 'ORDER_REFUND', 'orders', orderId, { status: order.status }, { status: 'REFUNDED', amount_cents: refundCents, reason: body.reason }, c.req.header('CF-Connecting-IP'));
     return c.json({ success: true, refund_id: refundId, message: `Refunded $${(refundCents / 100).toFixed(2)}` });
 });

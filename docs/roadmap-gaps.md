@@ -129,3 +129,16 @@ collide:
 Also: the tracked `.js` files beside every `.ts` under `src/` are stale `tsc -b` output. The real
 entry points are the `.ts` files (`wrangler.toml main = "src/index.ts"`,
 `<script src="/src/main.ts">`). Edit `.ts` only.
+
+### Lifecycle hooks
+
+`apps/api/src/hooks/` is the second seam: `webhooks.ts` and `admin.ts` already dispatch
+`onOrderPaid`, `onOrderDelivered` and `onOrderRefunded` to every feature. Implement your
+feature's reactions in `apps/api/src/hooks/<feature>.ts` — never by editing `webhooks.ts`.
+The dispatcher is `Promise.allSettled` + logged, so one feature's failure can't 500 a Stripe
+webhook into a retry loop.
+
+**Checkout ownership:** `apps/api/src/routes/checkout.ts` is owned by the loyalty/referral work
+(points redemption and referral-code attribution both happen at checkout). Plan purchase and
+experience booking must create their own Stripe sessions from their own routes rather than
+editing `checkout.ts`.
