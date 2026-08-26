@@ -2394,16 +2394,17 @@ class StorefrontApp {
         // Render interactive action cards if present
         this.renderAgentActionCards(loadingBubble, data, cleanText, replyContent);
       } else {
-        const fallbackReply = "I highly recommend our **Chikmagalur Attikan Estate Honey** for sweet sugarcane jaggery and red apple notes, or our **Dawn Patrol Bangalore Blend** for morning comfort!";
-        this.chatHistory.push({ role: 'assistant', content: fallbackReply });
-        loadingBubble.innerHTML = this.renderMarkdown(fallbackReply);
-        this.renderAgentActionCards(loadingBubble, { success: true, reply: fallbackReply }, cleanText, fallbackReply);
+        // The user's turn never got a real answer, so it must not stay in history as
+        // though it did — otherwise the next turn sends Maya a transcript where she
+        // appears to have already made a recommendation she never made.
+        this.chatHistory.pop();
+        const errorReply = "I couldn't reach the roastery just now — please try asking again in a moment.";
+        loadingBubble.innerHTML = this.renderMarkdown(errorReply);
       }
     } catch {
-      const fallbackReply = "For traditional filter kaapi or pour over, try our **Chikmagalur Attikan Estate Honey**. For a rich dark espresso with thick golden crema, **Midnight Runner** is phenomenal!";
-      this.chatHistory.push({ role: 'assistant', content: fallbackReply });
-      loadingBubble.innerHTML = this.renderMarkdown(fallbackReply);
-      this.renderAgentActionCards(loadingBubble, { success: true, reply: fallbackReply }, cleanText, fallbackReply);
+      this.chatHistory.pop();
+      const errorReply = "I couldn't reach the roastery just now — please try asking again in a moment.";
+      loadingBubble.innerHTML = this.renderMarkdown(errorReply);
     }
   }
 
@@ -2435,18 +2436,24 @@ class StorefrontApp {
         const pName = act.arguments.product_name || 'Specialty Coffee Selection';
         const vId = act.arguments.variant_id || 'var_att_250';
         const gType = act.arguments.grind_type || 'WHOLE_BEAN';
-        const pKey = Object.keys(knownProducts).find((k) => pName.toLowerCase().includes(k)) || 'attikan';
-        const matched = knownProducts[pKey];
-        actionItem = {
-          product_id: matched ? matched.id : 'prod_chik_attikan',
-          variant_id: vId,
-          name: pName,
-          weight_grams: matched ? matched.weight : 250,
-          grind_type: gType,
-          unit_price_inr: matched ? matched.inr : 450,
-          unit_price_usd_cents: matched ? matched.usd : 1850,
-          image_url: matched ? matched.img : '/images/pour_over.jpg'
-        };
+        // Only render a priced 1-click card when we actually recognise the coffee — showing
+        // another product's price, weight and image under this one's name would misquote it,
+        // and since the cart's checkout total trusts this client-side price, that's a real
+        // wrong-charge risk, not just a cosmetic one.
+        const pKey = Object.keys(knownProducts).find((k) => pName.toLowerCase().includes(k));
+        const matched = pKey ? knownProducts[pKey] : null;
+        if (matched) {
+          actionItem = {
+            product_id: matched.id,
+            variant_id: vId,
+            name: pName,
+            weight_grams: matched.weight,
+            grind_type: gType,
+            unit_price_inr: matched.inr,
+            unit_price_usd_cents: matched.usd,
+            image_url: matched.img
+          };
+        }
       }
     } else if (data.action_card && data.action_card.type === 'ADD_TO_CART') {
       actionItem = {

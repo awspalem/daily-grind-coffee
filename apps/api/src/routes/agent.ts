@@ -296,12 +296,9 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
           tool_call_id: call.id,
           name: toolName,
           result: order || {
+            found: false,
             order_number: toolArgs.order_number,
-            status: 'ROASTING IN PROGRESS',
-            total_cents: 1850,
-            tracking_number: 'BLR-EXPRESS-99281',
-            carrier: 'Indiranagar Roastery Courier',
-            created_at: new Date().toISOString()
+            message: 'No order with this number was found. Ask the customer to double-check the order number, or offer to have the team look into it.',
           },
         });
       } else if (toolName === 'propose_add_to_cart') {
