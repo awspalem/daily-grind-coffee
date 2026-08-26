@@ -423,6 +423,7 @@ class StorefrontApp {
     this.handleOrderConfirmationDeepLink();
     this.handleResumeOrderDeepLink();
     this.handleReviewProductDeepLink();
+    void this.hydrateChatHistory();
     await this.loadCatalog();
   }
 
@@ -2387,6 +2388,40 @@ class StorefrontApp {
     mic.addEventListener('keyup', (e) => {
       if (e.key === ' ' || e.key === 'Enter') end(e);
     });
+  }
+
+  /**
+   * Restores the barista conversation on load, so a page refresh (or a return visit under the
+   * same localStorage session id) doesn't erase what Maya already knows about this chat. Best
+   * effort and non-blocking: a slow or failed history fetch must never delay the storefront or
+   * stop the chat from working fresh, so it runs fire-and-forget from init() and swallows its
+   * own errors.
+   */
+  private async hydrateChatHistory() {
+    try {
+      const res = await fetch(`${API_BASE}/api/agent/history`, {
+        headers: {
+          'X-Session-Token': this.sessionId,
+          ...(this.customerSessionToken ? { 'X-Customer-Session': this.customerSessionToken } : {}),
+        },
+      });
+      if (!res.ok) return;
+      const data = await res.json() as { success: boolean; messages?: { role: 'user' | 'assistant'; content: string }[] };
+      if (!data.success || !data.messages || data.messages.length === 0) return;
+
+      // Restored below the static greeting already in the markup, not in place of it.
+      for (const m of data.messages) {
+        if (m.role === 'user') {
+          this.appendMessage('user', m.content);
+        } else {
+          const bubble = this.appendMessage('agent', '');
+          bubble.innerHTML = this.renderMarkdown(m.content);
+        }
+      }
+      this.chatHistory = data.messages.slice(-12);
+    } catch {
+      // Restoring history is a nicety, not a requirement — a fresh chat is still a working chat.
+    }
   }
 
   async sendAgentMessage(text: string) {

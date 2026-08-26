@@ -9,6 +9,7 @@ import { turnstileValidator } from '../middleware/turnstile';
 import { rateLimiter } from '../middleware/rateLimit';
 import { resolveCustomerSession } from '../middleware/customerAuth';
 import { getTasteProfile, summariseProfileForAgent } from '../services/customerProfile';
+import { saveAgentTurn, loadAgentHistory } from '../services/agentMemory';
 import type { GrindType } from '@daily-grind/shared-types';
 
 const agentApp = new Hono<{ Bindings: Env }>();
@@ -300,15 +301,17 @@ async function runToolCall(
 async function buildFullMessages(
   c: { env: Env; req: { header: (name: string) => string | undefined } },
   rawMessages: GroqChatMessage[]
-): Promise<GroqChatMessage[]> {
+): Promise<{ messages: GroqChatMessage[]; customerId: string | null }> {
   // Personalisation (gap 1.5): when the caller carries a customer session, Maya gets a compact
   // summary of their taste graph as a second system message. Deliberately additive and
   // best-effort — an anonymous visitor, an expired token or a profile failure must all leave the
   // chat working exactly as before, so nothing here can 401 or throw into the request.
   let customerContext: string | null = null;
+  let customerId: string | null = null;
   try {
     const customerSession = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
     if (customerSession) {
+      customerId = customerSession.customerId;
       const profile = await getTasteProfile(c.env.DB, customerSession.customerId, customerSession.email);
       const prefs = await c.env.DB
         .prepare('SELECT default_grind, default_weight_grams, brew_method FROM customer_preferences WHERE customer_id = ?')
@@ -320,11 +323,14 @@ async function buildFullMessages(
     console.error('[agent] customer context unavailable, continuing anonymously:', err);
   }
 
-  return [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...(customerContext ? [{ role: 'system' as const, content: customerContext }] : []),
-    ...rawMessages,
-  ];
+  return {
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...(customerContext ? [{ role: 'system' as const, content: customerContext }] : []),
+      ...rawMessages,
+    ],
+    customerId,
+  };
 }
 
 // POST /api/agent/chat
@@ -357,7 +363,9 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     });
   }
 
-  const fullMessages = await buildFullMessages(c, rawMessages);
+  const { messages: fullMessages, customerId } = await buildFullMessages(c, rawMessages);
+  const newestUserMessage = rawMessages[rawMessages.length - 1];
+
   const responseMessage = await groq.chatCompletion(fullMessages, AGENT_TOOLS);
 
   // If tool calls were generated
@@ -385,17 +393,25 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     ];
 
     const finalAnswer = await groq.chatCompletion(secondPassMessages);
+    const finalReply = finalAnswer.content || 'Here are the matching coffees from our roastery!';
+    if (sessionToken && newestUserMessage?.role === 'user') {
+      await saveAgentTurn(c.env.DB, { sessionToken, customerId, userContent: newestUserMessage.content, assistantContent: finalReply });
+    }
     return c.json({
       success: true,
-      reply: finalAnswer.content || 'Here are the matching coffees from our roastery!',
+      reply: finalReply,
       message: finalAnswer,
       proposed_actions: proposedActions,
     });
   }
 
+  const reply = responseMessage.content || 'How can I assist your coffee journey today?';
+  if (sessionToken && newestUserMessage?.role === 'user') {
+    await saveAgentTurn(c.env.DB, { sessionToken, customerId, userContent: newestUserMessage.content, assistantContent: reply });
+  }
   return c.json({
     success: true,
-    reply: responseMessage.content || 'How can I assist your coffee journey today?',
+    reply,
     message: responseMessage,
   });
 });
@@ -413,6 +429,10 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
  *   error   "message"                      something failed; the browser should show it and stop
  *
  * /chat is kept as-is for callers that want one JSON response (see apps/api/test/live_verify.ts).
+ *
+ * `streamSSE` returns its Response as soon as headers are ready, before this callback finishes —
+ * `app.request(...)` resolving does NOT mean the turn (including its persisted history) is done.
+ * A test observing side effects of this route must drain the body first, e.g. `await res.text()`.
  */
 agentApp.post('/chat/stream', turnstileValidator, async (c) => {
   const sessionToken = c.req.header('X-Session-Token');
@@ -447,7 +467,8 @@ agentApp.post('/chat/stream', turnstileValidator, async (c) => {
       return;
     }
 
-    const fullMessages = await buildFullMessages(c, rawMessages);
+    const { messages: fullMessages, customerId } = await buildFullMessages(c, rawMessages);
+    const newestUserMessage = rawMessages[rawMessages.length - 1];
 
     // Pass 1: decide whether Maya can answer directly or needs a tool. A tool-calling response
     // and a text response are mutually exclusive in practice (Groq/OpenAI-style function calling
@@ -465,6 +486,9 @@ agentApp.post('/chat/stream', turnstileValidator, async (c) => {
     }
 
     if (toolCalls.length === 0) {
+      if (sessionToken && newestUserMessage?.role === 'user') {
+        await saveAgentTurn(c.env.DB, { sessionToken, customerId, userContent: newestUserMessage.content, assistantContent: firstPassContent });
+      }
       await stream.writeSSE({ event: 'done', data: JSON.stringify({ reply: firstPassContent, proposed_actions: [] }) });
       return;
     }
@@ -501,14 +525,32 @@ agentApp.post('/chat/stream', turnstileValidator, async (c) => {
       }
     }
 
+    const finalReply = secondPassContent || 'Here are the matching coffees from our roastery!';
+    if (sessionToken && newestUserMessage?.role === 'user') {
+      await saveAgentTurn(c.env.DB, { sessionToken, customerId, userContent: newestUserMessage.content, assistantContent: finalReply });
+    }
     await stream.writeSSE({
       event: 'done',
-      data: JSON.stringify({
-        reply: secondPassContent || 'Here are the matching coffees from our roastery!',
-        proposed_actions: proposedActions,
-      }),
+      data: JSON.stringify({ reply: finalReply, proposed_actions: proposedActions }),
     });
   });
+});
+
+/**
+ * GET /api/agent/history
+ *
+ * Restores the last turns of the barista conversation for the caller's browser session. Used
+ * once on page load so a refresh or a return visit does not start the chat from zero; the
+ * browser still keeps its own 12-message working window for what it actually sends back to Groq.
+ * Scoped to session_token only, not merged across a signed-in customer's other devices — see
+ * loadAgentHistory for why.
+ */
+agentApp.get('/history', async (c) => {
+  const sessionToken = c.req.header('X-Session-Token');
+  if (!sessionToken) return c.json({ success: true, messages: [] });
+
+  const messages = await loadAgentHistory(c.env.DB, { sessionToken });
+  return c.json({ success: true, messages });
 });
 
 // POST /api/agent/confirm-action

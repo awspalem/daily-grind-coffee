@@ -224,6 +224,10 @@ export class GroqService {
     }
 
     if (!res.ok || !res.body) {
+      // Same reasoning as the network-error branch above: a disconnected caller has no one left
+      // to hand a fallback reply to, and this is exactly the slow path (a Groq error response)
+      // an abandoned request is most likely to be sitting on.
+      if (signal?.aborted) return;
       console.warn(`Groq streaming request returned ${res.status}, falling back to blocking call.`);
       const fallback = await this.chatCompletion(messages, tools, temperature);
       if (fallback.content) yield { type: 'delta', content: fallback.content };
