@@ -491,7 +491,7 @@ agentApp.post(
 
     const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL || DEFAULT_MODEL);
     try {
-      const { text, model, noSpeech, avgLogprob, hasSegments } = await groq.transcribe(
+      const { text, model, noSpeech, avgLogprob, compressionRatio, hasSegments } = await groq.transcribe(
         audio,
         `utterance.${EXT_FOR_MIME[mime] || 'webm'}`,
         { model: c.env.GROQ_TRANSCRIBE_MODEL }
@@ -519,9 +519,20 @@ agentApp.post(
       //
       // no_speech_prob is deliberately NOT used: whisper-large-v3-turbo reports 0 for every clip
       // including pure silence, so gating on it is a check that can never fire.
+      // A second, independent tell. Pink noise produced "A customer is a customer." at a
+      // healthy -0.216, so confidence alone does not catch every hallucination — and note what
+      // that sentence echoes: the domain prompt this endpoint sends begins "A customer talking
+      // to a specialty coffee roastery". Given no information, the model reaches for the prompt.
+      //
+      // Repetitive text compresses far better than speech, which is what compression_ratio
+      // measures and why Whisper's own decoder uses 2.4 as its threshold. Kept as a separate
+      // check rather than folded into the logprob one because they fail independently: silence
+      // is caught by confidence, degenerate repetition by compression.
       const HALLUCINATION_LOGPROB = -0.7;
+      const HALLUCINATION_COMPRESSION = 2.4;
       const looksEmpty = !text || text.replace(/[^a-z0-9]/gi, '').length < 2;
-      const looksHallucinated = hasSegments && avgLogprob < HALLUCINATION_LOGPROB;
+      const looksHallucinated = hasSegments
+        && (avgLogprob < HALLUCINATION_LOGPROB || compressionRatio > HALLUCINATION_COMPRESSION);
 
       if (looksEmpty || looksHallucinated) {
         return c.json({ success: false, error: "I didn't catch that - try again?", empty: true }, 200);
@@ -529,7 +540,7 @@ agentApp.post(
 
       // The confidence figures describe the caller's own audio, so returning them leaks nothing
       // and makes the silence heuristic debuggable from outside instead of by redeploying.
-      return c.json({ success: true, text, model, noSpeech, avgLogprob, hasSegments });
+      return c.json({ success: true, text, model, noSpeech, avgLogprob, compressionRatio, hasSegments });
     } catch (err) {
       console.error('Transcription failed:', err instanceof Error ? err.message : err);
       return c.json({ success: false, error: 'Could not transcribe that. You can type it instead.' }, 502);

@@ -391,7 +391,7 @@ What flavors or brewing techniques would you like to explore today?`,
     audio: Blob,
     filename: string,
     opts: { model?: string; language?: string } = {}
-  ): Promise<{ text: string; model: string; noSpeech: number; avgLogprob: number; hasSegments: boolean }> {
+  ): Promise<{ text: string; model: string; noSpeech: number; avgLogprob: number; compressionRatio: number; hasSegments: boolean }> {
     if (!this.apiKey) throw new Error('GROQ_API_KEY is not configured');
 
     const form = new FormData();
@@ -419,7 +419,7 @@ What flavors or brewing techniques would you like to explore today?`,
 
     const data = await res.json() as {
       text?: string;
-      segments?: { no_speech_prob?: number; avg_logprob?: number }[];
+      segments?: { no_speech_prob?: number; avg_logprob?: number; compression_ratio?: number }[];
     };
 
     const segments = Array.isArray(data.segments) ? data.segments : [];
@@ -433,11 +433,19 @@ What flavors or brewing techniques would you like to explore today?`,
       ? segments.reduce((sum, sg) => sum + (sg.avg_logprob ?? 0), 0) / segments.length
       : 0;
 
+    // Whisper's own hallucination tell: repetitive output compresses far better than speech
+    // does. Taken as the maximum across segments rather than the mean, because one degenerate
+    // repeating segment is the thing being looked for and averaging hides it.
+    const compressionRatio = segments.length
+      ? Math.max(...segments.map((sg) => sg.compression_ratio ?? 0))
+      : 0;
+
     return {
       text: (data.text || '').trim(),
       model: opts.model || DEFAULT_TRANSCRIBE_MODEL,
       noSpeech,
       avgLogprob,
+      compressionRatio,
       hasSegments: segments.length > 0,
     };
   }
