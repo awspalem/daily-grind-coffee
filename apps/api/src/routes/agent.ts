@@ -513,7 +513,9 @@ agentApp.post(
         return c.json({ success: false, error: "I didn't catch that - try again?", empty: true }, 200);
       }
 
-      return c.json({ success: true, text, model });
+      // The confidence figures describe the caller's own audio, so returning them leaks nothing
+      // and makes the silence heuristic debuggable from outside instead of by redeploying.
+      return c.json({ success: true, text, model, noSpeech, avgLogprob, hasSegments });
     } catch (err) {
       console.error('Transcription failed:', err instanceof Error ? err.message : err);
       return c.json({ success: false, error: 'Could not transcribe that. You can type it instead.' }, 502);
