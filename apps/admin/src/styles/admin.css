@@ -1,34 +1,42 @@
-/* ROASTERY COMMAND PORTAL — EXECUTIVE OPERATIONAL DASHBOARD */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Outfit:wght@300;400;500;600;700&display=swap');
+/* ROASTERY COMMAND PORTAL — ADMIN OPERATIONAL DASHBOARD */
 
 :root {
-  --admin-bg: #141110;
-  --admin-surface: #1e1917;
-  --admin-card: #27211e;
-  --admin-border: #382f2a;
-  
-  --text-main: #fbf8f5;
-  --text-muted: #a39288;
-  --text-dim: #716259;
-  
-  --copper: #d97746;
-  --copper-hover: #c46433;
-  --gold: #d4a754;
-  --gold-glow: rgba(212, 167, 84, 0.15);
-  --emerald: #3fa37c;
-  --emerald-bg: rgba(63, 163, 124, 0.12);
-  --amber: #e69d45;
-  --rose: #d65d5d;
-  
-  --font-serif: 'Fraunces', Georgia, serif;
-  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  
+  --admin-bg: #f6f7f8;
+  --admin-surface: #ffffff;
+  --admin-card: #ffffff;
+  --admin-border: #e2e5e9;
+
+  --text-main: #1c1f24;
+  --text-muted: #5c6470;
+  --text-dim: #8b93a0;
+
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-bg: rgba(37, 99, 235, 0.08);
+  --emerald: #16825d;
+  --emerald-bg: rgba(22, 130, 93, 0.08);
+  --amber: #b45309;
+  --amber-bg: rgba(180, 83, 9, 0.08);
+  --rose: #b42318;
+  --rose-bg: rgba(180, 35, 24, 0.08);
+
+  /* Aliases so pre-existing var(--gold)/var(--copper) references keep resolving while
+     they're migrated to --accent one call site at a time; remove once none remain. */
+  --gold: var(--accent);
+  --gold-glow: var(--accent-bg);
+  --copper: var(--accent);
+  --copper-hover: var(--accent-hover);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  /* Alias: UI chrome no longer uses a distinct serif face. */
+  --font-serif: var(--font-sans);
+
   --radius-sm: 6px;
   --radius-md: 12px;
   --radius-lg: 18px;
   --radius-pill: 9999px;
-  
-  --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  --transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
 }
 
 *, *::before, *::after {
@@ -108,7 +116,7 @@ body {
   margin-left: auto;
   min-width: 40px;
   min-height: 40px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.04);
   border: 1px solid var(--admin-border);
   color: var(--text-main);
   border-radius: var(--radius-sm);
@@ -122,7 +130,7 @@ body {
   display: none;
   min-width: 44px;
   min-height: 44px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--admin-border);
   color: var(--text-main);
   border-radius: var(--radius-sm);
@@ -195,14 +203,30 @@ body {
 }
 
 .nav-item-btn:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.035);
   color: var(--text-main);
 }
 
 .nav-item-btn.active {
   background: var(--admin-card);
-  color: var(--copper);
+  color: var(--accent);
   border-color: var(--admin-border);
+  font-weight: 600;
+}
+
+.nav-icon {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.nav-item-btn:hover .nav-icon,
+.nav-item-btn.active .nav-icon {
+  opacity: 1;
+}
+
+.nav-item-btn--external {
+  text-decoration: none;
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -288,17 +312,33 @@ body {
   transform: scale(0.96);
 }
 
+.btn-admin-action--brand {
+  background: var(--accent);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+
+.btn-admin-action--brand:hover {
+  background: var(--accent-hover);
+}
+
+.btn-table-action--link {
+  padding: 0.65rem 1.2rem;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
 /* AI Morning Roaster Briefing Card */
 .roaster-briefing-card {
-  background: linear-gradient(135deg, rgba(39, 33, 30, 0.9), rgba(27, 22, 20, 0.95));
+  background: var(--admin-card);
   border: 1px solid var(--admin-border);
-  border-left: 4px solid var(--gold);
+  border-left: 4px solid var(--accent);
   border-radius: var(--radius-lg);
   padding: 1.6rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
 }
 
 .briefing-header {
@@ -322,7 +362,7 @@ body {
 
 .briefing-content {
   font-size: clamp(0.9rem, 2.5vw, 0.98rem);
-  color: #e4d8d1;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
@@ -345,7 +385,7 @@ body {
 }
 
 .kpi-card:hover {
-  border-color: rgba(212, 167, 84, 0.3);
+  border-color: rgba(37, 99, 235, 0.3);
 }
 
 .kpi-title {
@@ -418,7 +458,7 @@ body {
 .panel-toggle {
   min-width: 36px;
   min-height: 36px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.04);
   border: 1px solid var(--admin-border);
   color: var(--text-muted);
   border-radius: var(--radius-sm);
@@ -454,7 +494,7 @@ body {
 
 .data-table th {
   padding: 1rem 1.4rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--admin-bg);
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.78rem;
@@ -466,7 +506,7 @@ body {
 
 .data-table td {
   padding: 1rem 1.4rem;
-  border-bottom: 1px solid rgba(56, 47, 42, 0.6);
+  border-bottom: 1px solid var(--admin-border);
   color: var(--text-main);
   vertical-align: middle;
 }
@@ -483,8 +523,8 @@ body {
 }
 
 .status-badge.roasting {
-  background: rgba(217, 119, 70, 0.18);
-  color: var(--copper);
+  background: var(--amber-bg);
+  color: var(--amber);
 }
 
 .status-badge.paid {
@@ -493,18 +533,18 @@ body {
 }
 
 .status-badge.shipped {
-  background: rgba(212, 167, 84, 0.18);
-  color: var(--gold);
+  background: var(--accent-bg);
+  color: var(--accent);
 }
 
 .status-badge.low-stock {
-  background: rgba(214, 93, 93, 0.18);
+  background: var(--rose-bg);
   color: var(--rose);
 }
 
 .btn-table-action {
   min-height: 44px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.04);
   border: 1px solid var(--admin-border);
   color: var(--text-main);
   padding: 0.5rem 1rem;
@@ -519,8 +559,9 @@ body {
 }
 
 .btn-table-action:hover {
-  background: var(--copper);
-  border-color: var(--copper);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .btn-table-action:active {
@@ -576,14 +617,14 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .batch-tier-pill:hover {
-  border-color: rgba(212, 167, 84, 0.4);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .batch-tier-pill.active {
-  background: linear-gradient(180deg, rgba(212, 167, 84, 0.15), rgba(212, 167, 84, 0.05));
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.15), rgba(37, 99, 235, 0.05));
   border-color: var(--gold);
-  box-shadow: 0 0 16px rgba(212, 167, 84, 0.2);
+  box-shadow: 0 0 16px rgba(37, 99, 235, 0.2);
 }
 
 .pill-size {
@@ -611,12 +652,12 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .pill-status.danger {
-  background: rgba(214, 93, 93, 0.15);
+  background: rgba(180, 35, 24, 0.15);
   color: var(--rose);
 }
 
 .pill-status.warning {
-  background: rgba(230, 157, 69, 0.15);
+  background: rgba(180, 83, 9, 0.15);
   color: var(--amber);
 }
 
@@ -626,7 +667,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .pill-status.premium {
-  background: rgba(212, 167, 84, 0.15);
+  background: rgba(37, 99, 235, 0.15);
   color: var(--gold);
 }
 
@@ -668,7 +709,7 @@ input[type="range"]::-webkit-slider-thumb {
 .admin-input-styled:focus {
   outline: none;
   border-color: var(--copper);
-  box-shadow: 0 0 0 2px rgba(217, 119, 70, 0.2);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
 .capacity-live-kpis {
@@ -689,18 +730,18 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .cap-metric-card.highlight {
-  border-color: rgba(217, 119, 70, 0.4);
+  border-color: rgba(37, 99, 235, 0.4);
 }
 
 .cap-metric-card.copper-glow {
-  background: linear-gradient(135deg, rgba(217, 119, 70, 0.1), rgba(212, 167, 84, 0.05));
-  border-color: rgba(212, 167, 84, 0.4);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0.05));
+  border-color: rgba(37, 99, 235, 0.4);
 }
 
 .cap-metric-card.revenue-span {
   grid-column: 1 / -1;
-  background: linear-gradient(135deg, rgba(63, 163, 124, 0.12), rgba(30, 25, 23, 0.8));
-  border-color: rgba(63, 163, 124, 0.4);
+  background: linear-gradient(135deg, rgba(22, 130, 93, 0.12), rgba(22, 130, 93, 0.02));
+  border-color: rgba(22, 130, 93, 0.4);
 }
 
 .cap-metric-label {
@@ -760,7 +801,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .milestone-card:hover {
-  border-color: rgba(212, 167, 84, 0.35);
+  border-color: rgba(37, 99, 235, 0.35);
 }
 
 .mcard-header {
@@ -787,17 +828,17 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .mcard-badge.breakeven {
-  background: rgba(217, 119, 70, 0.2);
-  color: var(--copper);
+  background: var(--amber-bg);
+  color: var(--amber);
 }
 
 .mcard-badge.investor {
-  background: rgba(212, 167, 84, 0.2);
-  color: var(--gold);
+  background: var(--accent-bg);
+  color: var(--accent);
 }
 
 .mcard-badge.wholesale {
-  background: rgba(63, 163, 124, 0.2);
+  background: rgba(22, 130, 93, 0.2);
   color: var(--emerald);
 }
 
@@ -824,25 +865,25 @@ input[type="range"]::-webkit-slider-thumb {
 .mcard-status-pill.success {
   background: var(--emerald-bg);
   color: var(--emerald);
-  border: 1px solid rgba(63, 163, 124, 0.3);
+  border: 1px solid rgba(22, 130, 93, 0.3);
 }
 
 .mcard-status-pill.warning {
-  background: rgba(230, 157, 69, 0.15);
+  background: rgba(180, 83, 9, 0.15);
   color: var(--amber);
-  border: 1px solid rgba(230, 157, 69, 0.3);
+  border: 1px solid rgba(180, 83, 9, 0.3);
 }
 
 .mcard-status-pill.danger {
-  background: rgba(214, 93, 93, 0.15);
+  background: rgba(180, 35, 24, 0.15);
   color: var(--rose);
-  border: 1px solid rgba(214, 93, 93, 0.3);
+  border: 1px solid rgba(180, 35, 24, 0.3);
 }
 
 .mcard-bar-wrap {
   width: 100%;
   height: 6px;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.08);
   border-radius: var(--radius-pill);
   overflow: hidden;
   margin: 0.2rem 0;
@@ -886,15 +927,15 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .capex-machine-card:hover {
-  border-color: rgba(217, 119, 70, 0.4);
+  border-color: rgba(37, 99, 235, 0.4);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.1);
 }
 
 .capex-machine-card.active-simulation {
-  border-color: var(--gold);
-  background: linear-gradient(180deg, rgba(212, 167, 84, 0.08), rgba(30, 25, 23, 0.95));
-  box-shadow: 0 0 20px rgba(212, 167, 84, 0.2);
+  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.02));
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
 }
 
 .capex-card-top {
@@ -909,7 +950,7 @@ input[type="range"]::-webkit-slider-thumb {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--copper);
-  background: rgba(217, 119, 70, 0.12);
+  background: rgba(37, 99, 235, 0.12);
   padding: 0.15rem 0.5rem;
   border-radius: var(--radius-sm);
   width: fit-content;
@@ -934,10 +975,10 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--admin-bg);
   padding: 0.8rem;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--admin-border);
 }
 
 .capex-spec-item {
@@ -960,7 +1001,7 @@ input[type="range"]::-webkit-slider-thumb {
 .btn-simulate-capex {
   width: 100%;
   min-height: 44px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.04);
   border: 1px solid var(--admin-border);
   color: var(--text-main);
   padding: 0.6rem 0.8rem;
@@ -983,9 +1024,9 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .btn-simulate-capex.active {
-  background: var(--gold);
-  border-color: var(--gold);
-  color: #141110;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .btn-simulate-capex:active {
@@ -1068,7 +1109,7 @@ input[type="range"]::-webkit-slider-thumb {
 .admin-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(10, 8, 7, 0.82);
+  background: rgba(15, 18, 22, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 1000;
@@ -1139,8 +1180,8 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .admin-modal-close:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-main);
 }
 
 .admin-modal-body {
@@ -1216,7 +1257,7 @@ input[type="range"]::-webkit-slider-thumb {
 .label-input-group textarea:focus {
   outline: none;
   border-color: var(--copper);
-  box-shadow: 0 0 0 2px rgba(217, 119, 70, 0.2);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
 }
 
 /* 3" x 4" THERMAL LABEL CARD (Screen & Print Replica) */
