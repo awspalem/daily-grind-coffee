@@ -218,3 +218,35 @@ test('seo: no internal link takes a needless redirect hop', () => {
   assert.doesNotMatch(html, /href="\/?(privacy|terms|shipping)\.html"/,
     'these 308 to their extensionless form — link straight to the destination');
 });
+
+test('seo: a stale fallback catalog cannot link to a page that was never generated', async () => {
+  // FALLBACK_PRODUCTS in main.ts is a hardcoded mirror of the catalog, used when the products
+  // fetch fails. It had drifted: three of its nine slugs (dawn-patrol-bangalore-blend,
+  // midnight-runner-dark-espresso, monsoon-malabar-aa-special-reserve) do not exist in the API
+  // the pages are generated from, so on any flaky connection those cards would have emitted
+  // /coffee/<slug> links straight to a 404.
+  //
+  // Keeping two hand-maintained lists in sync forever is the losing move, so the link is
+  // conditional on the product having come from the API instead. This asserts the guard, not
+  // the sync.
+  const main = readFileSync(join(ROOT, 'src', 'main.ts'), 'utf8');
+  assert.match(main, /has_detail_page: true/,
+    'products from the API must be marked as having a generated page');
+  assert.match(main, /\$\{prod\.has_detail_page \? `<a class="card-detail-link"/,
+    'the detail link must be conditional — a fallback product has no generated page');
+});
+
+test('seo: lastmod reflects the product, not the build', () => {
+  // Stamping today on all fifteen URLs every deploy claims everything changed every time,
+  // which is how a crawler learns to ignore lastmod entirely.
+  const xml = sitemap([{ ...PRODUCT, updated_at: '2026-08-14 14:43:54' }]);
+  const entry = /<loc>https:\/\/dailyroast\.in\/coffee\/[^<]+<\/loc>\s*<lastmod>([^<]+)<\/lastmod>/.exec(xml);
+  assert.equal(entry![1], '2026-08-14');
+});
+
+test('seo: a product with no updated_at still gets a valid lastmod', () => {
+  const xml = sitemap([{ ...PRODUCT, updated_at: undefined }]);
+  for (const [, mod] of [...xml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)]) {
+    assert.match(mod, /^\d{4}-\d{2}-\d{2}$/);
+  }
+});

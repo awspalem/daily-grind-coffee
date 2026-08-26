@@ -287,19 +287,23 @@ ${jsonLd(list)}
  */
 export function sitemap(products) {
   const today = new Date().toISOString().slice(0, 10);
+  // Stamping today on every URL every build claims all fifteen pages changed on every deploy,
+  // which is exactly the signal that teaches a crawler to stop believing lastmod. Product pages
+  // carry their own updated_at; the rest, which really do change with the build, carry today's.
+  const day = (v) => (v ? String(v).slice(0, 10) : today);
   const urls = [
-    `${SITE}/`,
-    `${SITE}/coffee/`,
-    ...products.map((p) => `${SITE}/coffee/${p.slug}`),
+    [`${SITE}/`, today],
+    [`${SITE}/coffee/`, today],
+    ...products.map((p) => [`${SITE}/coffee/${p.slug}`, day(p.updated_at)]),
     // Extensionless: Cloudflare Pages serves these at /privacy and 308s /privacy.html to it,
     // so listing the .html form pointed the sitemap at a redirect.
-    `${SITE}/shipping`,
-    `${SITE}/privacy`,
-    `${SITE}/terms`,
+    [`${SITE}/shipping`, today],
+    [`${SITE}/privacy`, today],
+    [`${SITE}/terms`, today],
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((u) => `  <url>\n    <loc>${u}</loc>\n    <lastmod>${today}</lastmod>\n  </url>`).join('\n')}
+${urls.map(([u, mod]) => `  <url>\n    <loc>${u}</loc>\n    <lastmod>${mod}</lastmod>\n  </url>`).join('\n')}
 </urlset>
 `;
 }

@@ -125,7 +125,7 @@ const FALLBACK_PRODUCTS: any[] = [
   },
   {
     id: 'prod_dawn_blend',
-    slug: 'dawn-patrol-bangalore-blend',
+    slug: 'dawn-patrol-morning-blend',
     name: 'Dawn Patrol Bangalore Roastery Blend',
     tagline: 'Silky dark chocolate fudge, toasted cashew & sweet caramel',
     description: 'Our flagship morning blend roasted right in Indiranagar. Marrying washed Chikmagalur Arabica with natural Coorg lots for a comforting, robust cup that thrives with milk or black.',
@@ -148,7 +148,7 @@ const FALLBACK_PRODUCTS: any[] = [
   },
   {
     id: 'prod_mid_runner',
-    slug: 'midnight-runner-dark-espresso',
+    slug: 'midnight-runner-espresso',
     name: 'Midnight Runner Dark Espresso',
     tagline: 'Dark Dutch cocoa, caramelized brown sugar & smoky velvet',
     description: 'Full-throttle dark roast profile engineered for rich extraction under 9 bars of pressure. Zero astringency, dense tiger stripe crema, and deep chocolate fudge notes.',
@@ -442,6 +442,9 @@ class StorefrontApp {
         if (data.products && data.products.length > 0) {
           this.products = data.products.map((p) => ({
             ...p,
+            // scripts/generate-seo.mjs builds /coffee/<slug> from this same endpoint, so a
+            // product that came from it has a page and a product that did not may not.
+            has_detail_page: true,
             variants: p.variants.map((v: any) => ({
               ...v,
               price_inr: v.price_inr || Math.round(v.price_cents * 0.23),
@@ -670,7 +673,7 @@ class StorefrontApp {
               reasons: a page reachable only from sitemap.xml indexes poorly, and the origin
               detail genuinely does not fit on a card. See scripts/generate-seo.mjs.
             -->
-            <a class="card-detail-link" href="/coffee/${this.escapeHtml(prod.slug)}">Origin, altitude &amp; process →</a>
+            ${prod.has_detail_page ? `<a class="card-detail-link" href="/coffee/${this.escapeHtml(prod.slug)}">Origin, altitude &amp; process →</a>` : ''}
 
             ${(() => {
               const rs = this.reviewSummary[prod.id];
