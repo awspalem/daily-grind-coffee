@@ -381,3 +381,14 @@ test('seo: the sitemap covers the brew pages and the FAQ', () => {
   }
   assert.doesNotMatch(xml, /\.html<\/loc>/);
 });
+
+test('seo: the Search Console verification tag is still in the homepage head', () => {
+  // Google re-checks this periodically. Losing it in a refactor un-verifies the property, which
+  // silently cuts off indexing data and the ability to submit sitemaps — and nothing else in the
+  // build would notice.
+  const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  const tag = /<meta name="google-site-verification" content="([^"]+)">/.exec(html);
+  assert.ok(tag, 'the google-site-verification meta tag is missing');
+  assert.equal(tag![1], 'M2ZhVCVSu1Pw3NQTufnYieht7RZf6226kzyQogzsklM');
+  assert.ok(html.indexOf(tag![0]) < html.indexOf('</head>'), 'it must be inside <head>');
+});
