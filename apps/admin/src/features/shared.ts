@@ -6,7 +6,10 @@
  * editing main.ts or index.html, so parallel feature work never collides.
  */
 
-export const API_BASE = 'https://api.dailyroast.in';
+// vite.config.ts proxies /api -> localhost:8787 in dev; use that instead of hitting prod
+// directly so local testing doesn't read/write real data (and doesn't need prod CORS to
+// allow the dev origin).
+export const API_BASE = import.meta.env.DEV ? '/api' : 'https://api.dailyroast.in';
 
 /**
  * fetch() against the admin API. Auth is Cloudflare Access at the edge — `credentials:
