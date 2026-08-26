@@ -198,7 +198,7 @@ test('header: the degradation ladder spends the cheapest thing first', () => {
     [1439, /\.nav-links li:has\(#nav-wheel-link\)\s*\{\s*display:\s*none/, 'Flavor Wheel'],
     [1279, /\.nav-links li:has\(#nav-brew-link\)\s*\{\s*display:\s*none/, 'Brewing Guides'],
     [1099, /\.nav-links li:has\(#nav-quiz-link\)\s*\{\s*display:\s*none/, 'Coffee Quiz'],
-    [979, /\.btn-ai-barista\s*\{\s*display:\s*none/, 'Ask Maya'],
+    [979, /\.btn-ai-barista \.barista-label\s*\{\s*display:\s*none/, "Ask Maya's label (the button stays, icon-only)"],
     [879, /\.nav-links li:has\(#nav-flight-link\)\s*\{\s*display:\s*none/, '3x 100g Flight'],
   ];
 
@@ -233,4 +233,42 @@ test('layout: the experiences grid centres its last row instead of stranding a c
   assert.match(block![1], /flex-wrap:\s*wrap/);
   assert.match(block![1], /justify-content:\s*center/,
     'four cards in a three-up grid left one alone against a wall of empty space');
+});
+
+test('header: Maya is reachable at every width, not just the ones with a header button', () => {
+  // The bottom tab bar that carries Maya on phones only appears at 768px. Hiding the header
+  // button at 979px therefore left 769–979 — iPad portrait is 810 and 834 — with no way to
+  // reach her at all. She goes icon-only in that band instead of away.
+  const band = /@media \(max-width: 979px\) \{([\s\S]*?)\n\}/.exec(CSS);
+  assert.ok(band, 'the 979px step is missing');
+  assert.doesNotMatch(band![1], /\.btn-ai-barista\s*\{\s*display:\s*none/,
+    'hiding the button here strands Maya between 769 and 768px');
+  assert.match(band![1], /\.barista-label\s*\{\s*display:\s*none/);
+});
+
+test('header: the icon-only button still announces itself', async () => {
+  const { document } = await loadPage();
+  const btn = document.querySelector('#btn-open-agent')!;
+  assert.ok(btn.getAttribute('aria-label'), 'with the label hidden this is all a screen reader has');
+  assert.equal(document.querySelector('.barista-spark')?.getAttribute('aria-hidden'), 'true',
+    'the sparkle is decoration; the aria-label carries the meaning');
+});
+
+test('nav: every link the header can drop has a home in the footer', async () => {
+  const { document } = await loadPage();
+  const footer = document.querySelector('footer')!;
+  const footerTargets = new Set(
+    [...footer.querySelectorAll('a[href^="#"]')].map((a) => a.getAttribute('href'))
+  );
+
+  // The ladder hides these as the screen narrows. A link that exists nowhere at 1366px is the
+  // same failure as the silent clipping this all replaced.
+  for (const href of ['#taster-flight', '#flavor-wheel', '#quiz', '#brew-guide', '#roastery-story']) {
+    assert.ok(footerTargets.has(href), `${href} is dropped from the header but absent from the footer`);
+  }
+});
+
+test('layout: the header row fits a 360px phone', () => {
+  // Wordmark + currency pills + two icon buttons came to 376px in a 360px viewport.
+  assert.match(CSS, /@media \(max-width: 380px\) \{[\s\S]*?\.brand-name,[\s\S]*?display:\s*none/);
 });
