@@ -519,20 +519,27 @@ agentApp.post(
       //
       // no_speech_prob is deliberately NOT used: whisper-large-v3-turbo reports 0 for every clip
       // including pure silence, so gating on it is a check that can never fire.
-      // A second, independent tell. Pink noise produced "A customer is a customer." at a
-      // healthy -0.216, so confidence alone does not catch every hallucination — and note what
-      // that sentence echoes: the domain prompt this endpoint sends begins "A customer talking
-      // to a specialty coffee roastery". Given no information, the model reaches for the prompt.
+      // Only avg_logprob is gated on. The other two figures are returned for diagnosis but are
+      // measured to be useless as gates on this model, and a check that cannot fire is worse
+      // than no check because it reads as protection:
       //
-      // Repetitive text compresses far better than speech, which is what compression_ratio
-      // measures and why Whisper's own decoder uses 2.4 as its threshold. Kept as a separate
-      // check rather than folded into the logprob one because they fail independently: silence
-      // is caught by confidence, degenerate repetition by compression.
+      //   no_speech_prob    reports 0.000 for every clip, silence included.
+      //   compression_ratio observed 0.65-0.95 across speech AND hallucinated noise. Whisper's
+      //                     own decoder uses >2.4; nothing here comes close, so the threshold
+      //                     could never trigger.
+      //
+      // What IS caught: silence, reliably. Real speech scores -0.08 to -0.34 (loud or quiet,
+      // since this measures token confidence rather than level), digital silence -0.973.
+      //
+      // What is NOT caught, and is a known limitation rather than an oversight: steady
+      // background noise sometimes yields a fluent, confident hallucination — pink noise
+      // produced "So, I'm going to go ahead and see the next one" at -0.35, which is inside the
+      // range real speech occupies. No server-side signal available here separates the two, so
+      // the defence for that case is the client's peak-level gate before upload, and the fact
+      // that the transcript is shown as the person's own message where they can see it is wrong.
       const HALLUCINATION_LOGPROB = -0.7;
-      const HALLUCINATION_COMPRESSION = 2.4;
       const looksEmpty = !text || text.replace(/[^a-z0-9]/gi, '').length < 2;
-      const looksHallucinated = hasSegments
-        && (avgLogprob < HALLUCINATION_LOGPROB || compressionRatio > HALLUCINATION_COMPRESSION);
+      const looksHallucinated = hasSegments && avgLogprob < HALLUCINATION_LOGPROB;
 
       if (looksEmpty || looksHallucinated) {
         return c.json({ success: false, error: "I didn't catch that - try again?", empty: true }, 200);
