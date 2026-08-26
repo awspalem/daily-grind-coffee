@@ -206,6 +206,34 @@ compares them as text and `'T'` sorts above `' '`, so a grant issued *now* faile
 plan, and the consultation credits appeared tomorrow. Lapsed grants lingered a day for the same
 reason, as did loyalty lot expiry. Every such comparison now wraps both sides in `datetime()`.
 
+### Desktop layout, and what measuring it found
+
+The header's intrinsic width is about 1620px — brand 263, seven links 802, four controls 505 — so
+it has never fitted a 1280 or 1440 display. Two attempts missed why: letting flex shrink the links
+wrapped every label onto two lines, and `white-space: nowrap` stopped the wrapping by pushing the
+whole page sideways instead (1614px of scrollWidth in a 1440px viewport). The cause was that the
+flex child of `.nav-container` is the `<nav>` wrapper, not `.nav-links`; without `min-width: 0` on
+`<nav>`, its default `min-width: auto` pinned it to its intrinsic width and no shrinking anywhere
+inside could take effect.
+
+The header now degrades in a measured order as the screen narrows and never clips silently, since
+a link scrolled out of sight inside the header is a link nobody knows exists. Measured with
+Playwright at every width from 360 to 1920: page overflow 0, links clipped 0, no wrapping.
+
+Four further defects came out of measuring rather than out of any report:
+
+| Found | Was |
+| --- | --- |
+| `.quiz-section` mobile margin | `margin: 0 -0.5rem` made the document 8px wider than a 390px screen — a full-page sideways scroll for one section's bleed. |
+| Maya on tablets | Hiding the header button at 979px stranded her between 769 and 979: the bottom bar that carries her on phones only appears at 768. iPad portrait is 810 and 834. She is icon-only in that band now. |
+| Orphaned cards | Four experiences in a three-up grid, and five plans in an auto-fit grid, each left one card alone beside a wall of empty space. Both wrap with a centred last row. |
+| Two "MOST POPULAR" plans | Both Connoisseur tiers carried the badge. Side by side that is noise, not a signal, and it helps nobody choose between the two plans showing it. Migration 0017 makes the annual tier RECOMMENDED. |
+
+The footer repeated the header's mistake one level down: its grid declared `1.5fr repeat(3, 1fr)`,
+written when it had four children, while it had grown to six. `nav.test.ts` now asserts the
+declared track count against the number of columns the page actually produces, so the next one
+added fails the suite instead of the layout.
+
 ### Not started
 
 Phase 6 in full — batch traceability, back-in-stock alerts, wishlist, gifting, replenishment
