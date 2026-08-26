@@ -46,6 +46,16 @@ export function canSpeak() {
 /** Longest single utterance we will record. Also enforced as a byte cap on the server. */
 export const MAX_RECORDING_MS = 45_000;
 /**
+ * Below this peak amplitude a recording is background noise, not speech.
+ *
+ * This exists because Whisper does not go quiet on silence — it hallucinates fluent filler.
+ * Three seconds of digital silence transcribed as "Thank you." in testing, which would have
+ * been posted into the chat as though the person had said it. The server rejects that using the
+ * model's own no_speech_prob, but catching it here as well means an empty room never costs an
+ * API call and the person gets told immediately instead of after a round trip.
+ */
+export const SILENCE_PEAK_THRESHOLD = 0.02;
+/**
  * Starts capture and resolves the recorded audio when stopped. The caller owns the returned
  * handle; the stream's tracks are always stopped, including on the error paths, because leaving
  * them live keeps the browser's recording indicator on after the UI says it has finished.
@@ -61,9 +71,39 @@ export async function startRecording(onStop) {
     const chunks = [];
     let cancelled = false;
     let timeout;
+    // Peak metering. Wrapped because AudioContext is unavailable or blocked in some contexts, and
+    // failing to meter must never stop someone recording — it only costs us the silence check.
+    let peak = 0;
+    let audioCtx = null;
+    let meterFrame;
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+            audioCtx = new Ctx();
+            const source = audioCtx.createMediaStreamSource(stream);
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 2048;
+            source.connect(analyser);
+            const buf = new Float32Array(analyser.fftSize);
+            const sample = () => {
+                analyser.getFloatTimeDomainData(buf);
+                for (let i = 0; i < buf.length; i++) {
+                    const v = Math.abs(buf[i]);
+                    if (v > peak)
+                        peak = v;
+                }
+                meterFrame = requestAnimationFrame(sample);
+            };
+            sample();
+        }
+    }
+    catch { /* metering is optional */ }
     const release = () => {
         if (timeout)
             clearTimeout(timeout);
+        if (meterFrame !== undefined)
+            cancelAnimationFrame(meterFrame);
+        audioCtx?.close().catch(() => { });
         for (const track of stream.getTracks())
             track.stop();
     };
@@ -95,6 +135,7 @@ export async function startRecording(onStop) {
             recorder.stop();
         else
             release(); },
+        peakLevel: () => peak,
     };
 }
 /**

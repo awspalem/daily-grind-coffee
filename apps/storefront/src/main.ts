@@ -2282,11 +2282,19 @@ class StorefrontApp {
       if (el) el.textContent = msg;
     };
 
-    const finish = async (audio: Blob | null, error?: string) => {
+    const finish = async (audio: Blob | null, error?: string, peak = 1) => {
       this.voiceRecorder = null;
       if (error || !audio || audio.size < 1200) {
         setState('');
         hint(error || 'That was too short — hold the mic while you talk.');
+        return;
+      }
+      // Whisper answers silence with confident filler rather than nothing, so a clip with no
+      // speech in it must not be sent at all. Checked again on the server; caught here so an
+      // empty room costs nothing and the person hears about it immediately.
+      if (peak < voice.SILENCE_PEAK_THRESHOLD) {
+        setState('');
+        hint("I couldn't hear anything — check your microphone and try again.");
         return;
       }
       setState('working');
@@ -2310,7 +2318,8 @@ class StorefrontApp {
         setState('recording');
         hint('Listening… release to send.');
         this.triggerHaptic();
-        this.voiceRecorder = await voice.startRecording((audio, err) => { void finish(audio, err); });
+        const rec = await voice.startRecording((audio, err) => { void finish(audio, err, rec?.peakLevel() ?? 1); });
+        this.voiceRecorder = rec;
       } catch {
         setState('');
         this.voiceRecorder = null;

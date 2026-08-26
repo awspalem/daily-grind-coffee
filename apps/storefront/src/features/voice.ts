@@ -52,7 +52,20 @@ export const MAX_RECORDING_MS = 45_000;
 export interface Recorder {
   stop(): void;
   cancel(): void;
+  /** Loudest sample seen so far, 0..1. Used to avoid uploading a clip with no speech in it. */
+  peakLevel(): number;
 }
+
+/**
+ * Below this peak amplitude a recording is background noise, not speech.
+ *
+ * This exists because Whisper does not go quiet on silence — it hallucinates fluent filler.
+ * Three seconds of digital silence transcribed as "Thank you." in testing, which would have
+ * been posted into the chat as though the person had said it. The server rejects that using the
+ * model's own no_speech_prob, but catching it here as well means an empty room never costs an
+ * API call and the person gets told immediately instead of after a round trip.
+ */
+export const SILENCE_PEAK_THRESHOLD = 0.02;
 
 /**
  * Starts capture and resolves the recorded audio when stopped. The caller owns the returned
@@ -75,8 +88,36 @@ export async function startRecording(
   let cancelled = false;
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
+  // Peak metering. Wrapped because AudioContext is unavailable or blocked in some contexts, and
+  // failing to meter must never stop someone recording — it only costs us the silence check.
+  let peak = 0;
+  let audioCtx: AudioContext | null = null;
+  let meterFrame: number | undefined;
+  try {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (Ctx) {
+      audioCtx = new Ctx();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      const buf = new Float32Array(analyser.fftSize);
+      const sample = () => {
+        analyser.getFloatTimeDomainData(buf);
+        for (let i = 0; i < buf.length; i++) {
+          const v = Math.abs(buf[i]);
+          if (v > peak) peak = v;
+        }
+        meterFrame = requestAnimationFrame(sample);
+      };
+      sample();
+    }
+  } catch { /* metering is optional */ }
+
   const release = () => {
     if (timeout) clearTimeout(timeout);
+    if (meterFrame !== undefined) cancelAnimationFrame(meterFrame);
+    audioCtx?.close().catch(() => { /* already closed */ });
     for (const track of stream.getTracks()) track.stop();
   };
 
@@ -106,6 +147,7 @@ export async function startRecording(
   return {
     stop: () => { if (recorder.state === 'recording') recorder.stop(); },
     cancel: () => { cancelled = true; if (recorder.state === 'recording') recorder.stop(); else release(); },
+    peakLevel: () => peak,
   };
 }
 

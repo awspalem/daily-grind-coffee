@@ -87,7 +87,9 @@ test('voice: recording requires a secure context, because getUserMedia does', ()
 
 test('voice: the microphone is always released, including on the failure paths', () => {
   // A stream left live keeps the browser's recording indicator on after the UI says it stopped.
-  const release = /const release = \(\) => \{[\s\S]*?\}/.exec(VOICE);
+  // Anchored on the closing brace at function indentation: a lazy match to the first `}` now
+  // stops inside the audioCtx.close() callback and proves nothing.
+  const release = /const release = \(\) => \{[\s\S]*?\n  \};/.exec(VOICE);
   assert.ok(release, 'expected a single release() that stops the tracks');
   assert.match(release![0], /track\.stop\(\)/);
   for (const evt of ['stop', 'error']) {
@@ -124,4 +126,29 @@ test('voice: the filename extension follows what was actually recorded', () => {
 
 test('voice: recording stops before Maya speaks, so she is not recorded talking', () => {
   assert.match(MAIN, /voice\.stopSpeaking\(\);[\s\S]{0,120}startRecording|stopSpeaking\(\); \/\/ never record/);
+});
+
+test('voice: silence is refused before it costs an API call', () => {
+  // Whisper does not go quiet on silence — it hallucinates fluent filler. Three seconds of
+  // digital silence came back as "Thank you." from the live endpoint during testing, which
+  // would have been posted into the chat as though the person had said it. An empty-string
+  // check cannot catch that, because the output is a well-formed sentence.
+  assert.match(VOICE, /SILENCE_PEAK_THRESHOLD/);
+  assert.match(VOICE, /peakLevel/);
+  assert.match(MAIN, /peak < voice\.SILENCE_PEAK_THRESHOLD/);
+});
+
+test('voice: metering failure never blocks recording', () => {
+  // AudioContext is unavailable or blocked in some contexts. Losing the meter costs us the
+  // silence check; it must not cost someone the ability to talk.
+  const meter = /let peak = 0;[\s\S]*?catch \{[^}]*\}/.exec(VOICE);
+  assert.ok(meter, 'the metering block must be wrapped');
+  assert.match(meter![0], /try \{/);
+});
+
+test('voice: the audio context is closed with the microphone', () => {
+  const release = /const release = \(\) => \{[\s\S]*?\n  \};/.exec(VOICE);
+  assert.ok(release);
+  assert.match(release![0], /audioCtx\?\.close\(\)/);
+  assert.match(release![0], /cancelAnimationFrame/);
 });

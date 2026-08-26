@@ -491,13 +491,25 @@ agentApp.post(
 
     const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL || DEFAULT_MODEL);
     try {
-      const { text, model } = await groq.transcribe(audio, `utterance.${EXT_FOR_MIME[mime] || 'webm'}`, {
-        model: c.env.GROQ_TRANSCRIBE_MODEL,
-      });
+      const { text, model, noSpeech, avgLogprob, hasSegments } = await groq.transcribe(
+        audio,
+        `utterance.${EXT_FOR_MIME[mime] || 'webm'}`,
+        { model: c.env.GROQ_TRANSCRIBE_MODEL }
+      );
 
-      // Whisper returns an empty string, or a stray artefact, for silence. Say so plainly rather
-      // than sending nothing-shaped text into the chat as though it were a question.
-      if (!text || text.replace(/[^a-z0-9]/gi, '').length < 2) {
+      // Whisper does not go quiet on silence — it hallucinates fluent, confident filler. Three
+      // seconds of digital silence came back as "Thank you." during testing, which would have
+      // been posted into the chat as though the person had said it. An empty-string check does
+      // not catch that, because the output is a well-formed sentence.
+      //
+      // no_speech_prob is the model's own estimate that a segment contains no speech, and
+      // avg_logprob how confident it is in the tokens it emitted; a hallucinated clip scores
+      // high on the first and poorly on the second. Both are advisory, so the crude checks stay
+      // as a backstop for a response that carries no segments at all.
+      const looksEmpty = !text || text.replace(/[^a-z0-9]/gi, '').length < 2;
+      const looksHallucinated = hasSegments && (noSpeech > 0.6 || avgLogprob < -1.0);
+
+      if (looksEmpty || looksHallucinated) {
         return c.json({ success: false, error: "I didn't catch that - try again?", empty: true }, 200);
       }
 

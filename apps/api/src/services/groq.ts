@@ -391,13 +391,16 @@ What flavors or brewing techniques would you like to explore today?`,
     audio: Blob,
     filename: string,
     opts: { model?: string; language?: string } = {}
-  ): Promise<{ text: string; model: string }> {
+  ): Promise<{ text: string; model: string; noSpeech: number; avgLogprob: number; hasSegments: boolean }> {
     if (!this.apiKey) throw new Error('GROQ_API_KEY is not configured');
 
     const form = new FormData();
     form.append('file', audio, filename);
     form.append('model', opts.model || DEFAULT_TRANSCRIBE_MODEL);
-    form.append('response_format', 'json');
+    // verbose_json carries per-segment no_speech_prob and avg_logprob. Plain json does not, and
+    // without them there is no principled way to tell speech from Whisper's confident
+    // hallucination on silence — it returns things like "Thank you." for a silent clip.
+    form.append('response_format', 'verbose_json');
     // Whisper hallucinates plausible-sounding words on silence; a prompt anchored to the domain
     // measurably reduces mangled coffee vocabulary ("your gachef" for Yirgacheffe, and so on).
     form.append('prompt', 'A customer talking to a specialty coffee roastery in Bangalore about coffee: Chikmagalur, Attikan, Araku, Yirgacheffe, Huila, filter kaapi, V60, AeroPress, espresso, grind, roast, subscription.');
@@ -414,8 +417,29 @@ What flavors or brewing techniques would you like to explore today?`,
       throw new Error(`Groq transcription failed (${res.status}): ${detail.slice(0, 300)}`);
     }
 
-    const data = await res.json() as { text?: string };
-    return { text: (data.text || '').trim(), model: opts.model || DEFAULT_TRANSCRIBE_MODEL };
+    const data = await res.json() as {
+      text?: string;
+      segments?: { no_speech_prob?: number; avg_logprob?: number }[];
+    };
+
+    const segments = Array.isArray(data.segments) ? data.segments : [];
+    // Averaged across segments rather than taken from the first: a clip that is silent
+    // throughout should score high everywhere, whereas one quiet gap at the start of real
+    // speech should not throw the whole utterance away.
+    const noSpeech = segments.length
+      ? segments.reduce((sum, sg) => sum + (sg.no_speech_prob ?? 0), 0) / segments.length
+      : 0;
+    const avgLogprob = segments.length
+      ? segments.reduce((sum, sg) => sum + (sg.avg_logprob ?? 0), 0) / segments.length
+      : 0;
+
+    return {
+      text: (data.text || '').trim(),
+      model: opts.model || DEFAULT_TRANSCRIBE_MODEL,
+      noSpeech,
+      avgLogprob,
+      hasSegments: segments.length > 0,
+    };
   }
 
 }
