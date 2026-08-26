@@ -295,6 +295,46 @@ export const SCA_FLAVOR_CATEGORIES: FlavorCategoryDef[] = [
   }
 ];
 
+/**
+ * Reads a Server-Sent Events body as it arrives, yielding one `{event, data}` per message.
+ * `fetch`'s ReadableStream (not EventSource, which cannot POST or carry the session header) is
+ * the only way to stream a request that needs a body and custom headers, so this is the minimal
+ * parser for the wire format `/api/agent/chat/stream` sends: `event: name` then `data: json`
+ * lines, terminated by a blank line.
+ */
+async function* parseSSEStream(body: ReadableStream<Uint8Array>): AsyncGenerator<{ event: string; data: string }> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let eventName = 'message';
+  let dataLines: string[] = [];
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (line === '') {
+          if (dataLines.length > 0) yield { event: eventName, data: dataLines.join('\n') };
+          eventName = 'message';
+          dataLines = [];
+        } else if (line.startsWith('event:')) {
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180.0;
   return {
@@ -2363,48 +2403,63 @@ class StorefrontApp {
       this.chatHistory = this.chatHistory.slice(-12);
     }
 
-    // 3. Show loading bubble
+    // 3. Show loading bubble — replaced with real tokens the moment the first one arrives.
     const loadingBubble = this.appendMessage('agent', 'Consulting our Indiranagar cupping table...');
 
+    const fail = () => {
+      // The user's turn never got a real answer, so it must not stay in history as
+      // though it did — otherwise the next turn sends Maya a transcript where she
+      // appears to have already made a recommendation she never made.
+      this.chatHistory.pop();
+      loadingBubble.innerHTML = this.renderMarkdown("I couldn't reach the roastery just now — please try asking again in a moment.");
+    };
+
     try {
-      const res = await fetch(`${API_BASE}/api/agent/chat`, {
+      const res = await fetch(`${API_BASE}/api/agent/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
         body: JSON.stringify({ messages: this.chatHistory })
       });
 
-      if (res.ok) {
-        const data = await res.json() as {
-          success: boolean;
-          reply: string;
-          proposed_actions?: any[];
-          action_card?: any;
-        };
+      if (!res.ok || !res.body) return fail();
 
-        const replyContent = data.reply || "I'd love to help you find your next favourite roast or dial in your brew!";
-        this.chatHistory.push({ role: 'assistant', content: replyContent });
-        if (this.chatHistory.length > 12) {
-          this.chatHistory = this.chatHistory.slice(-12);
+      let fullText = '';
+      let done: { reply: string; proposed_actions?: any[] } | null = null;
+
+      for await (const evt of parseSSEStream(res.body)) {
+        if (evt.event === 'delta') {
+          const { text: chunk } = JSON.parse(evt.data) as { text: string };
+          fullText += chunk;
+          loadingBubble.innerHTML = this.renderMarkdown(fullText);
+        } else if (evt.event === 'status') {
+          if (!fullText) {
+            const { label } = JSON.parse(evt.data) as { label: string };
+            loadingBubble.textContent = label;
+          }
+        } else if (evt.event === 'done') {
+          done = JSON.parse(evt.data) as { reply: string; proposed_actions?: any[] };
+        } else if (evt.event === 'error') {
+          // hono/streaming writes this event's data as the bare error message, not JSON —
+          // do not JSON.parse it here.
+          return fail();
         }
-
-        // Render formatted markdown inside bubble
-        loadingBubble.innerHTML = this.renderMarkdown(replyContent);
-        if (this.speakReplies) voice.speak(replyContent);
-
-        // Render interactive action cards if present
-        this.renderAgentActionCards(loadingBubble, data, cleanText, replyContent);
-      } else {
-        // The user's turn never got a real answer, so it must not stay in history as
-        // though it did — otherwise the next turn sends Maya a transcript where she
-        // appears to have already made a recommendation she never made.
-        this.chatHistory.pop();
-        const errorReply = "I couldn't reach the roastery just now — please try asking again in a moment.";
-        loadingBubble.innerHTML = this.renderMarkdown(errorReply);
       }
+
+      if (!done) return fail();
+
+      // The 'done' payload is authoritative — it is what actually goes into history, gets
+      // spoken and drives the action card, even though the deltas already rendered it once.
+      const replyContent = done.reply || "I'd love to help you find your next favourite roast or dial in your brew!";
+      this.chatHistory.push({ role: 'assistant', content: replyContent });
+      if (this.chatHistory.length > 12) {
+        this.chatHistory = this.chatHistory.slice(-12);
+      }
+
+      loadingBubble.innerHTML = this.renderMarkdown(replyContent);
+      if (this.speakReplies) voice.speak(replyContent);
+      this.renderAgentActionCards(loadingBubble, { proposed_actions: done.proposed_actions }, cleanText, replyContent);
     } catch {
-      this.chatHistory.pop();
-      const errorReply = "I couldn't reach the roastery just now — please try asking again in a moment.";
-      loadingBubble.innerHTML = this.renderMarkdown(errorReply);
+      fail();
     }
   }
 

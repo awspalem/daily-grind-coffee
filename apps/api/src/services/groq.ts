@@ -152,6 +152,150 @@ export class GroqService {
     return this.generateFallbackResponse(messages);
   }
 
+  /**
+   * Streaming counterpart to chatCompletion. Yields text as it arrives instead of waiting for
+   * the whole reply, so the first token can reach the browser well before the model finishes.
+   *
+   * Tool calls do not stream incrementally in any way worth surfacing — Groq sends their
+   * arguments as JSON fragments keyed by index, so they are accumulated here and yielded once,
+   * complete, when the stream ends. A caller that gets a 'tool_calls' event should treat it like
+   * the tool_calls on the non-streaming response: execute the tools and make a second call for
+   * the actual answer.
+   *
+   * Falls back to the ordinary blocking chatCompletion (which already retries and has a fully
+   * offline canned response) whenever the streaming request itself fails to start, so a network
+   * blip costs the streaming benefit for that one turn rather than the whole reply.
+   */
+  async *streamChatCompletion(
+    messages: GroqChatMessage[],
+    tools?: GroqToolDefinition[],
+    temperature: number = 0.5,
+    signal?: AbortSignal
+  ): AsyncGenerator<
+    { type: 'delta'; content: string } | { type: 'tool_calls'; tool_calls: any[] } | { type: 'done'; content: string },
+    void,
+    unknown
+  > {
+    if (!this.apiKey || this.apiKey === 'placeholder' || this.apiKey.trim() === '') {
+      const fallback = await this.chatCompletion(messages, tools, temperature);
+      if (fallback.content) yield { type: 'delta', content: fallback.content };
+      yield { type: 'done', content: fallback.content || '' };
+      return;
+    }
+
+    const formattedMessages = messages.map((m) => {
+      const msg: Record<string, any> = { role: m.role, content: m.content ?? '' };
+      if (m.tool_calls && m.tool_calls.length > 0) msg.tool_calls = m.tool_calls;
+      if (m.tool_call_id) msg.tool_call_id = m.tool_call_id;
+      if (m.name) msg.name = m.name;
+      return msg;
+    });
+
+    const payload: Record<string, unknown> = {
+      model: this.model,
+      messages: formattedMessages,
+      temperature,
+      max_tokens: 1024,
+      stream: true,
+    };
+    if (tools && tools.length > 0) {
+      payload.tools = tools;
+      payload.tool_choice = 'auto';
+    }
+
+    let res: Response;
+    try {
+      res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal,
+      });
+    } catch (networkErr) {
+      // A caller-driven abort (the browser disconnected mid-reply) is not a Groq failure — there
+      // is no one left to hand a fallback reply to, and starting a second, unabortable request
+      // would be the opposite of what the caller asked for by aborting.
+      if (signal?.aborted) return;
+      console.error('Groq streaming network error, falling back to blocking call:', networkErr);
+      const fallback = await this.chatCompletion(messages, tools, temperature);
+      if (fallback.content) yield { type: 'delta', content: fallback.content };
+      yield { type: 'done', content: fallback.content || '' };
+      return;
+    }
+
+    if (!res.ok || !res.body) {
+      console.warn(`Groq streaming request returned ${res.status}, falling back to blocking call.`);
+      const fallback = await this.chatCompletion(messages, tools, temperature);
+      if (fallback.content) yield { type: 'delta', content: fallback.content };
+      yield { type: 'done', content: fallback.content || '' };
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let accumulated = '';
+    // Tool call fragments arrive keyed by their position in the array, not necessarily in order,
+    // and each fragment carries only the piece of the JSON arguments string seen so far.
+    const toolCallsByIndex = new Map<number, { id?: string; type: string; function: { name: string; arguments: string } }>();
+
+    try {
+      while (true) {
+        if (signal?.aborted) return;
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const data = trimmed.slice(5).trim();
+          if (data === '[DONE]') continue;
+
+          let parsed: any;
+          try {
+            parsed = JSON.parse(data);
+          } catch {
+            continue;
+          }
+
+          const delta = parsed?.choices?.[0]?.delta;
+          if (!delta) continue;
+
+          if (typeof delta.content === 'string' && delta.content.length > 0) {
+            accumulated += delta.content;
+            yield { type: 'delta', content: delta.content };
+          }
+
+          if (Array.isArray(delta.tool_calls)) {
+            for (const tc of delta.tool_calls) {
+              const idx = tc.index ?? 0;
+              const existing = toolCallsByIndex.get(idx) || { type: 'function', function: { name: '', arguments: '' } };
+              if (tc.id) existing.id = tc.id;
+              if (tc.function?.name) existing.function.name += tc.function.name;
+              if (tc.function?.arguments) existing.function.arguments += tc.function.arguments;
+              toolCallsByIndex.set(idx, existing);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    if (toolCallsByIndex.size > 0) {
+      const toolCalls = Array.from(toolCallsByIndex.entries())
+        .sort(([a], [b]) => a - b)
+        .map(([, tc]) => tc);
+      yield { type: 'tool_calls', tool_calls: toolCalls };
+    }
+
+    yield { type: 'done', content: accumulated };
+  }
+
   private generateFallbackResponse(messages: GroqChatMessage[]): GroqChatMessage {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content.toLowerCase() || '';
 

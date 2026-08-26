@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import type { Env } from '../types/env';
 import { DEFAULT_MODEL, GroqService, type GroqChatMessage, type GroqToolDefinition } from '../services/groq';
 import { CoffeeDatabase } from '@daily-grind/db';
@@ -153,6 +154,179 @@ const AGENT_TOOLS: GroqToolDefinition[] = [
   },
 ];
 
+/** Shown to the user while a tool call is in flight, so streamed replies don't go silent during it. */
+const TOOL_STATUS_LABEL: Record<string, string> = {
+  semantic_coffee_search: 'Searching the catalog by flavor...',
+  search_coffee: 'Searching the catalog...',
+  get_brewing_guide: 'Pulling up the brew guide...',
+  check_order_status: 'Checking your order...',
+  propose_add_to_cart: 'Preparing your cart update...',
+};
+
+/**
+ * Runs one tool call and returns the message to feed back to the model, plus a proposed action
+ * when the tool is a mutation awaiting confirmation. Shared between the blocking and streaming
+ * chat endpoints so the two never drift on what a given tool actually does.
+ *
+ * Returns null for a tool name the model invented that isn't wired up, matching the previous
+ * behaviour of silently not pushing a result for it.
+ */
+async function runToolCall(
+  call: { id: string; function: { name: string; arguments: string } },
+  ctx: { env: Env; db: CoffeeDatabase; ai: WorkersAIService; sessionToken?: string }
+): Promise<{ toolResult: any; proposedAction?: any } | null> {
+  const toolName = call.function.name;
+  let toolArgs: any = {};
+  try {
+    toolArgs = typeof call.function.arguments === 'string' ? JSON.parse(call.function.arguments) : call.function.arguments;
+  } catch {
+    toolArgs = {};
+  }
+
+  if (toolName === 'semantic_coffee_search') {
+    const queryEmbedding = await ctx.ai.generateEmbedding(toolArgs.query || '');
+    const products = await ctx.db.getAllProducts();
+
+    const scored = await Promise.all(
+      products.map(async (p) => {
+        const productText = `${p.name} ${p.tagline} ${p.description} ${p.tasting_notes.join(' ')} ${p.roast_level} ${p.origin_country}`;
+        const pEmb = await ctx.ai.generateEmbedding(productText);
+        const score = ctx.ai.calculateSimilarity(queryEmbedding, pEmb);
+        return { product: p, score };
+      })
+    );
+
+    scored.sort((a, b) => b.score - a.score);
+    const topMatches = scored.slice(0, 3).map((s) => ({
+      name: s.product.name,
+      roast: s.product.roast_level,
+      notes: s.product.tasting_notes,
+      match_score: Math.round(s.score * 100) + '%',
+      starting_price_cents: s.product.variants[0]?.price_cents || 1850,
+      starting_price: `$${((s.product.variants[0]?.price_cents || 1850) / 100).toFixed(2)}`,
+      variants: s.product.variants.map((v) => ({ id: v.id, weight: `${v.weight_grams}g`, price: `$${(v.price_cents / 100).toFixed(2)}` })),
+    }));
+
+    return { toolResult: { tool_call_id: call.id, name: toolName, result: topMatches } };
+  }
+
+  if (toolName === 'search_coffee') {
+    const products = await ctx.db.getAllProducts(toolArgs.category_slug, toolArgs.roast_level);
+    let filtered = products;
+    if (toolArgs.query) {
+      const q = toolArgs.query.toLowerCase();
+      filtered = products.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.tasting_notes.some((n) => n.toLowerCase().includes(q)) ||
+          p.description.toLowerCase().includes(q)
+      );
+    }
+    return {
+      toolResult: {
+        tool_call_id: call.id,
+        name: toolName,
+        result: filtered.map((p) => ({
+          id: p.id,
+          name: p.name,
+          roast_level: p.roast_level,
+          tasting_notes: p.tasting_notes,
+          price_from_cents: p.variants[0]?.price_cents || 1850,
+          price_from: `$${((p.variants[0]?.price_cents || 1850) / 100).toFixed(2)}`,
+          variants: p.variants.map((v) => ({ id: v.id, weight: `${v.weight_grams}g`, price: `$${(v.price_cents / 100).toFixed(2)}` })),
+        })),
+      },
+    };
+  }
+
+  if (toolName === 'get_brewing_guide') {
+    const guides = await ctx.db.getBrewingGuides();
+    const methodQuery = (toolArgs.method || '').toLowerCase();
+    const matched = guides.find((g) => g.slug.includes(methodQuery) || g.name.toLowerCase().includes(methodQuery));
+    return { toolResult: { tool_call_id: call.id, name: toolName, result: matched || guides[0] } };
+  }
+
+  if (toolName === 'check_order_status') {
+    const order = await ctx.env.DB.prepare(
+      'SELECT order_number, status, total_cents, tracking_number, carrier, created_at FROM orders WHERE order_number = ?'
+    ).bind(toolArgs.order_number).first();
+
+    return {
+      toolResult: {
+        tool_call_id: call.id,
+        name: toolName,
+        result: order || {
+          found: false,
+          order_number: toolArgs.order_number,
+          message: 'No order with this number was found. Ask the customer to double-check the order number, or offer to have the team look into it.',
+        },
+      },
+    };
+  }
+
+  if (toolName === 'propose_add_to_cart') {
+    const confirmationToken = 'act_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+    const actionPayload = {
+      confirmation_token: confirmationToken,
+      tool_name: 'add_to_cart',
+      arguments: {
+        variant_id: toolArgs.variant_id || 'var_att_250',
+        product_name: toolArgs.product_name || 'Chikmagalur Attikan Estate Honey',
+        grind_type: toolArgs.grind_type || 'WHOLE_BEAN',
+        quantity: toolArgs.quantity || 1,
+        session_token: ctx.sessionToken,
+      },
+      summary: `Add ${toolArgs.quantity || 1}x ${toolArgs.product_name} (${toolArgs.grind_type}) to your cart`,
+      expires_at: Date.now() + 15 * 60 * 1000,
+    };
+    return {
+      toolResult: {
+        tool_call_id: call.id,
+        name: toolName,
+        result: {
+          status: 'CONFIRMATION_REQUIRED',
+          message: 'User must confirm this cart modification.',
+          action: actionPayload,
+        },
+      },
+      proposedAction: actionPayload,
+    };
+  }
+
+  return null;
+}
+
+/** Builds the shared system + personalization + history preamble both chat endpoints send to Groq. */
+async function buildFullMessages(
+  c: { env: Env; req: { header: (name: string) => string | undefined } },
+  rawMessages: GroqChatMessage[]
+): Promise<GroqChatMessage[]> {
+  // Personalisation (gap 1.5): when the caller carries a customer session, Maya gets a compact
+  // summary of their taste graph as a second system message. Deliberately additive and
+  // best-effort — an anonymous visitor, an expired token or a profile failure must all leave the
+  // chat working exactly as before, so nothing here can 401 or throw into the request.
+  let customerContext: string | null = null;
+  try {
+    const customerSession = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
+    if (customerSession) {
+      const profile = await getTasteProfile(c.env.DB, customerSession.customerId, customerSession.email);
+      const prefs = await c.env.DB
+        .prepare('SELECT default_grind, default_weight_grams, brew_method FROM customer_preferences WHERE customer_id = ?')
+        .bind(customerSession.customerId)
+        .first<any>();
+      customerContext = summariseProfileForAgent(profile, prefs);
+    }
+  } catch (err) {
+    console.error('[agent] customer context unavailable, continuing anonymously:', err);
+  }
+
+  return [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...(customerContext ? [{ role: 'system' as const, content: customerContext }] : []),
+    ...rawMessages,
+  ];
+}
+
 // POST /api/agent/chat
 agentApp.post('/chat', turnstileValidator, async (c) => {
   const sessionToken = c.req.header('X-Session-Token');
@@ -183,31 +357,7 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     });
   }
 
-  // Personalisation (gap 1.5): when the caller carries a customer session, Maya gets a compact
-  // summary of their taste graph as a second system message. Deliberately additive and
-  // best-effort — an anonymous visitor, an expired token or a profile failure must all leave the
-  // chat working exactly as before, so nothing here can 401 or throw into the request.
-  let customerContext: string | null = null;
-  try {
-    const customerSession = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
-    if (customerSession) {
-      const profile = await getTasteProfile(c.env.DB, customerSession.customerId, customerSession.email);
-      const prefs = await c.env.DB
-        .prepare('SELECT default_grind, default_weight_grams, brew_method FROM customer_preferences WHERE customer_id = ?')
-        .bind(customerSession.customerId)
-        .first<any>();
-      customerContext = summariseProfileForAgent(profile, prefs);
-    }
-  } catch (err) {
-    console.error('[agent] customer context unavailable, continuing anonymously:', err);
-  }
-
-  const fullMessages: GroqChatMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...(customerContext ? [{ role: 'system' as const, content: customerContext }] : []),
-    ...rawMessages,
-  ];
-
+  const fullMessages = await buildFullMessages(c, rawMessages);
   const responseMessage = await groq.chatCompletion(fullMessages, AGENT_TOOLS);
 
   // If tool calls were generated
@@ -216,116 +366,10 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     const proposedActions: any[] = [];
 
     for (const call of responseMessage.tool_calls) {
-      const toolName = call.function.name;
-      let toolArgs: any = {};
-      try {
-        toolArgs = typeof call.function.arguments === 'string' ? JSON.parse(call.function.arguments) : call.function.arguments;
-      } catch (e) {
-        toolArgs = {};
-      }
-
-      if (toolName === 'semantic_coffee_search') {
-        const queryEmbedding = await ai.generateEmbedding(toolArgs.query || '');
-        const products = await db.getAllProducts();
-
-        const scored = await Promise.all(
-          products.map(async (p) => {
-            const productText = `${p.name} ${p.tagline} ${p.description} ${p.tasting_notes.join(' ')} ${p.roast_level} ${p.origin_country}`;
-            const pEmb = await ai.generateEmbedding(productText);
-            const score = ai.calculateSimilarity(queryEmbedding, pEmb);
-            return { product: p, score };
-          })
-        );
-
-        scored.sort((a, b) => b.score - a.score);
-        const topMatches = scored.slice(0, 3).map((s) => ({
-          name: s.product.name,
-          roast: s.product.roast_level,
-          notes: s.product.tasting_notes,
-          match_score: Math.round(s.score * 100) + '%',
-          starting_price_cents: s.product.variants[0]?.price_cents || 1850,
-          starting_price: `$${((s.product.variants[0]?.price_cents || 1850) / 100).toFixed(2)}`,
-          variants: s.product.variants.map((v) => ({ id: v.id, weight: `${v.weight_grams}g`, price: `$${(v.price_cents / 100).toFixed(2)}` })),
-        }));
-
-        executedToolResults.push({
-          tool_call_id: call.id,
-          name: toolName,
-          result: topMatches,
-        });
-      } else if (toolName === 'search_coffee') {
-        const products = await db.getAllProducts(toolArgs.category_slug, toolArgs.roast_level);
-        let filtered = products;
-        if (toolArgs.query) {
-          const q = toolArgs.query.toLowerCase();
-          filtered = products.filter(
-            (p) =>
-              p.name.toLowerCase().includes(q) ||
-              p.tasting_notes.some((n) => n.toLowerCase().includes(q)) ||
-              p.description.toLowerCase().includes(q)
-          );
-        }
-        executedToolResults.push({
-          tool_call_id: call.id,
-          name: toolName,
-          result: filtered.map((p) => ({
-            id: p.id,
-            name: p.name,
-            roast_level: p.roast_level,
-            tasting_notes: p.tasting_notes,
-            price_from_cents: p.variants[0]?.price_cents || 1850,
-            price_from: `$${((p.variants[0]?.price_cents || 1850) / 100).toFixed(2)}`,
-            variants: p.variants.map((v) => ({ id: v.id, weight: `${v.weight_grams}g`, price: `$${(v.price_cents / 100).toFixed(2)}` })),
-          })),
-        });
-      } else if (toolName === 'get_brewing_guide') {
-        const guides = await db.getBrewingGuides();
-        const methodQuery = (toolArgs.method || '').toLowerCase();
-        const matched = guides.find((g) => g.slug.includes(methodQuery) || g.name.toLowerCase().includes(methodQuery));
-        executedToolResults.push({
-          tool_call_id: call.id,
-          name: toolName,
-          result: matched || guides[0],
-        });
-      } else if (toolName === 'check_order_status') {
-        const order = await c.env.DB.prepare(
-          'SELECT order_number, status, total_cents, tracking_number, carrier, created_at FROM orders WHERE order_number = ?'
-        ).bind(toolArgs.order_number).first();
-
-        executedToolResults.push({
-          tool_call_id: call.id,
-          name: toolName,
-          result: order || {
-            found: false,
-            order_number: toolArgs.order_number,
-            message: 'No order with this number was found. Ask the customer to double-check the order number, or offer to have the team look into it.',
-          },
-        });
-      } else if (toolName === 'propose_add_to_cart') {
-        const confirmationToken = 'act_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-        const actionPayload = {
-          confirmation_token: confirmationToken,
-          tool_name: 'add_to_cart',
-          arguments: {
-            variant_id: toolArgs.variant_id || 'var_att_250',
-            product_name: toolArgs.product_name || 'Chikmagalur Attikan Estate Honey',
-            grind_type: toolArgs.grind_type || 'WHOLE_BEAN',
-            quantity: toolArgs.quantity || 1,
-            session_token: sessionToken,
-          },
-          summary: `Add ${toolArgs.quantity || 1}x ${toolArgs.product_name} (${toolArgs.grind_type}) to your cart`,
-          expires_at: Date.now() + 15 * 60 * 1000,
-        };
-        proposedActions.push(actionPayload);
-        executedToolResults.push({
-          tool_call_id: call.id,
-          name: toolName,
-          result: {
-            status: 'CONFIRMATION_REQUIRED',
-            message: 'User must confirm this cart modification.',
-            action: actionPayload,
-          },
-        });
+      const outcome = await runToolCall(call, { env: c.env, db, ai, sessionToken });
+      if (outcome) {
+        executedToolResults.push(outcome.toolResult);
+        if (outcome.proposedAction) proposedActions.push(outcome.proposedAction);
       }
     }
 
@@ -353,6 +397,117 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     success: true,
     reply: responseMessage.content || 'How can I assist your coffee journey today?',
     message: responseMessage,
+  });
+});
+
+/**
+ * POST /api/agent/chat/stream
+ *
+ * Same contract as /chat (message/messages in, proposed_actions out) but as Server-Sent Events,
+ * so the browser can render Maya's reply as it is generated instead of waiting for the whole
+ * thing. Event types:
+ *
+ *   status  { label }                      a tool call is in flight (catalog search, order lookup, ...)
+ *   delta   { text }                       one chunk of the reply to append
+ *   done    { reply, proposed_actions }    the complete reply and any cart actions to confirm
+ *   error   "message"                      something failed; the browser should show it and stop
+ *
+ * /chat is kept as-is for callers that want one JSON response (see apps/api/test/live_verify.ts).
+ */
+agentApp.post('/chat/stream', turnstileValidator, async (c) => {
+  const sessionToken = c.req.header('X-Session-Token');
+  const body = await c.req.json<{
+    message?: string;
+    messages?: { role: 'user' | 'assistant' | 'system'; content: string }[];
+  }>().catch(() => ({} as any));
+
+  const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL || DEFAULT_MODEL);
+  const db = new CoffeeDatabase(c.env.DB);
+  const ai = new WorkersAIService(c.env.AI);
+
+  let rawMessages: { role: 'user' | 'assistant' | 'system'; content: string }[] = [];
+  if (Array.isArray(body.messages) && body.messages.length > 0) {
+    rawMessages = body.messages.filter((m: { role: 'user' | 'assistant' | 'system'; content: string }) => m && typeof m.content === 'string' && m.content.trim() !== '');
+  } else if (typeof body.message === 'string' && body.message.trim() !== '') {
+    rawMessages = [{ role: 'user', content: body.message.trim() }];
+  }
+
+  // hono/streaming swallows write errors on a disconnected client rather than throwing, so
+  // nothing would otherwise stop this handler running (and paying Groq) to completion after the
+  // browser has gone away. Tying the upstream requests to this signal is what actually stops them.
+  const abortController = new AbortController();
+
+  return streamSSE(c, async (stream) => {
+    stream.onAbort(() => abortController.abort());
+
+    if (rawMessages.length === 0) {
+      const greeting = "Namaskara! I'm Maya, your Master Barista at The Daily Roast. How can I guide your coffee journey today?";
+      await stream.writeSSE({ event: 'delta', data: JSON.stringify({ text: greeting }) });
+      await stream.writeSSE({ event: 'done', data: JSON.stringify({ reply: greeting, proposed_actions: [] }) });
+      return;
+    }
+
+    const fullMessages = await buildFullMessages(c, rawMessages);
+
+    // Pass 1: decide whether Maya can answer directly or needs a tool. A tool-calling response
+    // and a text response are mutually exclusive in practice (Groq/OpenAI-style function calling
+    // never emits both), so streaming this pass's deltas straight to the browser is safe — if
+    // tool_calls come back instead, there will be nothing accumulated here to have shown.
+    let firstPassContent = '';
+    let toolCalls: any[] = [];
+    for await (const event of groq.streamChatCompletion(fullMessages, AGENT_TOOLS, 0.5, abortController.signal)) {
+      if (event.type === 'delta') {
+        firstPassContent += event.content;
+        await stream.writeSSE({ event: 'delta', data: JSON.stringify({ text: event.content }) });
+      } else if (event.type === 'tool_calls') {
+        toolCalls = event.tool_calls;
+      }
+    }
+
+    if (toolCalls.length === 0) {
+      await stream.writeSSE({ event: 'done', data: JSON.stringify({ reply: firstPassContent, proposed_actions: [] }) });
+      return;
+    }
+
+    const executedToolResults: any[] = [];
+    const proposedActions: any[] = [];
+    for (const call of toolCalls) {
+      const label = TOOL_STATUS_LABEL[call.function?.name] || 'Working on it...';
+      await stream.writeSSE({ event: 'status', data: JSON.stringify({ label }) });
+      const outcome = await runToolCall(call, { env: c.env, db, ai, sessionToken });
+      if (outcome) {
+        executedToolResults.push(outcome.toolResult);
+        if (outcome.proposedAction) proposedActions.push(outcome.proposedAction);
+      }
+    }
+
+    const assistantToolCallMessage: GroqChatMessage = { role: 'assistant', content: '', tool_calls: toolCalls };
+    const secondPassMessages: GroqChatMessage[] = [
+      ...fullMessages,
+      assistantToolCallMessage,
+      ...executedToolResults.map((tr) => ({
+        role: 'tool' as const,
+        tool_call_id: tr.tool_call_id,
+        name: tr.name,
+        content: JSON.stringify(tr.result),
+      })),
+    ];
+
+    let secondPassContent = '';
+    for await (const event of groq.streamChatCompletion(secondPassMessages, undefined, 0.5, abortController.signal)) {
+      if (event.type === 'delta') {
+        secondPassContent += event.content;
+        await stream.writeSSE({ event: 'delta', data: JSON.stringify({ text: event.content }) });
+      }
+    }
+
+    await stream.writeSSE({
+      event: 'done',
+      data: JSON.stringify({
+        reply: secondPassContent || 'Here are the matching coffees from our roastery!',
+        proposed_actions: proposedActions,
+      }),
+    });
   });
 });
 
