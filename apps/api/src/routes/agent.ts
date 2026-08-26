@@ -5,6 +5,7 @@ import { CoffeeDatabase } from '@daily-grind/db';
 import { getOrCreateCart } from './cart';
 import { WorkersAIService } from '../services/workersAI';
 import { turnstileValidator } from '../middleware/turnstile';
+import { rateLimiter } from '../middleware/rateLimit';
 import { resolveCustomerSession } from '../middleware/customerAuth';
 import { getTasteProfile, summariseProfileForAgent } from '../services/customerProfile';
 import type { GrindType } from '@daily-grind/shared-types';
@@ -411,5 +412,101 @@ agentApp.post('/confirm-action', async (c) => {
 
   return c.json({ success: false, error: 'Unknown or unsupported action' }, 400);
 });
+
+
+/**
+ * Voice input for Maya.
+ *
+ * This is the only endpoint on the API that accepts a file upload and spends money per call, so
+ * it is guarded more tightly than anything around it:
+ *
+ *  - The same Turnstile check as /chat. Never less: an exempt route here would be an open, paid,
+ *    file-accepting endpoint.
+ *  - Its own rate limit on top of the global one. A person press-to-talking manages a handful of
+ *    utterances a minute; 12 is generous for them and useless for anyone farming transcription.
+ *  - A hard byte cap checked before the audio is forwarded, so an oversized upload costs a 413
+ *    rather than a Groq bill. Content-Length is checked first where the client sends one, and the
+ *    real blob size again after parsing, because a header can lie.
+ *
+ * The audio is never written anywhere and the transcript is not logged. This endpoint turns
+ * speech into a string and hands it straight back; the browser then sends that string through
+ * the ordinary /chat path, so voice and typing converge immediately and there is no second
+ * conversation implementation to keep in step.
+ */
+const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
+
+const ALLOWED_AUDIO_TYPES = [
+  'audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/mp3',
+  'audio/wav', 'audio/x-wav', 'audio/flac', 'audio/m4a', 'audio/x-m4a',
+];
+
+/** MediaRecorder reports things like "audio/webm;codecs=opus" - compare on the type alone. */
+const baseMime = (t: string) => (t || '').split(';')[0].trim().toLowerCase();
+
+/** Whisper picks its decoder off the extension, so it has to match what was actually recorded. */
+const EXT_FOR_MIME: Record<string, string> = {
+  'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'mp4', 'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/flac': 'flac',
+  'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a',
+};
+
+agentApp.post(
+  '/transcribe',
+  turnstileValidator,
+  rateLimiter({ windowSeconds: 60, maxRequests: 12 }),
+  async (c) => {
+    if (!c.env.GROQ_API_KEY) {
+      return c.json({ success: false, error: 'Voice input is not configured' }, 503);
+    }
+
+    const declared = Number(c.req.header('Content-Length') || 0);
+    if (declared > MAX_AUDIO_BYTES) {
+      return c.json({ success: false, error: 'Recording is too long. Keep it under a minute.' }, 413);
+    }
+
+    // Typed loosely because the Workers FormData lib types `get` as string | File, and the
+    // structural check below is what actually matters: it must be a Blob with bytes.
+    let audio: Blob | null = null;
+    try {
+      const form = await c.req.formData();
+      const field = form.get('audio') as unknown;
+      if (field && typeof field === 'object' && 'arrayBuffer' in field && 'size' in field) {
+        audio = field as Blob;
+      }
+    } catch {
+      return c.json({ success: false, error: 'Expected multipart form data with an audio field' }, 400);
+    }
+
+    if (!audio || audio.size === 0) {
+      return c.json({ success: false, error: 'No audio was received' }, 400);
+    }
+    if (audio.size > MAX_AUDIO_BYTES) {
+      return c.json({ success: false, error: 'Recording is too long. Keep it under a minute.' }, 413);
+    }
+
+    const mime = baseMime(audio.type);
+    if (!ALLOWED_AUDIO_TYPES.includes(mime)) {
+      return c.json({ success: false, error: `Unsupported audio format: ${mime || 'unknown'}` }, 415);
+    }
+
+    const groq = new GroqService(c.env.GROQ_API_KEY, c.env.GROQ_MODEL || DEFAULT_MODEL);
+    try {
+      const { text, model } = await groq.transcribe(audio, `utterance.${EXT_FOR_MIME[mime] || 'webm'}`, {
+        model: c.env.GROQ_TRANSCRIBE_MODEL,
+      });
+
+      // Whisper returns an empty string, or a stray artefact, for silence. Say so plainly rather
+      // than sending nothing-shaped text into the chat as though it were a question.
+      if (!text || text.replace(/[^a-z0-9]/gi, '').length < 2) {
+        return c.json({ success: false, error: "I didn't catch that - try again?", empty: true }, 200);
+      }
+
+      return c.json({ success: true, text, model });
+    } catch (err) {
+      console.error('Transcription failed:', err instanceof Error ? err.message : err);
+      return c.json({ success: false, error: 'Could not transcribe that. You can type it instead.' }, 502);
+    }
+  }
+);
 
 export { agentApp };

@@ -15,6 +15,8 @@ export interface Env {
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
   GROQ_API_KEY?: string;
+  /** Overrides the speech-to-text model; defaults to whisper-large-v3-turbo. */
+  GROQ_TRANSCRIBE_MODEL?: string;
   GROQ_MODEL?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;

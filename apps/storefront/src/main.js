@@ -5,6 +5,7 @@ import { initLoyalty, redeemPointsForSubtotal } from './features/loyalty';
 import { initReferral, clearStoredReferralCode, getStoredReferralCode } from './features/referral';
 import { initSubscriptions } from './features/subscriptions';
 import { initExperiences } from './features/experiences';
+import * as voice from './features/voice';
 // Cloudflare Pages' `_redirects` 200-status rewrite does not proxy the Worker API reliably
 // (POST requests 405 at the Pages edge, GET requests fall through to the SPA shell instead of
 // reaching the Worker) — so we call the Worker's own URL directly. The Worker already sends
@@ -1522,6 +1523,7 @@ class StorefrontApp {
             input.value = '';
             this.sendAgentMessage(text);
         });
+        this.initVoiceControls();
         document.querySelectorAll('#agent-suggestion-chips .chat-chip').forEach((chip) => {
             chip.addEventListener('click', () => {
                 const prompt = chip.getAttribute('data-prompt');
@@ -2107,6 +2109,113 @@ class StorefrontApp {
             // No product found for this id — nothing to open
         }
     }
+    /**
+     * Voice for Maya. Entirely additive: if the browser cannot record, the mic button is never
+     * unhidden and the typed chat is untouched. A transcript is fed back through
+     * sendAgentMessage, so voice and typing share one conversation, one history and one escaping
+     * path — there is no second chat implementation here.
+     */
+    voiceRecorder = null;
+    speakReplies = false;
+    initVoiceControls() {
+        const mic = document.getElementById('agent-mic-btn');
+        const speakToggle = document.getElementById('agent-speak-toggle');
+        if (speakToggle && voice.canSpeak()) {
+            speakToggle.hidden = false;
+            // Remembered per browser: someone who wants Maya out loud wants it next visit too.
+            try {
+                this.speakReplies = localStorage.getItem('tdg_speak_replies') === '1';
+            }
+            catch { /* private mode: fall back to off */ }
+            const paint = () => {
+                speakToggle.setAttribute('aria-pressed', String(this.speakReplies));
+                speakToggle.textContent = this.speakReplies ? '🔊' : '🔈';
+            };
+            paint();
+            speakToggle.addEventListener('click', () => {
+                this.speakReplies = !this.speakReplies;
+                if (!this.speakReplies)
+                    voice.stopSpeaking();
+                try {
+                    localStorage.setItem('tdg_speak_replies', this.speakReplies ? '1' : '0');
+                }
+                catch { /* ignore */ }
+                paint();
+            });
+        }
+        if (!mic || !voice.canRecord())
+            return;
+        mic.hidden = false;
+        const setState = (state) => {
+            if (state)
+                mic.setAttribute('data-state', state);
+            else
+                mic.removeAttribute('data-state');
+            mic.setAttribute('aria-label', state === 'recording' ? 'Release to send' : 'Hold to speak to Maya');
+        };
+        const hint = (msg) => {
+            const el = document.getElementById('agent-voice-hint');
+            if (el)
+                el.textContent = msg;
+        };
+        const finish = async (audio, error) => {
+            this.voiceRecorder = null;
+            if (error || !audio || audio.size < 1200) {
+                setState('');
+                hint(error || 'That was too short — hold the mic while you talk.');
+                return;
+            }
+            setState('working');
+            hint('Transcribing…');
+            const result = await voice.transcribe(API_BASE, audio, this.sessionId);
+            setState('');
+            if (result.error || !result.text) {
+                hint(result.error || "I didn't catch that — try again?");
+                return;
+            }
+            hint('');
+            // Straight into the normal path, exactly as if it had been typed.
+            this.sendAgentMessage(result.text);
+        };
+        const begin = async (e) => {
+            e.preventDefault();
+            if (this.voiceRecorder)
+                return;
+            voice.stopSpeaking(); // never record Maya talking over the person
+            try {
+                setState('recording');
+                hint('Listening… release to send.');
+                this.triggerHaptic();
+                this.voiceRecorder = await voice.startRecording((audio, err) => { void finish(audio, err); });
+            }
+            catch {
+                setState('');
+                this.voiceRecorder = null;
+                hint('Microphone blocked. You can still type your question.');
+            }
+        };
+        const end = (e) => {
+            e.preventDefault();
+            if (!this.voiceRecorder)
+                return;
+            this.voiceRecorder.stop();
+        };
+        // Pointer events cover mouse, touch and pen in one path. `pointerup` is bound on the window
+        // because a finger very often leaves the button before it lifts, and a press that never
+        // ends is a microphone that never closes.
+        mic.addEventListener('pointerdown', begin);
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+        // Keyboard equivalent: the button is a real button, so it must work without a pointer.
+        mic.addEventListener('keydown', (e) => {
+            if ((e.key === ' ' || e.key === 'Enter') && !e.repeat)
+                void begin(e);
+        });
+        mic.addEventListener('keyup', (e) => {
+            if (e.key === ' ' || e.key === 'Enter')
+                end(e);
+        });
+    }
     async sendAgentMessage(text) {
         if (!text || !text.trim())
             return;
@@ -2136,6 +2245,8 @@ class StorefrontApp {
                 }
                 // Render formatted markdown inside bubble
                 loadingBubble.innerHTML = this.renderMarkdown(replyContent);
+                if (this.speakReplies)
+                    voice.speak(replyContent);
                 // Render interactive action cards if present
                 this.renderAgentActionCards(loadingBubble, data, cleanText, replyContent);
             }

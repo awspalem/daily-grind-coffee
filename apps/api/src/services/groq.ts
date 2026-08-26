@@ -24,6 +24,13 @@ export const FALLBACK_MODEL = 'openai/gpt-oss-20b';
 /** Ids Groq no longer serves. A request naming one of these fails outright. */
 const DECOMMISSIONED_MODELS = ['llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it'];
 
+/**
+ * Speech-to-text model. Turbo is the right default for a conversational turn: it is materially
+ * faster than whisper-large-v3 and the accuracy difference does not show on a few seconds of
+ * someone asking about coffee. Overridable so a deployment can trade back the other way.
+ */
+export const DEFAULT_TRANSCRIBE_MODEL = 'whisper-large-v3-turbo';
+
 export class GroqService {
   private apiKey?: string;
   private model: string;
@@ -372,4 +379,43 @@ I am **Maya**, your Master Barista & Roastery Sommelier. I can assist you with:
 What flavors or brewing techniques would you like to explore today?`,
     };
   }
+  /**
+   * Transcribes a single utterance. The audio never touches disk and is not retained here or,
+   * per Groq's API, on their side beyond the request.
+   *
+   * Deliberately does NOT fall back to another model: a failed transcription must surface as a
+   * failure so the caller can keep the typed input working, rather than silently returning a
+   * worse guess at what someone said and sending it to the chat as if they had typed it.
+   */
+  async transcribe(
+    audio: Blob,
+    filename: string,
+    opts: { model?: string; language?: string } = {}
+  ): Promise<{ text: string; model: string }> {
+    if (!this.apiKey) throw new Error('GROQ_API_KEY is not configured');
+
+    const form = new FormData();
+    form.append('file', audio, filename);
+    form.append('model', opts.model || DEFAULT_TRANSCRIBE_MODEL);
+    form.append('response_format', 'json');
+    // Whisper hallucinates plausible-sounding words on silence; a prompt anchored to the domain
+    // measurably reduces mangled coffee vocabulary ("your gachef" for Yirgacheffe, and so on).
+    form.append('prompt', 'A customer talking to a specialty coffee roastery in Bangalore about coffee: Chikmagalur, Attikan, Araku, Yirgacheffe, Huila, filter kaapi, V60, AeroPress, espresso, grind, roast, subscription.');
+    if (opts.language) form.append('language', opts.language);
+
+    const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+      body: form,
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new Error(`Groq transcription failed (${res.status}): ${detail.slice(0, 300)}`);
+    }
+
+    const data = await res.json() as { text?: string };
+    return { text: (data.text || '').trim(), model: opts.model || DEFAULT_TRANSCRIBE_MODEL };
+  }
+
 }
