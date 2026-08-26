@@ -261,10 +261,26 @@ test('nav: every link the header can drop has a home in the footer', async () =>
     [...footer.querySelectorAll('a[href^="#"]')].map((a) => a.getAttribute('href'))
   );
 
+  const pageTargets = new Set(
+    [...footer.querySelectorAll('a[href^="/"]')].map((a) => a.getAttribute('href'))
+  );
+
   // The ladder hides these as the screen narrows. A link that exists nowhere at 1366px is the
-  // same failure as the silent clipping this all replaced.
-  for (const href of ['#taster-flight', '#flavor-wheel', '#quiz', '#brew-guide', '#roastery-story']) {
-    assert.ok(footerTargets.has(href), `${href} is dropped from the header but absent from the footer`);
+  // same failure as the silent clipping this all replaced. What matters is that the destination
+  // stays reachable, not that it stays the same href: #brew-guide was replaced in the footer by
+  // /brew/ and the four generated method pages, which is a better destination, not a lost one.
+  const acceptable: Array<[string, string[]]> = [
+    ['#taster-flight', []],
+    ['#flavor-wheel', []],
+    ['#quiz', []],
+    ['#brew-guide', ['/brew/']],
+    ['#roastery-story', []],
+  ];
+
+  for (const [href, alternatives] of acceptable) {
+    const reachable = footerTargets.has(href) || alternatives.some((alt) => pageTargets.has(alt));
+    assert.ok(reachable,
+      `${href} is dropped from the header and neither it nor ${alternatives.join(', ') || 'any equivalent'} is in the footer`);
   }
 });
 

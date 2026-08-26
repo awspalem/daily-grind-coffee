@@ -18,7 +18,10 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { JSDOM } from 'jsdom';
 import { productPage, indexPage, sitemap, llmsTxt } from './seo-render.mjs';
+import { readBrewMethods, brewPage, brewIndexPage, hasRecipe } from './seo-brew.mjs';
+import { faqPage } from './seo-faq.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -56,12 +59,32 @@ function builtStylesheet() {
 const products = await fetchProducts();
 const css = builtStylesheet();
 
+/**
+ * The brew methods are defined once, as .brew-card elements in index.html. Reading them out of
+ * the shipped markup rather than keeping a copy here is deliberate: a second hand-maintained
+ * list is what put links to three non-existent coffee pages into the fallback catalog.
+ */
+const brewMethods = readBrewMethods(new JSDOM(readFileSync(join(ROOT, 'index.html'), 'utf8')).window.document);
+const withoutRecipe = brewMethods.filter((m) => !hasRecipe(m.method));
+if (withoutRecipe.length) {
+  throw new Error(`Brew methods in index.html with no recipe in seo-brew.mjs: ` +
+    `${withoutRecipe.map((m) => m.method).join(', ')}. Add one, or these methods silently ` +
+    `get no page while the card keeps promising a guide.`);
+}
+
 mkdirSync(join(DIST, 'coffee'), { recursive: true });
+mkdirSync(join(DIST, 'brew'), { recursive: true });
 for (const p of products) {
   writeFileSync(join(DIST, 'coffee', `${p.slug}.html`), productPage(p, css));
 }
 writeFileSync(join(DIST, 'coffee', 'index.html'), indexPage(products, css));
-writeFileSync(join(DIST, 'sitemap.xml'), sitemap(products));
-writeFileSync(join(DIST, 'llms.txt'), llmsTxt(products));
 
-console.log(`seo: ${products.length} coffee pages + /coffee/ + sitemap (${products.length + 5} urls) + llms.txt`);
+for (const m of brewMethods) writeFileSync(join(DIST, 'brew', `${m.method}.html`), brewPage(m, css));
+writeFileSync(join(DIST, 'brew', 'index.html'), brewIndexPage(brewMethods, css));
+writeFileSync(join(DIST, 'faq.html'), faqPage(css));
+
+writeFileSync(join(DIST, 'sitemap.xml'), sitemap(products, brewMethods));
+writeFileSync(join(DIST, 'llms.txt'), llmsTxt(products, brewMethods));
+
+const urlCount = (sitemap(products, brewMethods).match(/<loc>/g) || []).length;
+console.log(`seo: ${products.length} coffee + ${brewMethods.length} brew + faq, ${urlCount} sitemap urls, llms.txt`);

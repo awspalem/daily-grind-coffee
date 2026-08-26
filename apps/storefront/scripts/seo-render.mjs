@@ -3,7 +3,7 @@
  * generate-seo.mjs so the suite can feed it fixture products and assert on the markup, rather
  * than only finding out at build time that a page came out wrong.
  */
-import { SITE, esc, jsonLd, priceInr, roastLabel, processLabel, grindLabel } from './seo-data.mjs';
+import { SITE, esc, jsonLd, priceInr, roastLabel, processLabel, grindLabel, ogImage } from './seo-data.mjs';
 
 /*
  * These pages borrow the site stylesheet, which is written around the SPA's own markup, so a
@@ -134,11 +134,15 @@ export function productPage(p, css) {
 <meta property="og:site_name" content="The Daily Roast">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc.trim())}">
-${p.image_url ? `<meta property="og:image" content="${esc(p.image_url)}">` : ''}
+${p.image_url ? `<meta property="og:image" content="${esc(ogImage(p.image_url))}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="${esc(p.name)}">` : ''}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(title)}">
 <meta name="twitter:description" content="${esc(desc.trim())}">
-${p.image_url ? `<meta name="twitter:image" content="${esc(p.image_url)}">` : ''}
+${p.image_url ? `<meta name="twitter:image" content="${esc(ogImage(p.image_url))}">
+<meta name="twitter:image:alt" content="${esc(p.name)}">` : ''}
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="stylesheet" href="${css}">
@@ -285,7 +289,7 @@ ${jsonLd(list)}
  * fifteen; adding ten more by hand would have gone stale at the next catalog change.
  * No changefreq or priority — Google has said publicly that it ignores both.
  */
-export function sitemap(products) {
+export function sitemap(products, brewMethods = []) {
   const today = new Date().toISOString().slice(0, 10);
   // Stamping today on every URL every build claims all fifteen pages changed on every deploy,
   // which is exactly the signal that teaches a crawler to stop believing lastmod. Product pages
@@ -295,6 +299,9 @@ export function sitemap(products) {
     [`${SITE}/`, today],
     [`${SITE}/coffee/`, today],
     ...products.map((p) => [`${SITE}/coffee/${p.slug}`, day(p.updated_at)]),
+    [`${SITE}/brew/`, today],
+    ...brewMethods.map((m) => [`${SITE}/brew/${m.method}`, today]),
+    [`${SITE}/faq`, today],
     // Extensionless: Cloudflare Pages serves these at /privacy and 308s /privacy.html to it,
     // so listing the .html form pointed the sitemap at a redirect.
     [`${SITE}/shipping`, today],
@@ -314,7 +321,7 @@ ${urls.map(([u, mod]) => `  <url>\n    <loc>${u}</loc>\n    <lastmod>${mod}</las
  * so it is worth having — but the thing that makes this site answerable is the pages above,
  * not this file.
  */
-export function llmsTxt(products) {
+export function llmsTxt(products, brewMethods = []) {
   return `# The Daily Roast
 
 > An independent specialty coffee roastery in Indiranagar, Bangalore, India. We roast Indian
@@ -332,9 +339,15 @@ ${products.map((p) => {
   return `- [${p.name}](${SITE}/coffee/${p.slug}): ${p.tagline || p.description || ''} ${facts}.`;
 }).join('\n')}
 
+## Brewing
+
+${brewMethods.map((m) => `- [How to brew ${m.title}](${SITE}/brew/${m.method}): 1:${m.ratio} ratio, ${String(m.grind).toLowerCase()} grind, water at ${m.temp}°C, ${m.time}.`).join('\n')}
+
 ## The roastery
 
+- [Frequently asked questions](${SITE}/faq): roasting, delivery, grind, returns, subscriptions.
 - [Every coffee we roast](${SITE}/coffee/): the full catalog.
+- [Brewing guides](${SITE}/brew/): ratio, grind and temperature for every method.
 - [Shipping and returns](${SITE}/shipping)
 - [Privacy policy](${SITE}/privacy)
 - [Terms of service](${SITE}/terms)

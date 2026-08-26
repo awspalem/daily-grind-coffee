@@ -250,3 +250,125 @@ test('seo: a product with no updated_at still gets a valid lastmod', () => {
     assert.match(mod, /^\d{4}-\d{2}-\d{2}$/);
   }
 });
+
+// ------------------------------------------------------------------ brew guides and the FAQ
+
+// @ts-expect-error — plain ESM, see the imports at the top of this file.
+import { readBrewMethods, brewPage, recipeFor, hasRecipe, isoDuration } from '../scripts/seo-brew.mjs';
+// @ts-expect-error — see above.
+import { faqPage, FAQS } from '../scripts/seo-faq.mjs';
+// @ts-expect-error — see above.
+import { ogImage } from '../scripts/seo-data.mjs';
+import { JSDOM } from 'jsdom';
+
+const brewMethods = () =>
+  readBrewMethods(new JSDOM(readFileSync(join(ROOT, 'index.html'), 'utf8')).window.document);
+
+test('brew: the methods are read from index.html, not kept in a second list', () => {
+  // A second hand-maintained copy is what put links to three non-existent coffee pages into
+  // the fallback catalog. There is one source, and it is the markup that already shipped.
+  const methods = brewMethods();
+  assert.ok(methods.length >= 4, `found ${methods.length} brew cards`);
+  for (const m of methods) {
+    assert.ok(m.method && m.title, `a .brew-card is missing data-method or .brew-title`);
+    assert.ok(Number.isFinite(m.ratio) && Number.isFinite(m.temp), `${m.method} is missing numbers`);
+  }
+});
+
+test('brew: every method in the markup has a recipe, so no card promises a page that is missing', () => {
+  for (const m of brewMethods()) {
+    assert.ok(hasRecipe(m.method), `${m.method} has a card but no recipe — its page would not exist`);
+  }
+});
+
+test('brew: the page never contradicts the card it was generated from', () => {
+  // Same failure as a price in schema disagreeing with the price on the page: a guide that says
+  // 92°C beside a card that says 94°C is worse than no guide.
+  for (const m of brewMethods()) {
+    const page = brewPage(m, '/assets/x.css');
+    assert.ok(page.includes(`1:${m.ratio}`), `${m.method}: ratio missing`);
+    assert.ok(page.includes(`${m.temp}°C`), `${m.method}: temperature missing`);
+    assert.ok(page.includes(m.time), `${m.method}: time missing`);
+    assert.ok(page.includes(m.grind), `${m.method}: grind missing`);
+  }
+});
+
+test('brew: the water figure is the dose times the ratio, not a number typed in', () => {
+  for (const m of brewMethods()) {
+    const r = recipeFor(m);
+    const steps = r.steps.map(([, t]: [string, string]) => t).join(' ');
+    assert.ok(steps.includes(String(r.dose * m.ratio)),
+      `${m.method}: expected ${r.dose} x ${m.ratio} = ${r.dose * m.ratio} to appear in the steps`);
+  }
+});
+
+test('brew: the visible steps and the HowTo steps are the same array', () => {
+  const m = brewMethods()[0];
+  const page = brewPage(m, '/assets/x.css');
+  const ld = JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(page)![1]);
+  assert.equal(ld['@type'], 'HowTo');
+  for (const step of ld.step) {
+    // Escaped in the HTML, so compare on a distinctive fragment rather than the whole string.
+    assert.ok(page.includes(step.name), `step "${step.name}" is marked up but not shown`);
+  }
+});
+
+test('brew: a duration that cannot be parsed is omitted rather than guessed', () => {
+  assert.equal(isoDuration('3m 15s'), 'PT3M15S');
+  assert.equal(isoDuration('28s'), 'PT28S');
+  assert.equal(isoDuration('15m decoction'), 'PT15M');
+  assert.equal(isoDuration('a while'), undefined);
+  assert.equal(isoDuration(''), undefined);
+});
+
+test('brew: the footer links to the four pages instead of four copies of one anchor', () => {
+  const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  for (const m of brewMethods()) {
+    assert.ok(html.includes(`href="/brew/${m.method}"`), `nothing links to /brew/${m.method}`);
+  }
+});
+
+test('faq: every answer is visible on the page, not markup-only', () => {
+  // Same rule as the absent aggregateRating: never mark up what a visitor cannot read.
+  const page = faqPage('/assets/x.css');
+  const ld = JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(page)![1]);
+  assert.equal(ld['@type'], 'FAQPage');
+  assert.equal(ld.mainEntity.length, FAQS.length);
+  for (const entry of ld.mainEntity) {
+    assert.ok(page.includes(entry.name), `question "${entry.name}" is marked up but not shown`);
+  }
+});
+
+test('faq: every answer records the site copy it came from', () => {
+  // The guard against answering a question the site does not actually answer — the same error
+  // as the invented opening hours.
+  for (const f of FAQS) {
+    assert.ok(f.src && f.src.length > 5, `"${f.q}" has no recorded source`);
+  }
+});
+
+test('og: social images are asked for at the size social cards actually use', () => {
+  const out = ogImage('https://images.unsplash.com/photo-123?auto=format&fit=crop&w=800&q=80');
+  assert.match(out, /w=1200/);
+  assert.match(out, /h=630/);
+  assert.equal(ogImage(null), null);
+  // A non-Unsplash URL is passed through untouched rather than having params invented for it.
+  assert.equal(ogImage('/images/roaster.jpg'), '/images/roaster.jpg');
+});
+
+test('og: product pages declare image dimensions and alt text', () => {
+  const html = productPage(PRODUCT, '/assets/x.css');
+  assert.match(html, /<meta property="og:image:width" content="1200">/);
+  assert.match(html, /<meta property="og:image:height" content="630">/);
+  assert.match(html, /<meta property="og:image:alt"/);
+});
+
+test('seo: the sitemap covers the brew pages and the FAQ', () => {
+  const xml = sitemap([PRODUCT], brewMethods());
+  assert.ok(xml.includes('<loc>https://dailyroast.in/faq</loc>'));
+  assert.ok(xml.includes('<loc>https://dailyroast.in/brew/</loc>'));
+  for (const m of brewMethods()) {
+    assert.ok(xml.includes(`<loc>https://dailyroast.in/brew/${m.method}</loc>`), `${m.method} missing`);
+  }
+  assert.doesNotMatch(xml, /\.html<\/loc>/);
+});

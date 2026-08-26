@@ -56,3 +56,25 @@ export function esc(v) {
  */
 export const jsonLd = (obj) =>
   JSON.stringify(obj, null, 2).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+
+/**
+ * Social cards want about 1200x630. The catalog's photos come back from Unsplash at w=800,
+ * which is below that and gets upscaled or cropped badly by the sharers.
+ *
+ * This only re-asks the CDN for the right size; it does not make a per-product card. It cannot:
+ * three pairs of coffees currently share one photo (taster-flight/guatemala,
+ * araku/colombia, attikan/ethiopia), so seven photos cover ten coffees and two products would
+ * get the identical card either way. Closing that needs three more photographs, not more code.
+ */
+export function ogImage(url) {
+  if (!url) return null;
+  if (!/(^|\.)unsplash\.com\//.test(url)) return url;
+  const [base, query = ''] = url.split('?');
+  const params = new URLSearchParams(query);
+  params.set('auto', 'format');
+  params.set('fit', 'crop');
+  params.set('w', '1200');
+  params.set('h', '630');
+  params.set('q', '80');
+  return `${base}?${params.toString()}`;
+}
