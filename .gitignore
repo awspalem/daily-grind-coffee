@@ -25,3 +25,6 @@ yarn-error.log*
 # OS Metadata
 .DS_Store
 Thumbs.db
+
+# Stray tsc output committed alongside .ts sources (tsconfig now sets noEmit)
+apps/admin/src/**/*.js
