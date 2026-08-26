@@ -177,6 +177,7 @@ Cloudflare fires both, which is harmless because every job is idempotent.
 | - | --- |
 | 0.2 | **Currency is still `usd`.** `env.CURRENCY` forces the Stripe charge currency regardless of what the shopper selected. Because loyalty points and the referral discount are denominated in paise and the services are never told the currency, `checkout.ts` now **refuses both outside an INR order** rather than converting — applying a paise figure to a USD order would discount ~85× too much. Settling 0.2 is what unlocks rewards for every order. |
 | 0.3 | Compiled `.js` still tracked beside every `.ts` under `src/`. |
+| 0.5 | **Turnstile is inert in production.** `turnstileValidator` returns `next()` when `TURNSTILE_SECRET_KEY` is missing/`placeholder` or `ENVIRONMENT` is `development`. Confirmed live: `POST /api/agent/chat` with no token returns a normal reply. Both AI endpoints — `/chat` and the new `/transcribe`, which spends money per call and accepts uploads — are guarded by rate limiting alone. Setting the secret in the Worker's production environment turns the existing middleware on; no code change needed. |
 | 0.4 | **The USD price is ~3.7x the INR price for the same bag.** The products API stores `price_cents` in USD cents; `main.ts` derives the rupee price as `price_cents * 0.23`. That implies about Rs 23 to the dollar against a real rate near Rs 85, so Attikan 250g is Rs 426 (~$5) to a rupee shopper and $18.50 to a dollar shopper. One of the two is wrong, and which one is a pricing decision. The generated coffee pages deliberately reuse the same derivation so that page, schema and shop always agree — whichever way this is settled, they move together. |
 | — | **`orders.customer_id` is only populated going forward.** `checkout.ts` now stamps it, but historical rows have only `customer_email`, so every ownership predicate is `(o.customer_id = ? OR LOWER(o.customer_email) = ?)`. A backfill would let those dual predicates be simplified. |
 | — | **`reviews` has no `customer_id`** — only a self-reported order number. That is why the review bonus is *claimed* (`POST /api/loyalty/claim-review`, keyed on the order so six bags cannot become six bonuses) rather than pushed when a review is written. |
@@ -234,6 +235,63 @@ The footer repeated the header's mistake one level down: its grid declared `1.5f
 written when it had four children, while it had grown to six. `nav.test.ts` now asserts the
 declared track count against the number of columns the page actually produces, so the next one
 added fails the suite instead of the layout.
+
+### Discoverability, and the one URL behind it
+
+The meta tags, canonical, Open Graph and `Organization` schema were fine. The problem was under
+them: the whole shop lived at one URL, with the catalog fetched client-side, so
+`curl https://dailyroast.in/` returned **zero product cards**. One URL cannot rank for ten
+coffees, and nothing — a search engine, or an assistant asked where to buy honey-process Attikan
+— had anything to link to but the homepage.
+
+`apps/storefront/scripts/generate-seo.mjs` now runs after `vite build` and emits a page per
+coffee, per brew method, a collection page for each, an FAQ, the sitemap and `llms.txt`. **4
+indexable URLs became 21**, all verified 200 on production.
+
+Rules the generator follows, each one from a mistake made while building it:
+
+| Rule | Why |
+| --- | --- |
+| One source per fact | Brew pages are read out of the `.brew-card` elements in `index.html` with jsdom. A second hand-maintained copy is what put links to three non-existent coffee pages into `FALLBACK_PRODUCTS`. |
+| Never mark up what is not shown | No `aggregateRating` (no reviews on those pages); FAQ answers are rendered, not markup-only; opening hours are in the footer as well as the schema. |
+| Never publish an unsourced fact | Invented opening hours and geo coordinates were written and then removed. Hours came back only when supplied. Every FAQ answer records the site copy it came from, enforced by a test. |
+| Prices derive through one function | Page, schema and shop read `price_cents` through the same helper, so they cannot disagree — whichever way gap 0.4 is settled. |
+| Fail loudly | A failed products fetch fails the build. A sitemap that loses ten URLs reads as ten pages withdrawn. |
+
+Left open: `Google-Extended`, `GPTBot`, `ClaudeBot` and others are `Disallow`ed by Cloudflare's
+managed `robots.txt` (1,903 bytes served vs 67 in the repo). Googlebot and the answer-crawlers
+(`OAI-SearchBot`, `PerplexityBot`, `ChatGPT-User`) are unaffected, so search indexing and
+live assistant fetches work; bulk AI training ingestion does not. Changing it is a Cloudflare
+dashboard setting, not a code change.
+
+### Voice, and what measuring it cost
+
+Press-to-talk on the Maya panel: Groq `whisper-large-v3-turbo` in, browser speech synthesis out.
+Verified live in both Chrome (webm/opus) and Safari (mp4/aac) containers, including the
+vocabulary Whisper usually mangles.
+
+The instructive part was silence. Whisper does not go quiet on it — three seconds of digital
+silence returned a confident `"Thank you."`, which an empty-string check cannot catch because it
+is a well-formed sentence. Measured across two runs of every clip:
+
+| Input | `avg_logprob` | `compression_ratio` | Outcome |
+| --- | --- | --- | --- |
+| Speech, four clips (incl. 12% volume) | −0.08 to −0.34 | 0.65–0.95 | pass |
+| Digital silence, 3s and 8s | −0.973 | — | rejected |
+| Pink noise | −0.35 | 0.89 | **passes as fluent speech** |
+
+`no_speech_prob` reports 0.000 for every input including silence, and `compression_ratio` never
+exceeds 0.95 against Whisper's own 2.4 threshold — **both are checks that cannot fire**, and both
+were written and shipped before being measured. Only `avg_logprob` discriminates, at −0.7. Note
+it measures token confidence rather than level, so quiet speakers are not penalised; the
+client-side peak gate is the volume check.
+
+**Known limitation:** steady background noise can still produce a confident sentence nobody said
+(−0.35 against real speech's −0.34 — not separable by anything this API returns). The defences
+are the client's peak gate before upload and that the transcript appears as the person's own
+message, where they can see it is wrong. The model is also nondeterministic: the same noise file
+passed one run and was rejected the next, so single-run verification proves less than it appears
+to.
 
 ### Not started
 

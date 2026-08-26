@@ -13,13 +13,15 @@ An enterprise-grade, free-tier-first specialty coffee roastery e-commerce platfo
 
 ## 🌟 Key Architecture & Features
 
-- **Storefront ([`apps/storefront`](apps/storefront)):** Artisanal specialty coffee shop UI with interactive roast meters (Acidity, Body, Sweetness), bag weight/grind selectors, persistent cart drawers, promo coupons, and an interactive **AI Barista** chat assistant.
+- **Storefront ([`apps/storefront`](apps/storefront)):** Artisanal specialty coffee shop UI with interactive roast meters (Acidity, Body, Sweetness), bag weight/grind selectors, persistent cart drawers, promo coupons, and an interactive **AI Barista** chat assistant with optional voice.
+- **Generated content pages:** The shop is a single-page app, so the catalog used to live entirely behind `#` anchors on one URL and was invisible to anything that does not run JavaScript. `apps/storefront/scripts/generate-seo.mjs` runs after `vite build` and emits a real page per coffee (`/coffee/<slug>`), per brew method (`/brew/<method>`), a collection page for each, an FAQ, `sitemap.xml` and `llms.txt` — 21 URLs where there were 4. Product/Offer, HowTo, FAQPage and CafeOrCoffeeShop structured data are attached to the pages whose visible text they describe. **The build fails if the products API cannot be reached**, deliberately: a sitemap that silently loses ten URLs reads as ten pages withdrawn.
 - **Admin Command Portal ([`apps/admin`](apps/admin)):** Protected by **Cloudflare Zero Trust Access**, offering real-time KPI metrics, immutable inventory movement logs, one-click batch restocks, and multi-state order fulfillment (`ROASTING`, `PACKED`, `SHIPPED`, `REFUNDED`).
 - **Edge API Gateway ([`apps/api`](apps/api)):** Cloudflare Worker built with **Hono**, backed by **Cloudflare D1 (SQLite)** transactional data and an immutable inventory ledger to eliminate race-condition oversells.
-- **Bot Defense & Security:** **Cloudflare Turnstile** bot protection on checkout, inquiry forms, and AI chat; edge rate limiting; and verified Stripe webhook signatures with idempotency checks.
+- **Bot Defense & Security:** **Cloudflare Turnstile** middleware on checkout, inquiry forms and AI chat; edge rate limiting; and verified Stripe webhook signatures with idempotency checks. **Turnstile is currently inert in production** — the middleware short-circuits when `TURNSTILE_SECRET_KEY` is unset or `ENVIRONMENT` is `development`, and a `POST /api/agent/chat` with no token is answered normally. The paid AI endpoints are therefore protected by rate limiting alone until that secret is set (see gap 0.5).
 - **Asynchronous & Scheduled Tasks:** **Cloudflare Queues** for background email dispatching and PDF invoice generation; **Cron Triggers** (`0 4 * * *`) for automated D1 snapshot backups to **Cloudflare R2** and low-stock alarms.
 - **AI & RAG Subsystem:**
   - **Groq GPT-OSS 120B:** Ultra-low latency reasoning, tool calling, and morning operations briefing.
+  - **Groq Whisper (`whisper-large-v3-turbo`):** Press-to-talk voice input for the AI Barista via `POST /api/agent/transcribe`. The transcript re-enters through the ordinary chat path, so voice and typing share one conversation and one escaping path. Replies can be read back with the browser's own speech synthesis. Voice is strictly additive — an unsupported browser, an insecure origin, a denied microphone or a failed transcription all leave the typed chat unchanged.
   - **Cloudflare Workers AI:** `bge-base-en-v1.5` embeddings for vector similarity search across coffee profiles and extraction recipes.
   - **Model Context Protocol (MCP):** JSON-RPC 2.0 endpoint (`/api/mcp`) exposing standardized e-commerce tools.
   - **Safe Mutation Protocol:** All cart additions or destructive operations require explicit user confirmation tokens before execution.
@@ -38,6 +40,8 @@ coffee-roast/
 ├── packages/
 │   ├── db/                     # D1 Database Migrations (0001_init.sql) & Seeds
 │   └── shared-types/           # Shared TypeScript models, contracts & tool definitions
+│
+│   apps/storefront/scripts/    # Build-time page generation (coffee, brew, FAQ, sitemap, llms.txt)
 │
 ├── .gitignore
 ├── package.json

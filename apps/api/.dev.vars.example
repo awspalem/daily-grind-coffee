@@ -2,7 +2,12 @@
 STRIPE_SECRET_KEY=sk_test_mock
 STRIPE_WEBHOOK_SECRET=placeholder
 GROQ_API_KEY=
+# Optional. Speech-to-text model for /api/agent/transcribe; defaults to whisper-large-v3-turbo.
+GROQ_TRANSCRIBE_MODEL=
 ADMIN_TOKEN=
+# Leave blank locally to bypass the bot check. Setting this in the PRODUCTION Worker is what
+# actually turns Turnstile on — while it is unset the middleware short-circuits and /api/agent/*
+# is protected by rate limiting alone. See gap 0.5 in docs/roadmap-gaps.md.
 TURNSTILE_SECRET_KEY=
 
 # Shiprocket
