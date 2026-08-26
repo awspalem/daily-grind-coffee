@@ -594,6 +594,12 @@ class StorefrontApp {
               <h3 class="card-title">${prod.name}</h3>
             </div>
             <p class="card-tagline">${prod.tagline}</p>
+            <!--
+              A real internal link to the generated page for this coffee. It is here for two
+              reasons: a page reachable only from sitemap.xml indexes poorly, and the origin
+              detail genuinely does not fit on a card. See scripts/generate-seo.mjs.
+            -->
+            <a class="card-detail-link" href="/coffee/${this.escapeHtml(prod.slug)}">Origin, altitude &amp; process →</a>
 
             ${(() => {
                 const rs = this.reviewSummary[prod.id];

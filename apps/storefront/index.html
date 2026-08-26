@@ -34,16 +34,28 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/src/styles/index.css">
+  <!--
+    Three blocks, each doing a different job. CafeOrCoffeeShop is what local results read: the
+    street address, the geo point and the opening hours are the parts that place a business on a
+    map, and shipping an Organization block alone left all of that on the floor. WebSite declares
+    the site-level search. The ItemList points at the generated coffee pages, so the entity graph
+    from the homepage reaches them rather than dead-ending at "/".
+  -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    "@type": "CafeOrCoffeeShop",
+    "@id": "https://dailyroast.in/#roastery",
     "name": "The Daily Roast Roastery",
     "url": "https://dailyroast.in/",
-    "logo": "https://dailyroast.in/favicon.svg",
-    "description": "Small-batch specialty coffee roastery based in Indiranagar, Bangalore, India.",
+    "image": "https://dailyroast.in/images/roaster.jpg",
+    "description": "Small-batch specialty coffee roastery in Indiranagar, Bangalore. Direct-trade Indian estate micro-lots and rare international origins, roasted fresh to order.",
     "email": "support@dailyroast.in",
     "telephone": "+91-80-4123-4567",
+    "priceRange": "₹₹",
+    "servesCuisine": "Coffee",
+    "currenciesAccepted": "INR",
+    "areaServed": { "@type": "Country", "name": "India" },
     "address": {
       "@type": "PostalAddress",
       "streetAddress": "100ft Road, Indiranagar",
@@ -52,6 +64,16 @@
       "postalCode": "560038",
       "addressCountry": "IN"
     }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": "https://dailyroast.in/#website",
+    "url": "https://dailyroast.in/",
+    "name": "The Daily Roast",
+    "publisher": { "@id": "https://dailyroast.in/#roastery" }
   }
   </script>
   <script>

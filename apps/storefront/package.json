@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "vite --port 5173",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/generate-seo.mjs",
     "preview": "vite preview",
     "test": "tsx --test test/*.test.ts"
   },

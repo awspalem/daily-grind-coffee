@@ -395,6 +395,17 @@ body {
   margin-top: 2rem;
 }
 
+.card-detail-link {
+  display: inline-block;
+  margin: 0.15rem 0 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-terracotta);
+  text-decoration: none;
+}
+
+.card-detail-link:hover { text-decoration: underline; }
+
 .experiences-grid > * {
   flex: 1 1 clamp(280px, 46%, 560px);
   max-width: 100%;
