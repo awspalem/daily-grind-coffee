@@ -497,17 +497,31 @@ agentApp.post(
         { model: c.env.GROQ_TRANSCRIBE_MODEL }
       );
 
-      // Whisper does not go quiet on silence — it hallucinates fluent, confident filler. Three
-      // seconds of digital silence came back as "Thank you." during testing, which would have
-      // been posted into the chat as though the person had said it. An empty-string check does
-      // not catch that, because the output is a well-formed sentence.
+      // Whisper does not go quiet on silence — it hallucinates fluent, confident filler. Digital
+      // silence comes back as "Thank you.", which an empty-string check cannot catch because the
+      // output is a well-formed sentence, and which would otherwise be posted into the chat as
+      // though the person had said it.
       //
-      // no_speech_prob is the model's own estimate that a segment contains no speech, and
-      // avg_logprob how confident it is in the tokens it emitted; a hallucinated clip scores
-      // high on the first and poorly on the second. Both are advisory, so the crude checks stay
-      // as a backstop for a response that carries no segments at all.
+      // The threshold below is measured, not guessed — an earlier -1.0 missed the real value by
+      // 0.027 and shipped without fixing anything. Against the live model:
+      //
+      //     "What is a V60?"                  -0.084   speech
+      //     speech, normal volume             -0.209   speech
+      //     the same speech at 12% volume     -0.196   speech
+      //     longer speech                     -0.338   speech
+      //     pink noise                         0.000   no segments, caught by looksEmpty
+      //     3s and 8s of digital silence      -0.973   "Thank you."
+      //
+      // -0.7 sits between the worst real speech and silence with room either side. Note the
+      // attenuated clip scores the same as the loud one: avg_logprob measures how confident the
+      // model is in the tokens it emitted, not how loud the input was, which is exactly what
+      // makes it the right signal here. Someone speaking quietly is not penalised.
+      //
+      // no_speech_prob is deliberately NOT used: whisper-large-v3-turbo reports 0 for every clip
+      // including pure silence, so gating on it is a check that can never fire.
+      const HALLUCINATION_LOGPROB = -0.7;
       const looksEmpty = !text || text.replace(/[^a-z0-9]/gi, '').length < 2;
-      const looksHallucinated = hasSegments && (noSpeech > 0.6 || avgLogprob < -1.0);
+      const looksHallucinated = hasSegments && avgLogprob < HALLUCINATION_LOGPROB;
 
       if (looksEmpty || looksHallucinated) {
         return c.json({ success: false, error: "I didn't catch that - try again?", empty: true }, 200);
