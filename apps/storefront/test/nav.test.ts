@@ -272,3 +272,23 @@ test('layout: the header row fits a 360px phone', () => {
   // Wordmark + currency pills + two icon buttons came to 376px in a 360px viewport.
   assert.match(CSS, /@media \(max-width: 380px\) \{[\s\S]*?\.brand-name,[\s\S]*?display:\s*none/);
 });
+
+test('nav: the footer grid has a track for every column that ends up in it', async () => {
+  // The old `1.5fr repeat(3, 1fr)` was written when the footer had four children. It now has
+  // six — the four static columns, the "Find Your Coffee" column added for the links the header
+  // ladder drops, and "Your Account" which registerNavPill appends at runtime — and the two
+  // that did not fit wrapped onto a second row where the fifth inherited the brand block's wide
+  // track and lined up with nothing. Same failure as the header: items added to a row whose
+  // capacity nobody measured.
+  const { document, registerNavPill } = await loadPage();
+  for (const [id, label] of FEATURE_PILLS) registerNavPill(id, label);
+
+  const children = document.querySelectorAll('.footer-container > *').length;
+  const tracks = /\.footer-container\s*\{[\s\S]*?grid-template-columns:\s*[\d.]+fr repeat\((\d+), 1fr\)/.exec(CSS);
+  assert.ok(tracks, 'the desktop footer must declare an explicit track count');
+  assert.equal(
+    Number(tracks[1]) + 1,
+    children,
+    `the footer holds ${children} columns; the grid declares ${Number(tracks[1]) + 1} tracks`
+  );
+});

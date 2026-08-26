@@ -1812,9 +1812,25 @@ body {
   max-width: var(--content-max);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1.5fr repeat(3, 1fr);
-  gap: 3rem;
+  /*
+   * Six columns, not four: the static four, plus "Find Your Coffee" for the links the header
+   * ladder drops, plus "Your Account" which registerNavPill appends at runtime. The old
+   * `1.5fr repeat(3, 1fr)` silently wrapped the last two onto a second row, where the fifth
+   * inherited the brand block's wide track and lined up with nothing.
+   */
+  grid-template-columns: 1.4fr repeat(5, 1fr);
+  gap: 2.2rem;
   margin-bottom: 3.5rem;
+}
+
+/*
+ * Six tracks only earn their keep on a wide screen. Placed before the 900px and 768px rules so
+ * the narrower ones still win where they apply.
+ */
+@media (max-width: 1279px) {
+  .footer-container {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .footer-brand h3 {
