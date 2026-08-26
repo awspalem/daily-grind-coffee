@@ -62,7 +62,14 @@ function injectStyles(): void {
 
   const style = document.createElement('style');
   style.textContent = `
-    .plan-grid { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 1.6rem; }
+    /*
+     * Five tiers never divide evenly into an auto-fit track count, so a grid always stranded the
+     * last card alone against a wall of empty space. Flex-wrap with a centred last row keeps the
+     * leftovers looking deliberate; the max-width stops that row's cards ballooning to fill it.
+     */
+    .plan-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.2rem; margin-top: 1.6rem; }
+    .plan-grid > * { flex: 1 1 clamp(240px, 30%, 380px); max-width: 33%; }
+    @media (max-width: 900px) { .plan-grid > * { max-width: 100%; } }
     .plan-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
       padding: 1.6rem 1.4rem; display: flex; flex-direction: column; gap: 0.9rem; box-shadow: var(--shadow-sm); position: relative; }
     .plan-card.is-featured { border-color: var(--accent-terracotta); box-shadow: var(--shadow-warm); }

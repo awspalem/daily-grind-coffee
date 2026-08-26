@@ -98,21 +98,27 @@ function injectStyles() {
 }
 function renderSignedOut(host, terms) {
     host.innerHTML = `
-    <h2 class="section-title">Give ${terms ? esc(inr(Number(terms.referee_discount_cents))) : 'a discount'}, get points</h2>
-    <p class="section-subtitle">
-      Share your link. Your friend gets ${terms ? esc(inr(Number(terms.referee_discount_cents))) : 'money'} off their first order,
-      and you earn ${terms ? esc(Number(terms.referrer_points).toLocaleString('en-IN')) : ''} points once it's delivered.
-    </p>
-    <p class="ref-empty">Sign in to get your link.</p>
+    <div class="section-header">
+      <span class="section-label">REFER A FRIEND</span>
+      <h2 class="section-title">Give ${terms ? esc(inr(Number(terms.referee_discount_cents))) : 'a discount'}, get points</h2>
+      <p class="section-subtitle">
+        Share your link. Your friend gets ${terms ? esc(inr(Number(terms.referee_discount_cents))) : 'money'} off their first order,
+        and you earn ${terms ? esc(Number(terms.referrer_points).toLocaleString('en-IN')) : ''} points once it's delivered.
+      </p>
+    </div>
+    <p class="ref-empty" style="text-align:center;">Sign in to get your link.</p>
   `;
 }
 function renderDashboard(host, d) {
     host.innerHTML = `
-    <h2 class="section-title">Refer a friend</h2>
-    <p class="section-subtitle">
-      They get ${esc(inr(d.referee_discount_cents))} off their first order. You earn
-      ${esc(d.referrer_points.toLocaleString('en-IN'))} points once it's delivered.
-    </p>
+    <div class="section-header">
+      <span class="section-label">REFER A FRIEND</span>
+      <h2 class="section-title">Refer a friend</h2>
+      <p class="section-subtitle">
+        They get ${esc(inr(d.referee_discount_cents))} off their first order. You earn
+        ${esc(d.referrer_points.toLocaleString('en-IN'))} points once it's delivered.
+      </p>
+    </div>
 
     <div class="ref-code-box">
       <span class="ref-code">${esc(d.code)}</span>

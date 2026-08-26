@@ -134,7 +134,7 @@ INSERT OR IGNORE INTO subscription_plans (
  1299000, 'inr', 15, '2_WEEKS', 26, 12,
  '["26 fortnightly deliveries for the price of 22","15% off every bag","Free shipping all year","2 x 15-minute barista teleconsultations","1 roastery tour seat","1 cupping table seat","Early access to limited-edition micro-lots"]',
  '[{"code":"FREE_SHIPPING","units":-1},{"code":"EARLY_ACCESS","units":-1},{"code":"CONSULT_15MIN","units":2},{"code":"TOUR_SEAT","units":1},{"code":"CUPPING_SEAT","units":1}]',
- 'MOST POPULAR', 21, 1),
+ 'RECOMMENDED', 21, 1),
 
 -- ---------- Founder ----------
 ('plan_founder_annual', 'founder-annual', 'Founder', 'FOUNDER', 'ANNUAL',

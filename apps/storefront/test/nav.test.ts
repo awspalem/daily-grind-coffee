@@ -165,3 +165,72 @@ test('nav: the footer column styling the links rely on exists', () => {
   assert.match(CSS, /\.footer-col a\s*\{[\s\S]*?text-decoration:\s*none/,
     'without this rule the links render as default blue underlines, exactly as in the header');
 });
+
+// ------------------------------------------------- the responsive header contract, pinned here
+//
+// The header's intrinsic width is about 1620px: brand 263, seven links 802, four controls 505.
+// It has therefore never fitted on a 1280 or 1440 display, and the two failed attempts to make
+// it fit are both worth remembering. Letting flex shrink the links wrapped every label onto two
+// lines. Adding `white-space: nowrap` stopped the wrapping and pushed the whole *page* sideways
+// instead — 1614px of scrollWidth in a 1440px viewport.
+//
+// What actually fixed it was noticing that the flex child of .nav-container is the <nav>
+// wrapper, not `.nav-links`: without `min-width: 0` on <nav>, its default `min-width: auto`
+// pinned it to its intrinsic width and no shrinking anywhere inside could take effect. With
+// that unblocked, the header gives things up in a measured order rather than overflowing.
+//
+// Measured after the fix, every width from 769 to 1920: page overflow 0, links clipped 0.
+
+test('header: the <nav> wrapper can shrink, or nothing inside it can', () => {
+  assert.match(
+    CSS,
+    /\.nav-container\s*>\s*nav\s*\{[^}]*min-width:\s*0/,
+    'without min-width: 0 here the header pins itself to ~1620px and pushes the page sideways'
+  );
+});
+
+test('header: the degradation ladder spends the cheapest thing first', () => {
+  // Each step must appear under a breakpoint no wider than the step before it, so the header
+  // only ever gives up more as the screen narrows.
+  const steps: Array<[number, RegExp, string]> = [
+    [1899, /\.btn-ai-barista \.barista-full\s*\{\s*display:\s*none/, "the barista button's parenthetical"],
+    [1679, /\.nav-links li:has\(#nav-story-link\)\s*\{\s*display:\s*none/, 'Bangalore Roastery'],
+    [1439, /\.nav-links li:has\(#nav-wheel-link\)\s*\{\s*display:\s*none/, 'Flavor Wheel'],
+    [1279, /\.nav-links li:has\(#nav-brew-link\)\s*\{\s*display:\s*none/, 'Brewing Guides'],
+    [1099, /\.nav-links li:has\(#nav-quiz-link\)\s*\{\s*display:\s*none/, 'Coffee Quiz'],
+    [979, /\.btn-ai-barista\s*\{\s*display:\s*none/, 'Ask Maya'],
+    [879, /\.nav-links li:has\(#nav-flight-link\)\s*\{\s*display:\s*none/, '3x 100g Flight'],
+  ];
+
+  for (const [width, rule, what] of steps) {
+    const block = new RegExp(`@media \\(max-width: ${width}px\\) \\{([\\s\\S]*?)\\n\\}`).exec(CSS);
+    assert.ok(block, `the ${width}px step is missing entirely`);
+    assert.match(block![1], rule, `${what} should be given up at ${width}px`);
+  }
+});
+
+test('header: Ask Maya outlives every nav link but one', () => {
+  // Maya is the only thing on this page a plain shop site could not do. If a future edit hides
+  // her to make room for "Flavor Wheel", that is a regression, not a tidy-up.
+  const maya = CSS.indexOf('@media (max-width: 979px)');
+  const flight = CSS.indexOf('@media (max-width: 879px)');
+  assert.ok(maya > 0 && flight > maya, 'Ask Maya must be surrendered later than all but one link');
+});
+
+test('layout: nothing bleeds past the viewport on a phone', () => {
+  // `margin: 0 -0.5rem` on the quiz section made the document 8px wider than a 390px screen,
+  // which is a full-page horizontal scroll for one section's visual bleed.
+  assert.doesNotMatch(
+    CSS,
+    /\.quiz-section\s*\{[^}]*margin:\s*0\s+-[\d.]/,
+    'a negative horizontal margin here scrolls the whole page sideways on mobile'
+  );
+});
+
+test('layout: the experiences grid centres its last row instead of stranding a card', () => {
+  const block = /\.experiences-grid\s*\{([^}]*)\}/.exec(CSS);
+  assert.ok(block, '.experiences-grid must be styled — it no longer borrows .product-grid');
+  assert.match(block![1], /flex-wrap:\s*wrap/);
+  assert.match(block![1], /justify-content:\s*center/,
+    'four cards in a three-up grid left one alone against a wall of empty space');
+});

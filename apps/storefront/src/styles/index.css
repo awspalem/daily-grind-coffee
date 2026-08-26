@@ -2,6 +2,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..800;1,9..144,300..700&family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
+  /*
+   * The page width. Every centred container reads this rather than hardcoding 1280px, so the
+   * layout widens in one place. 1280 was leaving ~320px of dead gutter on each side of a 1920
+   * display while the header squeezed its own links onto two lines to fit.
+   */
+  --content-max: 1280px;
+
   /* Artisan Color Palette */
   --bg-primary: #fcf9f5;
   --bg-secondary: #f4eee5;
@@ -179,7 +186,7 @@ body {
 }
 
 .nav-container {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding: 1.1rem 1.5rem;
   display: flex;
@@ -191,6 +198,8 @@ body {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  white-space: nowrap;
+  flex-shrink: 0;
   text-decoration: none;
   color: var(--text-main);
 }
@@ -215,12 +224,35 @@ body {
   display: block;
 }
 
+/*
+ * The flex child of .nav-container is the <nav> wrapper, not .nav-links. Without min-width: 0
+ * here, nav's default min-width: auto pins it to its intrinsic width and no amount of shrinking
+ * on the <ul> inside can take effect — which is exactly why the header used to push the whole
+ * page sideways.
+ */
+.nav-container > nav {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.4rem;
   list-style: none;
+  /*
+   * Safety net. The header's intrinsic width is ~1620px — brand 263, seven links 802, actions
+   * 505 — so on any display narrower than that something has to give. Before, flex shrank the
+   * links and every label broke onto two lines; refusing to wrap traded that for the page
+   * scrolling sideways, which is worse. Letting the link row itself scroll keeps the damage
+   * inside the header: the page never overflows, and at the widths below nothing scrolls at all.
+   */
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
 }
+
+.nav-links::-webkit-scrollbar { display: none; }
 
 .nav-links a {
   text-decoration: none;
@@ -228,6 +260,13 @@ body {
   font-weight: 500;
   font-size: 0.95rem;
   transition: var(--transition-smooth);
+  /*
+   * The header is a flex row of brand + links + actions inside a fixed-width container. Without
+   * this, flex shrinks each link below its content width and every label breaks onto two lines
+   * — "Bangalore Roastery" was rendering 71px wide. Refusing to wrap makes the links keep their
+   * intrinsic width, which is what the container is now sized to hold.
+   */
+  white-space: nowrap;
 }
 
 .nav-links a:hover {
@@ -238,6 +277,36 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/*
+ * Wider page on large displays.
+ *
+ * Two problems, one cause: 1280px left roughly 320px of empty gutter either side of a 1920
+ * screen, and simultaneously squeezed the header so hard that every nav label, the brand and
+ * the Ask Maya button all wrapped. The seven links plus the brand plus four action controls
+ * need about 1500px to sit on one line at their natural widths.
+ *
+ * Stepped rather than fluid so the product grid gains a whole column at each step instead of
+ * stretching cards to odd widths: `repeat(auto-fill, minmax(340px, 1fr))` yields 3 columns at
+ * 1280 and 4 at 1520.
+ */
+@media (min-width: 1440px) {
+  :root { --content-max: 1400px; }
+}
+
+@media (min-width: 1680px) {
+  :root { --content-max: 1560px; }
+}
+
+/*
+ * On a 1920 display the old 1280 cap left ~320px of dead gutter on each side and still could not
+ * fit the header on one row. Widening the page here buys back both at once.
+ */
+@media (min-width: 1900px) {
+  :root { --content-max: 1680px; }
 }
 
 .btn-ai-barista {
@@ -260,6 +329,71 @@ body {
   color: #fff;
   transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
+}
+
+/*
+ * Seven links, a wordmark and three controls need about 1620px on one row, so below that the
+ * header has to give something up. The order below is deliberate and spends the cheapest thing
+ * first: the barista button's parenthetical, then link spacing, then link type, then the brand
+ * tagline, and only then whole links — least load-bearing first, each one still reachable from
+ * the footer and by scrolling. What it must never do is quietly clip: a link scrolled out of
+ * sight inside the header is a link nobody knows exists. Every step below is measured, not
+ * guessed; test/nav.test.ts pins the resulting order.
+ */
+@media (max-width: 1899px) {
+  .btn-ai-barista .barista-full { display: none; }
+  .nav-links { gap: 1.1rem; }
+}
+
+@media (max-width: 1679px) {
+  .nav-links { gap: 0.85rem; }
+  .nav-links a { font-size: 0.88rem; }
+  .brand-tagline { display: none; }
+  .nav-links li:has(#nav-story-link) { display: none; }
+}
+
+@media (max-width: 1439px) {
+  .nav-links a { font-size: 0.84rem; }
+  .brand-name { font-size: 0.95rem; }
+  .nav-links li:has(#nav-wheel-link) { display: none; }
+}
+
+@media (max-width: 1279px) {
+  .nav-links li:has(#nav-brew-link) { display: none; }
+}
+
+@media (max-width: 1099px) {
+  .nav-links li:has(#nav-quiz-link) { display: none; }
+}
+
+/*
+ * Ask Maya outranks any single nav link — it is the one thing here a coffee shop's website
+ * cannot otherwise do — so it is surrendered last rather than first.
+ */
+@media (max-width: 979px) {
+  .btn-ai-barista { display: none; }
+}
+
+@media (max-width: 879px) {
+  .nav-links li:has(#nav-flight-link) { display: none; }
+}
+
+/*
+ * The four experiences left one card stranded on its own row in the shared three-up product
+ * grid. They are long-form cards — a paragraph each — so two-up with a centred last row reads
+ * better than three-up anyway, and it stays tidy whatever number of experiences we publish.
+ */
+.experiences-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.experiences-grid > * {
+  flex: 1 1 clamp(280px, 46%, 560px);
+  max-width: 100%;
 }
 
 .btn-cart {
@@ -297,7 +431,7 @@ body {
 .hero-section {
   position: relative;
   padding: 4.5rem 1.5rem 5rem;
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
@@ -513,7 +647,7 @@ body {
 
 /* Category & Flavor Filter Bar */
 .filter-container {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto 2.5rem;
   padding: 0 1.5rem;
   display: flex;
@@ -607,7 +741,7 @@ body {
 
 /* Product Catalog Grid */
 .catalog-section {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto 6rem;
   padding: 0 1.5rem;
 }
@@ -951,7 +1085,7 @@ body {
   color: var(--text-inverse);
   padding: 5rem 1.5rem;
   border-radius: var(--radius-lg);
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto 6rem;
   position: relative;
   overflow: hidden;
@@ -1032,7 +1166,7 @@ body {
 
 /* Masterclass Brewing Guide & Live Ratio Calculator */
 .brew-guide-section {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto 6rem;
   padding: 0 1.5rem;
 }
@@ -1671,7 +1805,7 @@ body {
 }
 
 .footer-container {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1.5fr repeat(3, 1fr);
@@ -1719,7 +1853,7 @@ body {
 }
 
 .footer-bottom {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto;
   padding-top: 2rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -2043,7 +2177,8 @@ body {
 
   .quiz-section {
     padding: 3rem 1.2rem;
-    margin: 0 -0.5rem 4rem;
+    /* A -0.5rem bleed on each side is 8px wider than the viewport; the page scrolled sideways. */
+    margin: 0 0 4rem;
     border-radius: var(--radius-md);
   }
 
@@ -2164,7 +2299,7 @@ body {
    ========================================================= */
 
 .flavor-wheel-section {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto 3.5rem;
   padding: 0 1.5rem;
 }
@@ -2704,7 +2839,7 @@ body {
    INTERACTIVE 3x 100g CURATED TASTER FLIGHT BUILDER
    ========================================================================== */
 .taster-flight-section {
-  max-width: 1280px;
+  max-width: var(--content-max);
   margin: 0 auto 6rem;
   padding: 0 1.5rem;
 }

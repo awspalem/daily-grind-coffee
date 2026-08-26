@@ -220,7 +220,7 @@ function render() {
 
     <div id="experiences-toast" role="status" style="display:none; max-width:720px; margin:0 auto 1.6rem; padding:0.85rem 1.2rem; border-radius: var(--radius-lg); font-size:0.94rem; text-align:center;"></div>
 
-    <div class="product-grid" id="experiences-grid">
+    <div class="experiences-grid" id="experiences-grid">
       ${state.experiences.map(experienceCard).join('')}
     </div>
 

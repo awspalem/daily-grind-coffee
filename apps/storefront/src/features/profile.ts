@@ -100,7 +100,7 @@ function panel(inner: string, extra = ''): string {
 function renderSignedOut(): string {
   return `
     <div class="section-header" style="text-align:center; margin-bottom:1.5rem;">
-      <span class="section-eyebrow">Your Account</span>
+      <span class="section-label">Your Account</span>
       <h2 class="section-title">Your Coffee Profile</h2>
       <p class="section-subtitle">Sign in and we'll remember your roast, your grind and your usual bag.</p>
     </div>
@@ -379,7 +379,7 @@ function render(): void {
 
   section.innerHTML = `
     <div class="section-header" style="text-align:center; margin-bottom:1.5rem;">
-      <span class="section-eyebrow">Your Account</span>
+      <span class="section-label">Your Account</span>
       <h2 class="section-title">Your Coffee Profile</h2>
       <p class="section-subtitle">${esc(SEGMENT_COPY[segment] || SEGMENT_COPY.NEW)}</p>
     </div>

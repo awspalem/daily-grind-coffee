@@ -132,8 +132,11 @@ function renderSignedOut(host, config) {
     // `rupees_per_point_earned` below, which is whole rupees and does need scaling.
     const perPoint = config ? inrPrecise(Number(config.point_value_cents)) : null;
     host.innerHTML = `
-    <h2 class="section-title">The Daily Roast Club</h2>
-    <p class="section-subtitle">Earn points on every delivered order and take them off your next bag.</p>
+    <div class="section-header">
+      <span class="section-label">LOYALTY</span>
+      <h2 class="section-title">The Daily Roast Club</h2>
+      <p class="section-subtitle">Earn points on every delivered order and take them off your next bag.</p>
+    </div>
     <div class="loyalty-grid">
       <div class="loyalty-tile">
         <span class="tile-label">Earning</span>
@@ -151,7 +154,7 @@ function renderSignedOut(host, config) {
         <span class="tile-note">Bronze · Silver · Gold, by your last 12 months</span>
       </div>
     </div>
-    <p class="loyalty-empty">Sign in to see your balance and statement.</p>
+    <p class="loyalty-empty" style="text-align:center;">Sign in to see your balance and statement.</p>
   `;
 }
 function renderSummary(host, summary) {
@@ -163,8 +166,11 @@ function renderSummary(host, summary) {
         ? Math.min(100, Math.round((spent / (spent + toNext)) * 100))
         : 100;
     host.innerHTML = `
-    <h2 class="section-title">Your points</h2>
-    <p class="section-subtitle">${esc(copy.blurb)}</p>
+    <div class="section-header">
+      <span class="section-label">LOYALTY</span>
+      <h2 class="section-title">Your points</h2>
+      <p class="section-subtitle">${esc(copy.blurb)}</p>
+    </div>
     <div class="loyalty-grid">
       <div class="loyalty-tile">
         <span class="tile-label">Balance</span>
