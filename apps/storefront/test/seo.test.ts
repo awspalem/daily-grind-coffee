@@ -193,3 +193,28 @@ test('seo: the catalog links to the generated pages', () => {
   const main = readFileSync(join(ROOT, 'src', 'main.ts'), 'utf8');
   assert.match(main, /href="\/coffee\/\$\{this\.escapeHtml\(prod\.slug\)\}"/);
 });
+
+test('seo: nothing in the sitemap is a URL that redirects', () => {
+  // Cloudflare Pages serves the legal pages at /privacy and 308s /privacy.html to it. Listing
+  // the .html form pointed the sitemap at a redirect, and pointed every footer link on every
+  // page at an extra hop.
+  const xml = sitemap([PRODUCT]);
+  assert.doesNotMatch(xml, /\.html<\/loc>/, 'the sitemap must list destinations, not redirects');
+  assert.ok(xml.includes('<loc>https://dailyroast.in/privacy</loc>'));
+});
+
+test('seo: the legal pages are canonical to their extensionless URL', () => {
+  // They had no canonical at all while being reachable at two URLs each.
+  for (const [file, slug] of [['privacy.html', 'privacy'], ['terms.html', 'terms'], ['shipping.html', 'shipping']]) {
+    const html = readFileSync(join(ROOT, file), 'utf8');
+    const canonical = /<link rel="canonical" href="([^"]+)"/.exec(html);
+    assert.ok(canonical, `${file} has no canonical`);
+    assert.equal(canonical![1], `https://dailyroast.in/${slug}`);
+  }
+});
+
+test('seo: no internal link takes a needless redirect hop', () => {
+  const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  assert.doesNotMatch(html, /href="\/?(privacy|terms|shipping)\.html"/,
+    'these 308 to their extensionless form — link straight to the destination');
+});

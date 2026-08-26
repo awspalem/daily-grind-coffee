@@ -206,7 +206,7 @@ ${jsonLd(breadcrumb(p))}
 <footer class="site-footer">
   <div class="footer-bottom" style="max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem;">
     <span>&copy; 2026 The Daily Roast Roastery Pvt Ltd · Bangalore, India</span>
-    <span><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a> · <a href="/shipping.html">Shipping &amp; Returns</a></span>
+    <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/shipping">Shipping &amp; Returns</a></span>
   </div>
 </footer>
 </body>
@@ -291,9 +291,11 @@ export function sitemap(products) {
     `${SITE}/`,
     `${SITE}/coffee/`,
     ...products.map((p) => `${SITE}/coffee/${p.slug}`),
-    `${SITE}/shipping.html`,
-    `${SITE}/privacy.html`,
-    `${SITE}/terms.html`,
+    // Extensionless: Cloudflare Pages serves these at /privacy and 308s /privacy.html to it,
+    // so listing the .html form pointed the sitemap at a redirect.
+    `${SITE}/shipping`,
+    `${SITE}/privacy`,
+    `${SITE}/terms`,
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -329,9 +331,9 @@ ${products.map((p) => {
 ## The roastery
 
 - [Every coffee we roast](${SITE}/coffee/): the full catalog.
-- [Shipping and returns](${SITE}/shipping.html)
-- [Privacy policy](${SITE}/privacy.html)
-- [Terms of service](${SITE}/terms.html)
+- [Shipping and returns](${SITE}/shipping)
+- [Privacy policy](${SITE}/privacy)
+- [Terms of service](${SITE}/terms)
 
 ## Subscriptions and experiences
 
