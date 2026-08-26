@@ -56,6 +56,12 @@
     "servesCuisine": "Coffee",
     "currenciesAccepted": "INR",
     "areaServed": { "@type": "Country", "name": "India" },
+    "openingHoursSpecification": [{
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+      "opens": "09:00",
+      "closes": "19:00"
+    }],
     "address": {
       "@type": "PostalAddress",
       "streetAddress": "100ft Road, Indiranagar",
@@ -862,6 +868,9 @@
         <h3>THE DAILY ROAST</h3>
         <p>Independent specialty coffee roastery based in Indiranagar, Bangalore, India. Dedicated to ethical Indian estate sourcing, precision roasting, and extraordinary everyday coffee rituals.</p>
         <p style="margin-top: 0.8rem; font-size: 0.82rem; color: var(--accent-gold);">📍 Indiranagar 100ft Road, Bangalore, KA 560038, India</p>
+        <!-- Shown as well as marked up. Opening hours a visitor cannot read are the same defect
+             as a rating a visitor cannot see. -->
+        <p style="margin-top: 0.3rem; font-size: 0.82rem;">🕘 Open daily, 9:00 AM – 7:00 PM IST</p>
         <p style="margin-top: 0.5rem; font-size: 0.82rem;">
           <a href="mailto:support@dailyroast.in" style="color: inherit; opacity: 0.85;">✉️ support@dailyroast.in</a>
           &nbsp;·&nbsp;

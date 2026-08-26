@@ -180,12 +180,21 @@ test('seo: the homepage schema parses and describes one business, not two', () =
     'a bare Organization block alongside CafeOrCoffeeShop splits one business into two entities');
 });
 
-test('seo: the homepage claims no opening hours or coordinates it cannot support', () => {
-  // Both were written speculatively and removed: the site states no hours anywhere, and the
-  // coordinates were invented. Publishing either as structured data asserts a fact about a real
-  // physical location on no evidence.
+test('seo: the opening hours in the markup are the hours shown on the page', () => {
+  // These were originally invented, removed for that reason, and later supplied by the owner:
+  // 9am to 7pm daily. They are marked up AND rendered in the footer, because hours a visitor
+  // cannot read are the same defect as a rating a visitor cannot see.
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  assert.doesNotMatch(html, /openingHoursSpecification|GeoCoordinates/);
+  const hours = /"opens": "(\d{2}:\d{2})",\s*"closes": "(\d{2}:\d{2})"/.exec(html);
+  assert.ok(hours, 'opening hours are missing from the structured data');
+  assert.deepEqual([hours[1], hours[2]], ['09:00', '19:00']);
+  assert.match(html, /9:00 AM\s*–\s*7:00 PM/, 'the same hours must be visible in the footer');
+});
+
+test('seo: no coordinates are claimed, because none were ever supplied', () => {
+  // The address is real and Google geocodes from it; the lat/long I first wrote was invented.
+  const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  assert.doesNotMatch(html, /GeoCoordinates/);
 });
 
 test('seo: the catalog links to the generated pages', () => {

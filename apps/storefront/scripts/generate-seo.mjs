@@ -57,6 +57,25 @@ function builtStylesheet() {
 // ------------------------------------------------------------------------------------------
 
 const products = await fetchProducts();
+
+/**
+ * Two coffees sharing a photograph means they also share an og:image, so the same picture
+ * represents both in every link preview. Migration 0018 separated the three pairs that existed;
+ * this reports a regression rather than failing the build, because it is a content gap the
+ * catalog can legitimately have for a while and no reason to block a deploy.
+ */
+const byImage = new Map();
+for (const p of products) {
+  if (!p.image_url) continue;
+  const key = p.image_url.split('?')[0];
+  byImage.set(key, [...(byImage.get(key) || []), p.slug]);
+}
+for (const [image, slugs] of byImage) {
+  if (slugs.length > 1) {
+    console.warn(`seo: WARNING ${slugs.join(' and ')} share one photo (${image.split('/').pop()}) ` +
+      `— their social cards will be identical.`);
+  }
+}
 const css = builtStylesheet();
 
 /**
