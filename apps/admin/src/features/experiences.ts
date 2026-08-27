@@ -7,7 +7,8 @@
  * be booked, so slot creation is the primary action here rather than an afterthought.
  */
 
-import { adminFetch, esc, mountAdminPanel, panelBody, registerAdminNavItem } from './shared';
+import { adminFetch, esc } from './shared';
+import type { RouteModule } from '../router';
 
 const PANEL = 'panel-experiences';
 
@@ -61,74 +62,73 @@ function localInputToIso(value: string): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-export function initAdminExperiences(portal: any): void {
-  void portal;
+function mount(container: HTMLElement): void {
+  container.innerHTML = `
+    <section class="section-panel" id="${PANEL}">
+      <div class="panel-header"><h2 class="panel-title">Experiences &amp; Bookings</h2></div>
+      <div class="panel-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead><tr>
+              <th>Experience</th><th>Mode</th><th>Price</th><th>Deposit</th><th>Capacity</th><th>Funded by</th><th>Status</th><th>Action</th>
+            </tr></thead>
+            <tbody id="exp-table-body"><tr><td colspan="8">Loading…</td></tr></tbody>
+          </table>
+        </div>
 
-  mountAdminPanel(PANEL, 'Experiences & Bookings');
-  registerAdminNavItem('experiences', 'Experiences', PANEL);
-  const body = panelBody(PANEL);
-  if (!body) return;
+        <h3>Add a slot</h3>
+        <form id="slot-form" style="display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <label>Experience<select name="experienceId" id="slot-experience"></select></label>
+          <label>Starts<input name="startsAt" type="datetime-local" required /></label>
+          <label>Ends <span style="color:var(--text-muted); font-size:0.78rem;">(blank = use duration)</span>
+            <input name="endsAt" type="datetime-local" /></label>
+          <label>Seats<input name="seatsTotal" type="number" min="1" placeholder="default capacity" /></label>
+          <label>Host<input name="staffName" /></label>
+          <label>Host email<input name="staffEmail" type="email" /></label>
+          <label>Video room URL <span style="color:var(--text-muted); font-size:0.78rem;">(VIDEO only)</span>
+            <input name="meetingUrl" type="url" /></label>
+          <label style="grid-column: 1 / -1;">Notes<input name="notes" /></label>
+          <div style="grid-column: 1 / -1; display: flex; gap: 0.6rem; align-items: center;">
+            <button type="submit" class="btn-table-action">Create slot</button>
+            <span id="slot-form-error" style="color: var(--rose); font-size: 0.85rem;"></span>
+          </div>
+        </form>
 
-  body.innerHTML = `
-    <div style="overflow-x: auto;">
-      <table class="data-table">
-        <thead><tr>
-          <th>Experience</th><th>Mode</th><th>Price</th><th>Deposit</th><th>Capacity</th><th>Funded by</th><th>Status</th><th>Action</th>
-        </tr></thead>
-        <tbody id="exp-table-body"><tr><td colspan="8">Loading…</td></tr></tbody>
-      </table>
-    </div>
+        <h3>Upcoming slots</h3>
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead><tr>
+              <th>Experience</th><th>When</th><th>Seats</th><th>Host</th><th>Status</th><th>Action</th>
+            </tr></thead>
+            <tbody id="slot-table-body"><tr><td colspan="6">Loading…</td></tr></tbody>
+          </table>
+        </div>
 
-    <h3 style="margin-top: 2rem;">Add a slot</h3>
-    <form id="slot-form" style="display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-      <label>Experience<select name="experienceId" id="slot-experience"></select></label>
-      <label>Starts<input name="startsAt" type="datetime-local" required /></label>
-      <label>Ends <span style="color:var(--text-muted); font-size:0.78rem;">(blank = use duration)</span>
-        <input name="endsAt" type="datetime-local" /></label>
-      <label>Seats<input name="seatsTotal" type="number" min="1" placeholder="default capacity" /></label>
-      <label>Host<input name="staffName" /></label>
-      <label>Host email<input name="staffEmail" type="email" /></label>
-      <label>Video room URL <span style="color:var(--text-muted); font-size:0.78rem;">(VIDEO only)</span>
-        <input name="meetingUrl" type="url" /></label>
-      <label style="grid-column: 1 / -1;">Notes<input name="notes" /></label>
-      <div style="grid-column: 1 / -1; display: flex; gap: 0.6rem; align-items: center;">
-        <button type="submit" class="btn-table-action">Create slot</button>
-        <span id="slot-form-error" style="color: var(--danger, #c0392b); font-size: 0.85rem;"></span>
+        <div id="roster-host"></div>
+
+        <h3>Blackout dates</h3>
+        <form id="blackout-form" style="display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <label>Experience <span style="color:var(--text-muted); font-size:0.78rem;">(blank = all)</span>
+            <select name="experienceId" id="blackout-experience"></select></label>
+          <label>From<input name="startsAt" type="datetime-local" required /></label>
+          <label>To<input name="endsAt" type="datetime-local" required /></label>
+          <label>Reason<input name="reason" /></label>
+          <div style="grid-column: 1 / -1; display: flex; gap: 0.6rem; align-items: center;">
+            <button type="submit" class="btn-table-action">Add blackout</button>
+            <span id="blackout-error" style="color: var(--rose); font-size: 0.85rem;"></span>
+          </div>
+        </form>
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead><tr><th>Experience</th><th>From</th><th>To</th><th>Reason</th><th>Action</th></tr></thead>
+            <tbody id="blackout-table-body"><tr><td colspan="5">Loading…</td></tr></tbody>
+          </table>
+        </div>
       </div>
-    </form>
-
-    <h3 style="margin-top: 2rem;">Upcoming slots</h3>
-    <div style="overflow-x: auto;">
-      <table class="data-table">
-        <thead><tr>
-          <th>Experience</th><th>When</th><th>Seats</th><th>Host</th><th>Status</th><th>Action</th>
-        </tr></thead>
-        <tbody id="slot-table-body"><tr><td colspan="6">Loading…</td></tr></tbody>
-      </table>
-    </div>
-
-    <div id="roster-host" style="margin-top: 1.6rem;"></div>
-
-    <h3 style="margin-top: 2rem;">Blackout dates</h3>
-    <form id="blackout-form" style="display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-      <label>Experience <span style="color:var(--text-muted); font-size:0.78rem;">(blank = all)</span>
-        <select name="experienceId" id="blackout-experience"></select></label>
-      <label>From<input name="startsAt" type="datetime-local" required /></label>
-      <label>To<input name="endsAt" type="datetime-local" required /></label>
-      <label>Reason<input name="reason" /></label>
-      <div style="grid-column: 1 / -1; display: flex; gap: 0.6rem; align-items: center;">
-        <button type="submit" class="btn-table-action">Add blackout</button>
-        <span id="blackout-error" style="color: var(--danger, #c0392b); font-size: 0.85rem;"></span>
-      </div>
-    </form>
-    <div style="overflow-x: auto; margin-top: 1rem;">
-      <table class="data-table">
-        <thead><tr><th>Experience</th><th>From</th><th>To</th><th>Reason</th><th>Action</th></tr></thead>
-        <tbody id="blackout-table-body"><tr><td colspan="5">Loading…</td></tr></tbody>
-      </table>
-    </div>
+    </section>
   `;
 
+  const body = container;
   const expBody = body.querySelector<HTMLElement>('#exp-table-body')!;
   const slotBody = body.querySelector<HTMLElement>('#slot-table-body')!;
   const rosterHost = body.querySelector<HTMLElement>('#roster-host')!;
@@ -360,3 +360,6 @@ export function initAdminExperiences(portal: any): void {
     await loadBlackouts();
   })();
 }
+
+const route: RouteModule = { mount };
+export default route;

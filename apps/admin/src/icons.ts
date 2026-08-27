@@ -27,6 +27,8 @@ export const icons = {
   truck: icon('<rect x="1" y="6" width="13" height="11"></rect><path d="M14 10h4l4 4v3h-8Z"></path><circle cx="6" cy="19" r="1.7"></circle><circle cx="16.5" cy="19" r="1.7"></circle>'),
   rocket: icon('<path d="M12 2c3.5 1 6 5 6 9-1 .5-2.2.8-3.5.8L12 22l-2.5-10.2C8.2 11.8 7 11.5 6 11c0-4 2.5-8 6-9Z"></path><circle cx="12" cy="9" r="1.6"></circle><path d="M8.5 15 6 17.5"></path><path d="M15.5 15 18 17.5"></path>'),
   home: icon('<path d="M4 11 12 4l8 7"></path><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"></path>'),
+  layers: icon('<path d="M12 3 2 8l10 5 10-5-10-5Z"></path><path d="M2 12l10 5 10-5"></path><path d="M2 16l10 5 10-5"></path>'),
+  calendar: icon('<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4"></path><path d="M8 3v4"></path><path d="M3 10h18"></path>'),
 };
 
 export type IconName = keyof typeof icons;

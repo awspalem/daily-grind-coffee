@@ -7,7 +7,8 @@
  * row, and the perks their members already hold were defined by it.
  */
 
-import { adminFetch, esc, mountAdminPanel, panelBody, registerAdminNavItem } from './shared';
+import { adminFetch, esc } from './shared';
+import type { RouteModule } from '../router';
 
 const PANEL = 'panel-plans';
 
@@ -131,44 +132,43 @@ function formHtml(plan: Plan | null): string {
   `;
 }
 
-export function initAdminPlans(portal: any): void {
-  void portal;
+function mount(container: HTMLElement): void {
+  container.innerHTML = `
+    <section class="section-panel" id="${PANEL}">
+      <div class="panel-header"><h2 class="panel-title">Subscription Plans</h2></div>
+      <div class="panel-body" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+        <div id="plan-form-host"></div>
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead><tr>
+              <th>Plan</th><th>Tier</th><th>Term</th><th>Price</th><th>Entitlements</th><th>Members</th><th>Status</th><th>Action</th>
+            </tr></thead>
+            <tbody id="plans-table-body"><tr><td colspan="8">Loading…</td></tr></tbody>
+          </table>
+        </div>
 
-  mountAdminPanel(PANEL, 'Subscription Plans');
-  registerAdminNavItem('plans', 'Plans', PANEL);
-  const body = panelBody(PANEL);
-  if (!body) return;
+        <h3>Outstanding entitlements</h3>
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead><tr><th>Code</th><th>Grants</th><th>Units outstanding</th><th>Units used</th></tr></thead>
+            <tbody id="plan-entitlements-body"><tr><td colspan="4">Loading…</td></tr></tbody>
+          </table>
+        </div>
 
-  body.innerHTML = `
-    <div id="plan-form-host"></div>
-    <div style="overflow-x: auto;">
-      <table class="data-table">
-        <thead><tr>
-          <th>Plan</th><th>Tier</th><th>Term</th><th>Price</th><th>Entitlements</th><th>Members</th><th>Status</th><th>Action</th>
-        </tr></thead>
-        <tbody id="plans-table-body"><tr><td colspan="8">Loading…</td></tr></tbody>
-      </table>
-    </div>
-
-    <h3 style="margin-top: 2rem;">Outstanding entitlements</h3>
-    <div style="overflow-x: auto;">
-      <table class="data-table">
-        <thead><tr><th>Code</th><th>Grants</th><th>Units outstanding</th><th>Units used</th></tr></thead>
-        <tbody id="plan-entitlements-body"><tr><td colspan="4">Loading…</td></tr></tbody>
-      </table>
-    </div>
-
-    <h3 style="margin-top: 2rem;">Subscribers</h3>
-    <div style="overflow-x: auto;">
-      <table class="data-table">
-        <thead><tr>
-          <th>Customer</th><th>Plan</th><th>Coffee</th><th>Status</th><th>Next renewal</th><th>Term ends</th><th>Card on file</th>
-        </tr></thead>
-        <tbody id="plan-subscribers-body"><tr><td colspan="7">Loading…</td></tr></tbody>
-      </table>
-    </div>
+        <h3>Subscribers</h3>
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead><tr>
+              <th>Customer</th><th>Plan</th><th>Coffee</th><th>Status</th><th>Next renewal</th><th>Term ends</th><th>Card on file</th>
+            </tr></thead>
+            <tbody id="plan-subscribers-body"><tr><td colspan="7">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   `;
 
+  const body = container;
   const formHost = body.querySelector<HTMLElement>('#plan-form-host')!;
   const tableBody = body.querySelector<HTMLElement>('#plans-table-body')!;
   let plans: Plan[] = [];
@@ -285,3 +285,6 @@ export function initAdminPlans(portal: any): void {
   void loadEntitlements();
   void loadSubscribers();
 }
+
+const route: RouteModule = { mount };
+export default route;

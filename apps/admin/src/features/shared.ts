@@ -34,56 +34,18 @@ export async function adminFetch<T = any>(
   }
 }
 
-/** Creates (once) a collapsible section panel at the end of <main>, matching existing panels. */
-export function mountAdminPanel(panelId: string, title: string, headerActionHtml = ''): HTMLElement {
-  const existing = document.getElementById(panelId);
-  if (existing) return existing;
-
-  const section = document.createElement('section');
-  section.className = 'section-panel';
-  section.id = panelId;
-  section.innerHTML = `
-    <div class="panel-header">
-      <h2 class="panel-title">${title}</h2>
-      ${headerActionHtml}
-    </div>
-    <div class="panel-body"></div>
-  `;
-
-  const main = document.querySelector('.admin-main') || document.body;
-  main.appendChild(section);
-  return section;
-}
-
-/** The panel's content area — write feature markup here, leaving the header intact. */
-export function panelBody(panelId: string): HTMLElement | null {
-  return document.querySelector(`#${panelId} .panel-body`);
-}
-
-/**
- * Adds a sidebar nav entry that reveals and scrolls to the feature's panel. main.ts only knows
- * about its own static tab->panel map, so the listener is attached here.
- */
-export function registerAdminNavItem(tab: string, label: string, panelId: string): void {
-  const list = document.querySelector('.nav-item-btn')?.closest('ul');
-  if (!list || list.querySelector(`[data-tab="${tab}"]`)) return;
-
-  const li = document.createElement('li');
-  const btn = document.createElement('button');
-  btn.className = 'nav-item-btn';
-  btn.setAttribute('data-tab', tab);
-  btn.textContent = label;
-  btn.addEventListener('click', () => {
-    const panel = document.getElementById(panelId);
-    panel?.classList.remove('collapsed');
-    panel?.scrollIntoView({ behavior: 'smooth' });
-  });
-  li.appendChild(btn);
-  list.appendChild(li);
-}
-
 export function esc(value: unknown): string {
   const div = document.createElement('div');
   div.textContent = String(value ?? '');
   return div.innerHTML;
+}
+
+export function triggerHaptic(): void {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try {
+      navigator.vibrate(12);
+    } catch {
+      // Ignore vibration errors on unsupported platforms
+    }
+  }
 }

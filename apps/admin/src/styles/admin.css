@@ -301,6 +301,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  text-decoration: none;
 }
 
 .btn-admin-action:hover {
@@ -439,51 +440,8 @@ body {
   font-weight: 700;
 }
 
-/* Collapsible panels — collapsed is the default; JS adds .expanded to reveal the body.
-   Targets every direct child except .panel-header, so existing panel markup doesn't need
-   a dedicated wrapper element. The selector is scoped to :not(.expanded) so this rule
-   simply doesn't match once a panel is expanded — the child then falls through to its
-   own inline `display` (flex/grid, set inline on several panel-body wrappers) or the
-   browser's normal tag default (block for divs, table for tables), with no extra rule
-   needed to "restore" it. !important is required on the hidden state because inline
-   `style="display: ..."` attributes otherwise always beat a plain stylesheet rule
-   regardless of selector specificity, which is why panels used to stay stuck open.
-   (Do not use `display: revert` for the expanded state — revert rolls back the entire
-   author origin, including inline styles, so it would strip those inline flex/grid
-   layouts instead of preserving them.) */
-.section-panel:not(.expanded) > :not(.panel-header) {
-  display: none !important;
-}
-
-.panel-toggle {
-  min-width: 36px;
-  min-height: 36px;
-  background: rgba(0, 0, 0, 0.04);
-  border: 1px solid var(--admin-border);
-  color: var(--text-muted);
-  border-radius: var(--radius-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: var(--transition);
-  flex-shrink: 0;
-}
-
-.panel-toggle:hover {
-  color: var(--text-main);
-  border-color: var(--copper);
-}
-
-.panel-toggle svg {
-  width: 16px;
-  height: 16px;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.section-panel.expanded .panel-toggle svg {
-  transform: rotate(180deg);
-}
+/* A route only ever renders one panel at a time (see src/router.ts), so panels no longer
+   need the old always-in-DOM collapse/expand affordance — each one just renders in full. */
 
 .data-table {
   width: 100%;
