@@ -150,8 +150,38 @@ adminApp.get('/orders', async (c) => {
   }
   query += ' ORDER BY created_at DESC LIMIT 50';
 
-  const { results } = await c.env.DB.prepare(query).bind(...params).all();
-  return c.json({ success: true, orders: results || [] });
+  const { results } = await c.env.DB.prepare(query).bind(...params).all<any>();
+  const orders = results || [];
+
+  // Fold in line items + the parsed shipping address so the admin dispatch table doesn't need
+  // a second round-trip per order — this list is capped at 50 rows, so one extra IN() query is
+  // cheap relative to N+1.
+  if (orders.length > 0) {
+    const ids = orders.map((o) => o.id);
+    const placeholders = ids.map(() => '?').join(',');
+    const { results: items } = await c.env.DB.prepare(
+      `SELECT * FROM order_items WHERE order_id IN (${placeholders})`
+    ).bind(...ids).all<any>();
+
+    const itemsByOrder = new Map<string, any[]>();
+    for (const item of items || []) {
+      const list = itemsByOrder.get(item.order_id as string) || [];
+      list.push(item);
+      itemsByOrder.set(item.order_id as string, list);
+    }
+
+    for (const order of orders) {
+      order.items = itemsByOrder.get(order.id as string) || [];
+      try {
+        order.shipping_address = JSON.parse(order.shipping_address_json as string);
+      } catch {
+        order.shipping_address = null;
+      }
+      delete order.shipping_address_json;
+    }
+  }
+
+  return c.json({ success: true, orders });
 });
 
 // POST /api/admin/orders/:id/status
