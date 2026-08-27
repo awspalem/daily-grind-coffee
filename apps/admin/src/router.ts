@@ -1,5 +1,5 @@
 import { icons } from './icons';
-import { triggerHaptic } from './features/shared';
+import { triggerHaptic, esc } from './features/shared';
 import { closeMobileDrawer } from './core/shell';
 
 export interface RouteModule {
@@ -7,15 +7,17 @@ export interface RouteModule {
   mount(container: HTMLElement): void | (() => void) | Promise<void | (() => void)>;
 }
 
-interface NavRoute {
+export interface NavRoute {
   kind: 'route';
   key: string;
   label: string;
+  subtitle: string;
+  section: string;
   icon: string;
   load: () => Promise<RouteModule>;
 }
 
-interface NavLink {
+export interface NavLink {
   kind: 'link';
   key: string;
   label: string;
@@ -23,30 +25,50 @@ interface NavLink {
   href: string;
 }
 
-type NavEntry = NavRoute | NavLink;
+export type NavEntry = NavRoute | NavLink;
 
-// Single source of truth for sidebar order, labels, icons, and lazy-loaded route modules.
-const NAV: NavEntry[] = [
-  { kind: 'route', key: 'overview', label: 'Daily Operations', icon: icons.dashboard, load: () => import('./features/overview').then((m) => m.default) },
-  { kind: 'link', key: 'investor', label: 'Investor Readiness & Growth ↗', icon: icons.rocket, href: '/investor.html' },
-  { kind: 'route', key: 'labels', label: 'Bag Labels & QR Studio', icon: icons.tag, load: () => import('./features/labels').then((m) => m.default) },
-  { kind: 'route', key: 'pricing', label: 'Catalog, Pricing & Discounts', icon: icons.percent, load: () => import('./features/pricing').then((m) => m.default) },
-  { kind: 'route', key: 'inventory', label: 'Inventory Management', icon: icons.box, load: () => import('./features/inventory').then((m) => m.default) },
-  { kind: 'route', key: 'catalog', label: 'Product Catalog', icon: icons.leaf, load: () => import('./features/catalog').then((m) => m.default) },
-  { kind: 'route', key: 'capacity', label: 'Capacity vs Demand Matrix', icon: icons.gauge, load: () => import('./features/economics/capacity').then((m) => m.default) },
-  { kind: 'route', key: 'capex', label: 'Roaster Pricing & CapEx', icon: icons.factory, load: () => import('./features/economics/capex').then((m) => m.default) },
-  { kind: 'route', key: 'economics', label: 'Unit Economics & Margins', icon: icons.dollar, load: () => import('./features/economics/unit-economics').then((m) => m.default) },
-  { kind: 'route', key: 'roasts', label: 'Batch Roaster & Loss Log', icon: icons.flame, load: () => import('./features/roasts').then((m) => m.default) },
-  { kind: 'route', key: 'coupons', label: 'Promo Coupons Engine', icon: icons.ticket, load: () => import('./features/coupons').then((m) => m.default) },
-  { kind: 'route', key: 'plans', label: 'Subscription Plans', icon: icons.layers, load: () => import('./features/plans').then((m) => m.default) },
-  { kind: 'route', key: 'subscriptions', label: 'Subscribe & Save', icon: icons.refresh, load: () => import('./features/subscriptions').then((m) => m.default) },
-  { kind: 'route', key: 'reviews', label: 'Customer Reviews', icon: icons.star, load: () => import('./features/reviews').then((m) => m.default) },
-  { kind: 'route', key: 'experiences', label: 'Roastery Experiences', icon: icons.calendar, load: () => import('./features/experiences').then((m) => m.default) },
-  { kind: 'route', key: 'channels', label: 'Communication Channels', icon: icons.megaphone, load: () => import('./features/channels').then((m) => m.default) },
-  { kind: 'route', key: 'campaigns', label: 'Social Media Campaigns', icon: icons.send, load: () => import('./features/campaigns').then((m) => m.default) },
-  { kind: 'route', key: 'limited-editions', label: 'Limited Editions', icon: icons.sparkle, load: () => import('./features/limited-editions').then((m) => m.default) },
-  { kind: 'route', key: 'promotions', label: 'Sales & Promotions', icon: icons.percent, load: () => import('./features/promotions').then((m) => m.default) },
-  { kind: 'route', key: 'orders', label: 'Order Fulfillment', icon: icons.truck, load: () => import('./features/orders').then((m) => m.default) },
+// Single source of truth for sidebar order, labels, icons, subtitles, and
+// lazy-loaded route modules. `subtitle` is shown under the page title in the
+// top bar; `section` is the sidebar group this entry belongs to.
+export const NAV: NavEntry[] = [
+  // Operations
+  { kind: 'route', key: 'overview',  label: 'Daily Operations',          subtitle: "Today's orders, stock & roastery briefing",     section: 'Operations',         icon: icons.dashboard, load: () => import('./features/overview').then((m) => m.default) },
+  { kind: 'route', key: 'orders',    label: 'Order Fulfillment',         subtitle: 'Dispatch, GST invoices & bag labels',           section: 'Operations',         icon: icons.truck,    load: () => import('./features/orders').then((m) => m.default) },
+  { kind: 'route', key: 'roasts',    label: 'Batch Roaster & Loss Log',  subtitle: 'Green kg in, roasted kg out, loss calibration', section: 'Operations',         icon: icons.flame,    load: () => import('./features/roasts').then((m) => m.default) },
+  { kind: 'route', key: 'inventory', label: 'Inventory Management',      subtitle: 'Stock levels, restocks, damage & returns',       section: 'Operations',         icon: icons.box,      load: () => import('./features/inventory').then((m) => m.default) },
+  { kind: 'route', key: 'labels',    label: 'Bag Labels & QR Studio',    subtitle: '3" × 4" thermal label designer & QR',            section: 'Operations',         icon: icons.tag,      load: () => import('./features/labels').then((m) => m.default) },
+
+  // Catalog & Pricing
+  { kind: 'route', key: 'catalog',         label: 'Product Catalog',         subtitle: 'Manage products, variants & imagery',                section: 'Catalog & Pricing', icon: icons.leaf,     load: () => import('./features/catalog').then((m) => m.default) },
+  { kind: 'route', key: 'pricing',         label: 'Catalog, Pricing & Discounts', subtitle: 'INR/USD price control & discount engine',        section: 'Catalog & Pricing', icon: icons.percent,  load: () => import('./features/pricing').then((m) => m.default) },
+  { kind: 'route', key: 'coupons',         label: 'Promo Coupons Engine',    subtitle: 'Code-based discounts for the storefront',            section: 'Catalog & Pricing', icon: icons.ticket,   load: () => import('./features/coupons').then((m) => m.default) },
+  { kind: 'route', key: 'promotions',      label: 'Sales & Promotions',      subtitle: 'Time-bounded sales linked to optional coupons',      section: 'Catalog & Pricing', icon: icons.percent,  load: () => import('./features/promotions').then((m) => m.default) },
+  { kind: 'route', key: 'plans',           label: 'Subscription Plans',      subtitle: 'EXPLORER · CONNOISSEUR · FOUNDER tier CRUD',         section: 'Catalog & Pricing', icon: icons.layers,   load: () => import('./features/plans').then((m) => m.default) },
+  { kind: 'route', key: 'subscriptions',   label: 'Subscribe & Save',        subtitle: 'Active, paused, past-due & cancelled subscribers',   section: 'Catalog & Pricing', icon: icons.refresh,  load: () => import('./features/subscriptions').then((m) => m.default) },
+  { kind: 'route', key: 'limited-editions',label: 'Limited Editions',        subtitle: 'Drops, launch windows & unit caps',                  section: 'Catalog & Pricing', icon: icons.sparkle,  load: () => import('./features/limited-editions').then((m) => m.default) },
+
+  // Economics
+  { kind: 'route', key: 'capacity',  label: 'Capacity vs Demand Matrix', subtitle: 'Roaster kg tier vs. breakeven demand',        section: 'Economics', icon: icons.gauge,    load: () => import('./features/economics/capacity').then((m) => m.default) },
+  { kind: 'route', key: 'capex',     label: 'Roaster Pricing & CapEx',   subtitle: 'India-market roaster benchmarks, 5-yr depreciation', section: 'Economics', icon: icons.factory,  load: () => import('./features/economics/capex').then((m) => m.default) },
+  { kind: 'route', key: 'economics', label: 'Unit Economics & Margins',  subtitle: 'Live margin & breakeven controller',         section: 'Economics', icon: icons.dollar,   load: () => import('./features/economics/unit-economics').then((m) => m.default) },
+
+  // Customer & Marketing
+  { kind: 'route', key: 'reviews',      label: 'Customer Reviews',        subtitle: 'Moderation queue with verified-purchase context', section: 'Customer & Marketing', icon: icons.star,      load: () => import('./features/reviews').then((m) => m.default) },
+  { kind: 'route', key: 'experiences',  label: 'Roastery Experiences',    subtitle: 'Cupping, tours & bookable sessions',               section: 'Customer & Marketing', icon: icons.calendar,  load: () => import('./features/experiences').then((m) => m.default) },
+  { kind: 'route', key: 'channels',     label: 'Communication Channels',  subtitle: 'IG, WA, email & outreach planning',               section: 'Customer & Marketing', icon: icons.megaphone, load: () => import('./features/channels').then((m) => m.default) },
+  { kind: 'route', key: 'campaigns',    label: 'Social Media Campaigns',  subtitle: 'DRAFT → SCHEDULED → LIVE → COMPLETED lifecycle',  section: 'Customer & Marketing', icon: icons.send,      load: () => import('./features/campaigns').then((m) => m.default) },
+
+  // External — always rendered at the bottom of the sidebar as a ghost link
+  { kind: 'link', key: 'investor', label: 'Investor Readiness & Growth', icon: icons.rocket, href: '/investor.html' },
+];
+
+// Sidebar grouping — drives both the visual section labels and the
+// command-palette grouping. Order here is the display order top-to-bottom.
+export const SECTIONS: Array<{ title: string; keys: string[] }> = [
+  { title: 'Operations',          keys: ['overview', 'orders', 'roasts', 'inventory', 'labels'] },
+  { title: 'Catalog & Pricing',   keys: ['catalog', 'pricing', 'coupons', 'promotions', 'plans', 'subscriptions', 'limited-editions'] },
+  { title: 'Economics',           keys: ['capacity', 'capex', 'economics'] },
+  { title: 'Customer & Marketing', keys: ['reviews', 'experiences', 'channels', 'campaigns'] },
 ];
 
 const routesByKey = new Map<string, NavRoute>(
@@ -71,6 +93,20 @@ function syncNavActiveState(key: string): void {
   document.querySelectorAll('.nav-item-btn[data-tab]').forEach((btn) => {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === key);
   });
+}
+
+function syncHeader(route: NavRoute): void {
+  const titleEl = document.getElementById('header-title');
+  const subEl   = document.getElementById('header-subtitle');
+  const crumbEl = document.getElementById('header-breadcrumb');
+  if (titleEl) titleEl.textContent = route.label;
+  if (subEl)   subEl.textContent   = route.subtitle;
+  if (crumbEl) {
+    crumbEl.innerHTML =
+      `<span>Roastery</span><span class="bc-sep">/</span>` +
+      `<span>${esc(route.section)}</span><span class="bc-sep">/</span>` +
+      `<span class="bc-current">${esc(route.label)}</span>`;
+  }
 }
 
 async function renderRoute(key: string): Promise<void> {
@@ -106,7 +142,8 @@ async function renderRoute(key: string): Promise<void> {
 
   activeCleanup = typeof result === 'function' ? result : undefined;
   syncNavActiveState(route.key);
-  document.title = `${route.label.replace(/ ↗$/, '')} · The Daily Roast Admin`;
+  syncHeader(route);
+  document.title = `${route.label} · The Daily Roast Admin`;
   window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 }
 
@@ -121,16 +158,45 @@ export function navigate(path: string, opts: { replace?: boolean } = {}): void {
   void renderRoute(key);
 }
 
-function renderSidebarNav(): void {
+function findEntry(key: string): NavEntry | undefined {
+  return NAV.find((e) => e.key === key);
+}
+
+function renderGroupedSidebarNav(): void {
   const list = document.getElementById('sidebar-nav');
   if (!list) return;
 
-  list.innerHTML = NAV.map((entry) => {
-    if (entry.kind === 'link') {
-      return `<li><a href="${entry.href}" class="nav-item-btn nav-item-btn--external">${entry.icon}<span>${entry.label}</span></a></li>`;
-    }
-    return `<li><button class="nav-item-btn" data-tab="${entry.key}">${entry.icon}<span>${entry.label}</span></button></li>`;
+  const navRoutesByKey = new Map(NAV.filter((e): e is NavRoute => e.kind === 'route').map((r) => [r.key, r]));
+
+  const sectionsHtml = SECTIONS.map((section) => {
+    const itemsHtml = section.keys
+      .map((k) => navRoutesByKey.get(k))
+      .filter((entry): entry is NavRoute => Boolean(entry))
+      .map((entry) => `
+        <li>
+          <button class="nav-item-btn" data-tab="${esc(entry.key)}" type="button">
+            ${entry.icon}<span>${esc(entry.label)}</span>
+          </button>
+        </li>`)
+      .join('');
+    return `
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">${esc(section.title)}</div>
+        <ul class="sidebar-section-list" style="list-style: none; display: flex; flex-direction: column; gap: 0.15rem;">${itemsHtml}</ul>
+      </div>`;
   }).join('');
+
+  // External (Investor Portal) is always last, separated by a divider
+  const external = NAV.find((e): e is NavLink => e.kind === 'link');
+  const externalHtml = external
+    ? `<li><a href="${esc(external.href)}" class="nav-item-btn nav-item-btn--external">${external.icon}<span>${esc(external.label)}</span></a></li>`
+    : '';
+
+  list.innerHTML = `
+    ${sectionsHtml}
+    <div class="sidebar-divider"></div>
+    ${externalHtml}
+  `;
 
   list.querySelectorAll<HTMLButtonElement>('button.nav-item-btn[data-tab]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -142,7 +208,7 @@ function renderSidebarNav(): void {
 }
 
 export function initRouter(): void {
-  renderSidebarNav();
+  renderGroupedSidebarNav();
 
   window.addEventListener('popstate', () => {
     void renderRoute(currentKey());
@@ -155,3 +221,6 @@ export function initRouter(): void {
     void renderRoute(startKey);
   }
 }
+
+// Re-exported so core/cmdK.ts can read them without circular imports
+export { findEntry, routesByKey };

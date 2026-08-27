@@ -34,6 +34,18 @@ export const icons = {
   target: icon('<circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r="0.8" fill="currentColor"></circle>'),
   calculator: icon('<rect x="4" y="2.5" width="16" height="19" rx="2"></rect><line x1="7" y1="6.5" x2="17" y2="6.5"></line><line x1="7" y1="11" x2="7" y2="11.01"></line><line x1="12" y1="11" x2="12" y2="11.01"></line><line x1="17" y1="11" x2="17" y2="11.01"></line><line x1="7" y1="15" x2="7" y2="15.01"></line><line x1="12" y1="15" x2="12" y2="15.01"></line><line x1="17" y1="15" x2="17" y2="18.5"></line><line x1="7" y1="18.5" x2="7" y2="18.51"></line><line x1="12" y1="18.5" x2="12" y2="18.51"></line>'),
   folder: icon('<path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"></path>'),
+
+  // New for v2 redesign: command palette, toasts, KPI cards, empty states
+  search: icon('<circle cx="11" cy="11" r="7"></circle><line x1="20" y1="20" x2="16.65" y2="16.65"></line>'),
+  check: icon('<polyline points="20 6 9 17 4 12"></polyline>'),
+  x: icon('<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>'),
+  inbox: icon('<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"></path>'),
+  trendingUp: icon('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline>'),
+  trendingDown: icon('<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline>'),
+  plus: icon('<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>'),
+  info: icon('<circle cx="12" cy="12" r="9"></circle><line x1="12" y1="11" x2="12" y2="16"></line><circle cx="12" cy="8" r="0.8" fill="currentColor"></circle>'),
+  warning: icon('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><circle cx="12" cy="17" r="0.6" fill="currentColor"></circle>'),
+  errorIcon: icon('<circle cx="12" cy="12" r="9"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>'),
 };
 
 export type IconName = keyof typeof icons;
