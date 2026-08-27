@@ -15,19 +15,33 @@ import { icons } from '../icons';
 export const API_BASE = import.meta.env.DEV ? '' : 'https://api.dailyroast.in';
 
 /**
- * fetch() against the admin API. Auth is Cloudflare Access at the edge — `credentials:
- * 'include'` is what forwards the Access session cookie cross-origin; no app-level token.
+ * fetch() against the admin API. Auth is Cloudflare Access at the edge
+ * when the SPA is gated there (Cf-Access-* headers are attached automatically
+ * and the in-app guard's first happy path accepts them). For environments
+ * without an Access application, set the ADMIN_TOKEN secret on the API
+ * Worker and the VITE_ADMIN_TOKEN env var at admin build time — every
+ * request then sends `Authorization: Bearer <token>`. The two values must
+ * match. `credentials: 'include'` is kept so that any Access session
+ * cookie that IS present still flows through.
  */
 export async function adminFetch<T = any>(
   path: string,
   options: RequestInit & { json?: unknown } = {}
 ): Promise<T & { success: boolean; error?: string }> {
   const { json, ...rest } = options;
+  const adminToken = (typeof __ADMIN_TOKEN__ !== 'undefined' ? __ADMIN_TOKEN__ : '') || '';
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  if (adminToken && !headers.Authorization) {
+    headers.Authorization = `Bearer ${adminToken}`;
+  }
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       ...rest,
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      headers,
       body: json !== undefined ? JSON.stringify(json) : rest.body,
     });
     return (await res.json()) as any;

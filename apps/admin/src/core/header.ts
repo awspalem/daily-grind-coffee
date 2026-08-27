@@ -1,11 +1,13 @@
 /**
- * Top-bar header wiring. Today this is just a passthrough for the Cmd+K
- * keyboard listener (which lives in core/cmdK.ts), but keeping initHeader()
- * gives us a clear place to add scroll-driven header effects later
- * (e.g. compact the bar on scroll, show a "modified" indicator, etc.).
+ * Top-bar header wiring. Owns the Cmd+K command palette and the new
+ * "Ask Maya" button, both of which open overlays that float over the
+ * current page (the command palette is global; Maya is the operations
+ * chat drawer).
  */
 import { initCommandPalette } from './cmdK';
+import { openAdminAgent } from '../features/agent';
 
 export function initHeader(): void {
   initCommandPalette();
+  document.getElementById('btn-open-admin-agent')?.addEventListener('click', () => openAdminAgent());
 }

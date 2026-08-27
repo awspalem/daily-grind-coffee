@@ -9,41 +9,59 @@ const adminApp = new Hono();
 // Apply Zero Trust Admin Protection across all /api/admin routes
 adminApp.use('*', zeroTrustAdminGuard);
 // GET /api/admin/dashboard
+//
+// Reads the pre-aggregated dashboard_stats table for closed days and falls
+// back to a live aggregate for the current IST day (which the hourly cron
+// hasn't yet rolled up). The status-breakdown row is rebuilt for today
+// from orders, since today's per-status mix is what the operator wants to
+// see — yesterday's rolled-up number is yesterday's news.
 adminApp.get('/dashboard', async (c) => {
     const db = c.env.DB;
-    // 1. Order stats
-    const totalSalesRow = await db.prepare(`
-    SELECT 
-      COUNT(id) as total_orders,
-      COALESCE(SUM(CASE WHEN status != 'CANCELLED' AND status != 'REFUNDED' THEN total_cents ELSE 0 END), 0) as total_revenue_cents,
-      COALESCE(AVG(CASE WHEN status != 'CANCELLED' AND status != 'REFUNDED' THEN total_cents ELSE NULL END), 0) as aov_cents
-    FROM orders
-  `).first();
-    // 2. Orders by status
-    const { results: statusCounts } = await db.prepare(`
-    SELECT status, COUNT(id) as count FROM orders GROUP BY status
-  `).all();
-    // 3. Low stock count
-    const lowStockRow = await db.prepare(`
-    SELECT COUNT(*) as low_stock_count
-    FROM inventory
-    WHERE available_stock <= low_stock_threshold
-  `).first();
-    // 4. Recent orders
-    const { results: recentOrders } = await db.prepare(`
-    SELECT id, order_number, customer_email, status, total_cents, created_at
-    FROM orders
-    ORDER BY created_at DESC
-    LIMIT 8
-  `).all();
+    // IST date for "today"
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const todayIst = new Date(Date.now() + istOffsetMs).toISOString().slice(0, 10);
+    const sevenDaysAgoIst = new Date(Date.now() + istOffsetMs - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // 1. Sum the rolled-up closed days (last 7, all IST) and the live "today" row.
+    const [rolledAgg, todayAgg, liveStatus, lowStockRow, recentOrders] = await Promise.all([
+        db.prepare(`
+      SELECT
+        COALESCE(SUM(orders_total), 0) as orders_total,
+        COALESCE(SUM(orders_paid), 0) as orders_paid,
+        COALESCE(SUM(revenue_cents_total), 0) as revenue_cents_total
+      FROM dashboard_stats
+      WHERE bucket_date >= ? AND bucket_date < ?
+    `).bind(sevenDaysAgoIst, todayIst).first(),
+        db.prepare(`
+      SELECT
+        COUNT(*) as orders_total,
+        SUM(CASE WHEN status = 'PAID' THEN 1 ELSE 0 END) as orders_paid,
+        COALESCE(SUM(CASE WHEN status = 'PAID' THEN total_cents ELSE 0 END), 0) as revenue_cents_total
+      FROM orders
+      WHERE created_at >= ?
+    `).bind(new Date(`${todayIst}T00:00:00+05:30`).toISOString()).first(),
+        db.prepare(`SELECT status, COUNT(*) as count FROM orders WHERE created_at >= ? GROUP BY status`)
+            .bind(new Date(`${todayIst}T00:00:00+05:30`).toISOString()).all(),
+        db.prepare(`SELECT COUNT(*) as low_stock_count FROM inventory WHERE available_stock <= low_stock_threshold`)
+            .first(),
+        db.prepare(`
+      SELECT id, order_number, customer_email, status, total_cents, created_at
+      FROM orders ORDER BY created_at DESC LIMIT 8
+    `).all(),
+    ]);
+    const ordersTotal = Number(rolledAgg?.orders_total || 0) + Number(todayAgg?.orders_total || 0);
+    const ordersPaid = Number(rolledAgg?.orders_paid || 0) + Number(todayAgg?.orders_paid || 0);
+    const revenueCents = Number(rolledAgg?.revenue_cents_total || 0) + Number(todayAgg?.revenue_cents_total || 0);
     return c.json({
         success: true,
         stats: {
-            total_orders: Number(totalSalesRow?.total_orders || 0),
-            total_revenue_cents: Number(totalSalesRow?.total_revenue_cents || 0),
-            aov_cents: Math.round(Number(totalSalesRow?.aov_cents || 0)),
+            total_orders: ordersTotal,
+            total_revenue_cents: revenueCents,
+            // AOV is the harder one to roll up: we keep a SUM/SUM rather than a
+            // pre-computed average so the read stays correct across the boundary
+            // between a rolled-up day and the still-live today row.
+            aov_cents: ordersPaid > 0 ? Math.round(revenueCents / ordersPaid) : 0,
             low_stock_count: Number(lowStockRow?.low_stock_count || 0),
-            orders_by_status: statusCounts || [],
+            orders_by_status: liveStatus || [],
             recent_orders: recentOrders || [],
         },
     });
@@ -108,7 +126,12 @@ adminApp.get('/movements', async (c) => {
 // GET /api/admin/orders
 adminApp.get('/orders', async (c) => {
     const status = c.req.query('status');
-    let query = 'SELECT * FROM orders';
+    // Project to exactly the columns the dispatch table renders — orders.* also
+    // carries stripe_session_id, internal payment-intent columns, and the raw
+    // shipping_address_json blob the UI never reads. Cutting the payload ~3x
+    // makes the dispatch page feel snappy on a slow connection.
+    const ORDER_COLUMNS = 'id, order_number, status, total_cents, currency, customer_email, shipping_address_json, tracking_number, carrier, created_at';
+    let query = `SELECT ${ORDER_COLUMNS} FROM orders`;
     const params = [];
     if (status) {
         query += ' WHERE status = ?';
@@ -116,7 +139,32 @@ adminApp.get('/orders', async (c) => {
     }
     query += ' ORDER BY created_at DESC LIMIT 50';
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
-    return c.json({ success: true, orders: results || [] });
+    const orders = results || [];
+    if (orders.length > 0) {
+        const ids = orders.map((o) => o.id);
+        const placeholders = ids.map(() => '?').join(',');
+        // Same projection for items: only the columns the orders.ts row template
+        // and the GST invoice modal need.
+        const ITEM_COLUMNS = 'id, order_id, variant_id, product_name, weight_grams, grind_type, quantity, unit_price_cents';
+        const { results: items } = await c.env.DB.prepare(`SELECT ${ITEM_COLUMNS} FROM order_items WHERE order_id IN (${placeholders})`).bind(...ids).all();
+        const itemsByOrder = new Map();
+        for (const item of items || []) {
+            const list = itemsByOrder.get(item.order_id) || [];
+            list.push(item);
+            itemsByOrder.set(item.order_id, list);
+        }
+        for (const order of orders) {
+            order.items = itemsByOrder.get(order.id) || [];
+            try {
+                order.shipping_address = JSON.parse(order.shipping_address_json);
+            }
+            catch {
+                order.shipping_address = null;
+            }
+            delete order.shipping_address_json;
+        }
+    }
+    return c.json({ success: true, orders });
 });
 // POST /api/admin/orders/:id/status
 adminApp.post('/orders/:id/status', async (c) => {

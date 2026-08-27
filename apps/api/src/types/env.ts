@@ -27,4 +27,14 @@ export interface Env {
   SHIPROCKET_PICKUP_LOCATION?: string;
   SHIPROCKET_WEBHOOK_TOKEN?: string;
   SHIPROCKET_USD_TO_INR_RATE?: string;
+  /**
+   * Cloudflare Zero Trust team domain (e.g. "dailyroast" — the JWKS endpoint is
+   * `https://dailyroast.cloudflareaccess.com/cdn-cgi/access/certs`). When set
+   * together with ACCESS_AUD, the admin guard accepts requests that carry a
+   * valid CF_Authorization cookie, so the admin SPA and the API can be on
+   * separate Access applications or the API can be unprotected at the edge.
+   */
+  ACCESS_TEAM_DOMAIN?: string;
+  /** Application AUD tag from the Cloudflare Access dashboard. */
+  ACCESS_AUD?: string;
 }

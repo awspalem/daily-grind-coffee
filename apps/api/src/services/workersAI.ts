@@ -27,6 +27,17 @@ export class WorkersAIService {
   }
 
   /**
+   * Synchronous embedding for one text — used as the fallback path for any
+   * product that doesn't have a stored vector (see agents/agent.ts and the
+   * hourly backfill in services/maintenance.ts). The async path through
+   * Workers AI is preferred when you have many vectors; this one runs the
+   * same lexical hash deterministically in the request isolate.
+   */
+  generateEmbeddingSync(text: string): number[] {
+    return this.generateSyntheticEmbedding(text);
+  }
+
+  /**
    * Cosine similarity between two dense vector representations
    */
   calculateSimilarity(vecA: number[], vecB: number[]): number {

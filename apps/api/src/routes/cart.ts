@@ -18,6 +18,73 @@ cartApp.post('/coupon/preview', async (c) => {
 });
 
 // Helper to get or create a cart by session token
+async function loadCartRow(db: any, sessionToken?: string): Promise<any> {
+  const token = sessionToken || 'sess_' + crypto.randomUUID().replace(/-/g, '');
+  let cart = await db.prepare('SELECT * FROM carts WHERE session_token = ?').bind(token).first();
+  if (!cart) {
+    const cartId = 'cart_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await db.prepare(`
+      INSERT INTO carts (id, session_token, applied_coupon_code, discount_cents, expires_at)
+      VALUES (?, ?, NULL, 0, ?)
+    `).bind(cartId, token, expiresAt).run();
+    cart = { id: cartId, session_token: token, applied_coupon_code: null, discount_cents: 0, expires_at: expiresAt };
+  }
+  return cart;
+}
+
+async function loadCartItems(db: any, cartId: string): Promise<CartItem[]> {
+  const { results: rawItems } = await db.prepare(`
+    SELECT
+      ci.id,
+      ci.cart_id,
+      ci.variant_id,
+      ci.grind_type,
+      ci.quantity,
+      ci.unit_price_cents,
+      ci.subscription_frequency,
+      ci.custom_notes,
+      v.weight_grams,
+      v.price_cents as current_price_cents,
+      p.id as product_id,
+      p.name as product_name,
+      p.slug as product_slug,
+      p.image_url
+    FROM cart_items ci
+    JOIN product_variants v ON ci.variant_id = v.id
+    JOIN products p ON v.product_id = p.id
+    WHERE ci.cart_id = ?
+    ORDER BY ci.created_at ASC
+  `).bind(cartId).all();
+
+  return (rawItems || []).map((row: any) => ({
+    id: row.id,
+    cart_id: row.cart_id,
+    variant_id: row.variant_id,
+    product_id: row.product_id,
+    product_name: row.product_name,
+    product_slug: row.product_slug,
+    image_url: row.image_url,
+    weight_grams: Number(row.weight_grams),
+    grind_type: row.grind_type as GrindType,
+    price_cents: Number(row.unit_price_cents),
+    quantity: Number(row.quantity),
+    line_total_cents: Number(row.unit_price_cents) * Number(row.quantity),
+    subscription_frequency: (row.subscription_frequency as SubscriptionFrequency) || null,
+    custom_notes: row.custom_notes || null,
+  }));
+}
+
+function totalsFrom(cart: any, items: CartItem[]): Pick<Cart, 'subtotal_cents' | 'discount_cents' | 'total_cents'> {
+  const subtotalCents = items.reduce((acc, it) => acc + it.line_total_cents, 0);
+  const discountCents = Number(cart.discount_cents || 0);
+  return {
+    subtotal_cents: subtotalCents,
+    discount_cents: discountCents,
+    total_cents: Math.max(0, subtotalCents - discountCents),
+  };
+}
+
 async function getOrCreateCart(db: any, sessionToken?: string): Promise<Cart> {
   const token = sessionToken || 'sess_' + crypto.randomUUID().replace(/-/g, '');
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -42,59 +109,15 @@ async function getOrCreateCart(db: any, sessionToken?: string): Promise<Cart> {
     };
   }
 
-  // Fetch items with joined variant & product info
-  const { results: rawItems } = await db.prepare(`
-    SELECT 
-      ci.id,
-      ci.cart_id,
-      ci.variant_id,
-      ci.grind_type,
-      ci.quantity,
-      ci.unit_price_cents,
-      ci.subscription_frequency,
-      ci.custom_notes,
-      v.weight_grams,
-      v.price_cents as current_price_cents,
-      p.id as product_id,
-      p.name as product_name,
-      p.slug as product_slug,
-      p.image_url
-    FROM cart_items ci
-    JOIN product_variants v ON ci.variant_id = v.id
-    JOIN products p ON v.product_id = p.id
-    WHERE ci.cart_id = ?
-    ORDER BY ci.created_at ASC
-  `).bind(cart.id).all();
-
-  const items: CartItem[] = (rawItems || []).map((row: any) => ({
-    id: row.id,
-    cart_id: row.cart_id,
-    variant_id: row.variant_id,
-    product_id: row.product_id,
-    product_name: row.product_name,
-    product_slug: row.product_slug,
-    image_url: row.image_url,
-    weight_grams: Number(row.weight_grams),
-    grind_type: row.grind_type as GrindType,
-    price_cents: Number(row.unit_price_cents),
-    quantity: Number(row.quantity),
-    line_total_cents: Number(row.unit_price_cents) * Number(row.quantity),
-    subscription_frequency: (row.subscription_frequency as SubscriptionFrequency) || null,
-    custom_notes: row.custom_notes || null,
-  }));
-
-  const subtotalCents = items.reduce((acc, it) => acc + it.line_total_cents, 0);
-  const discountCents = Number(cart.discount_cents || 0);
-  const totalCents = Math.max(0, subtotalCents - discountCents);
+  const items = await loadCartItems(db, cart.id);
+  const totals = totalsFrom(cart, items);
 
   return {
     id: cart.id,
     session_token: cart.session_token,
     items,
-    subtotal_cents: subtotalCents,
-    discount_cents: discountCents,
+    ...totals,
     applied_coupon_code: cart.applied_coupon_code || undefined,
-    total_cents: totalCents,
     expires_at: cart.expires_at,
     created_at: cart.created_at || new Date().toISOString(),
     updated_at: cart.updated_at || new Date().toISOString(),
@@ -124,7 +147,11 @@ cartApp.post('/items', async (c) => {
   }
 
   const quantity = Math.max(1, body.quantity || 1);
-  const cart = await getOrCreateCart(c.env.DB, sessionToken);
+  // We only need the cart row (id, session_token, discount_cents, etc.) — the
+  // items join would be wasted because we're about to write a new line anyway
+  // and re-fetch items below. loadCartRow is the lightweight version of
+  // getOrCreateCart.
+  const cart = await loadCartRow(c.env.DB, sessionToken);
 
   // Validate variant & get price
   const variant = await c.env.DB.prepare(
@@ -156,8 +183,21 @@ cartApp.post('/items', async (c) => {
     `).bind(itemId, cart.id, body.variant_id, body.grind_type, quantity, unitPriceCents, subFreq, body.custom_notes || null).run();
   }
 
-  const updatedCart = await getOrCreateCart(c.env.DB, cart.session_token);
-  return c.json({ success: true, cart: updatedCart });
+  const items = await loadCartItems(c.env.DB, cart.id);
+  const totals = totalsFrom(cart, items);
+  return c.json({
+    success: true,
+    cart: {
+      id: cart.id,
+      session_token: cart.session_token,
+      items,
+      ...totals,
+      applied_coupon_code: cart.applied_coupon_code || undefined,
+      expires_at: cart.expires_at,
+      created_at: (cart as any).created_at || new Date().toISOString(),
+      updated_at: (cart as any).updated_at || new Date().toISOString(),
+    },
+  });
 });
 
 // PATCH /api/cart/items/:id
@@ -178,8 +218,30 @@ cartApp.patch('/items/:id', async (c) => {
       .bind(quantity, itemId).run();
   }
 
-  const cart = await getOrCreateCart(c.env.DB, sessionToken);
-  return c.json({ success: true, cart });
+  // Fetch the cart row by token (cheap, no items join) and re-load only the
+  // items list — the row itself (discount_cents, applied_coupon_code) didn't
+  // change on a quantity edit.
+  const token = sessionToken || 'sess_' + crypto.randomUUID().replace(/-/g, '');
+  const cartRow = await c.env.DB.prepare('SELECT * FROM carts WHERE session_token = ?')
+    .bind(token).first() as any;
+  if (!cartRow) {
+    return c.json({ success: true, cart: null });
+  }
+  const items = await loadCartItems(c.env.DB, cartRow.id);
+  const totals = totalsFrom(cartRow, items);
+  return c.json({
+    success: true,
+    cart: {
+      id: cartRow.id,
+      session_token: cartRow.session_token,
+      items,
+      ...totals,
+      applied_coupon_code: cartRow.applied_coupon_code || undefined,
+      expires_at: cartRow.expires_at,
+      created_at: cartRow.created_at || new Date().toISOString(),
+      updated_at: cartRow.updated_at || new Date().toISOString(),
+    },
+  });
 });
 
 // DELETE /api/cart/items/:id

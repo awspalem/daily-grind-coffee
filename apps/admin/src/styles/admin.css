@@ -1118,6 +1118,19 @@ body {
   transform: scale(0.96);
 }
 
+.btn-table-action.danger:hover {
+  background: var(--rose);
+  border-color: var(--rose);
+  color: #fff;
+}
+
+/* Subdued secondary text under a primary cell value (slug under plan name, etc.) */
+.cell-sub {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
 /* Touch Ranges & Sliders */
 input[type="range"] {
   height: 36px;
@@ -1258,8 +1271,70 @@ input[type="range"]::-webkit-slider-thumb {
 
 .admin-input-styled:focus {
   outline: none;
-  border-color: var(--copper);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
+/* -----------------------------------------------------------------------
+ * Form primitives — used by every CRUD page in the admin so the spacing,
+ * label typography, and field width behaviour match.
+ * ----------------------------------------------------------------------- */
+.form-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin-bottom: 1.4rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.form-field-label {
+  font-weight: 500;
+  color: var(--text-main);
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.form-field--wide {
+  grid-column: 1 / -1;
+}
+
+.form-field-help {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.form-actions .form-error {
+  color: var(--rose);
+  font-size: 0.85rem;
+  margin-left: auto;
+}
+
+/* 1-frame copper focus ring used when scrollIntoView lands the form under the cursor */
+.focus-ring-flash {
+  animation: focus-ring-flash 1.2s var(--t-base) 1;
+}
+
+@keyframes focus-ring-flash {
+  0%   { box-shadow: 0 0 0 0 var(--accent-ring); }
+  20%  { box-shadow: 0 0 0 4px var(--accent-ring); }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
 
 .capacity-live-kpis {
@@ -3230,4 +3305,150 @@ input[type="range"]::-webkit-slider-thumb {
     max-width: 100% !important;
     padding: 0 !important;
   }
+}
+
+/* ==========================================================================
+   ADMIN MAYA — operations chat drawer
+   ========================================================================== */
+.admin-agent-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 10, 4, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-modal, 1000);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms var(--t-base);
+}
+.admin-agent-backdrop[aria-hidden="false"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.admin-agent-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100dvh;
+  width: min(420px, 100vw);
+  background: var(--admin-card);
+  border-left: 1px solid var(--admin-border);
+  box-shadow: var(--shadow-xl);
+  z-index: calc(var(--z-modal, 1000) + 1);
+  transform: translateX(100%);
+  transition: transform 240ms var(--t-base);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+}
+.admin-agent-drawer[aria-hidden="false"] {
+  transform: translateX(0);
+}
+
+body.admin-agent-open { overflow: hidden; }
+
+.admin-agent-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-card-elev);
+}
+.admin-agent-header-text { display: flex; flex-direction: column; flex: 1; }
+.admin-agent-header-text strong { font-family: var(--font-serif); font-size: 1.1rem; color: var(--text-main); }
+.admin-agent-header-sub { font-size: 0.78rem; color: var(--text-muted); }
+.admin-agent-close {
+  background: transparent; border: none; font-size: 1.6rem; line-height: 1; cursor: pointer;
+  color: var(--text-muted); padding: 0.4rem 0.6rem; border-radius: var(--radius-sm);
+}
+.admin-agent-close:hover { background: var(--admin-bg); color: var(--text-main); }
+
+.admin-agent-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  background: var(--admin-bg);
+}
+.admin-agent-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 2.5rem 1rem; gap: 0.8rem; color: var(--text-muted);
+}
+.admin-agent-empty .empty-state-icon { background: var(--accent-bg); color: var(--accent); }
+
+.admin-agent-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin-top: 0.4rem; }
+.admin-agent-chip {
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-pill);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.78rem;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.admin-agent-chip:hover { background: var(--accent-bg); border-color: var(--accent); color: var(--accent-deep); }
+
+.admin-agent-bubble {
+  max-width: 88%;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-md);
+  line-height: 1.5;
+  word-break: break-word;
+}
+.admin-agent-bubble--user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.admin-agent-bubble--user code { background: rgba(255,255,255,0.18); padding: 0 0.3rem; border-radius: 4px; }
+.admin-agent-bubble--assistant {
+  align-self: flex-start;
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  border-bottom-left-radius: 4px;
+  color: var(--text-main);
+}
+.admin-agent-bubble--assistant code { background: var(--admin-bg); padding: 0 0.3rem; border-radius: 4px; }
+
+.admin-agent-typing { display: inline-flex; gap: 0.3rem; padding: 0.9rem 1rem; }
+.admin-agent-typing span {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim);
+  animation: admin-agent-typing-bounce 1.2s ease-in-out infinite;
+}
+.admin-agent-typing span:nth-child(2) { animation-delay: 0.2s; }
+.admin-agent-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes admin-agent-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.admin-agent-tool-card {
+  align-self: stretch;
+  background: var(--admin-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+.admin-agent-tool-card-header { display: flex; align-items: center; gap: 0.5rem; }
+.admin-agent-tool-card-body { margin: 0; color: var(--text-main); font-size: 0.88rem; line-height: 1.45; }
+.admin-agent-tool-card-actions { display: flex; gap: 0.5rem; }
+.admin-agent-tool-card-actions .btn-primary,
+.admin-agent-tool-card-actions .btn-secondary { min-height: 36px; padding: 0.4rem 0.9rem; font-size: 0.82rem; }
+
+.admin-agent-input-row {
+  display: flex; gap: 0.5rem; padding: 0.8rem 1rem; border-top: 1px solid var(--admin-border);
+  background: var(--admin-card-elev);
+}
+.admin-agent-input-row .admin-input-styled { flex: 1; }
+.admin-agent-input-row .btn-primary { white-space: nowrap; }
+
+@media (max-width: 540px) {
+  .admin-agent-drawer { width: 100vw; border-left: none; }
 }

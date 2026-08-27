@@ -17,6 +17,9 @@ reviewsApp.get('/summary', async (c) => {
             review_count: Number(row.review_count),
         };
     }
+    // Aggregated star ratings drift slowly; edge-cacheable so the storefront's
+    // first paint doesn't pay a D1 round-trip on every visit.
+    c.header('Cache-Control', 'public, max-age=30, s-maxage=300');
     return c.json({ success: true, summary });
 });
 // GET /api/reviews/:productId — full review list + summary for one product
@@ -32,6 +35,9 @@ reviewsApp.get('/:productId', async (c) => {
     SELECT AVG(rating) as avg_rating, COUNT(*) as review_count
     FROM reviews WHERE product_id = ?
   `).bind(productId).first();
+    // Per-product review list. A new review should appear on revisit within a
+    // minute; the s-maxage keeps the edge warm for repeat visitors.
+    c.header('Cache-Control', 'public, max-age=30, s-maxage=180');
     return c.json({
         success: true,
         reviews: reviews || [],

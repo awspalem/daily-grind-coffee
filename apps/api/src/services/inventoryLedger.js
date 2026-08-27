@@ -69,7 +69,7 @@ export class InventoryLedgerService {
     }
     async getInventorySnapshot(variantId) {
         return this.db.prepare(`
-      SELECT 
+      SELECT
         i.*,
         v.sku,
         v.weight_grams,
@@ -79,6 +79,69 @@ export class InventoryLedgerService {
       JOIN products p ON v.product_id = p.id
       WHERE i.variant_id = ?
     `).bind(variantId).first();
+    }
+    /**
+     * Reserves stock for an entire order in a single round-trip pair: one SELECT
+     * of the current snapshot for every variant, then one batched write of the
+     * computed inventory updates and the corresponding ledger rows. A 5-item
+     * checkout used to do 10 D1 round-trips (5 SELECT + 5 batches); it now does 2.
+     *
+     * Either every variant is reserved or none of them are — the batch is
+     * committed as a single D1 batch, so a mid-flight failure can't leave a
+     * partial reservation behind. Returns the per-variant post-reservation stock
+     * so the caller can render an honest confirmation page.
+     */
+    async reserveMany(items, opts = {}) {
+        if (!items.length)
+            return { success: true, perVariant: [] };
+        const { referenceType, referenceId, actor = 'SYSTEM', reason } = opts;
+        const variantIds = items.map((i) => i.variantId);
+        // D1 doesn't support a clean IN (...) array bind, so use the documented
+        // `IN (?, ?, ...)` with the same number of placeholders as variants.
+        const placeholders = variantIds.map(() => '?').join(', ');
+        const { results: snapshot } = await this.db.prepare(`SELECT variant_id, available_stock, reserved_stock FROM inventory WHERE variant_id IN (${placeholders})`).bind(...variantIds).all();
+        const byId = new Map(snapshot.map((row) => [row.variant_id, row]));
+        // Validate first; we don't want to half-write if one variant is short.
+        const computed = [];
+        for (const item of items) {
+            const row = byId.get(item.variantId);
+            const curAvailable = row ? Number(row.available_stock) : 0;
+            const curReserved = row ? Number(row.reserved_stock) : 0;
+            const need = Math.abs(item.quantity);
+            if (curAvailable < need) {
+                throw new Error(`Insufficient available stock for variant ${item.variantId}. Available: ${curAvailable}, Requested: ${need}`);
+            }
+            computed.push({
+                variantId: item.variantId,
+                requested: item.quantity,
+                newAvailable: curAvailable - need,
+                newReserved: curReserved + need,
+                movementId: 'mov_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16),
+            });
+        }
+        // One single batch — every inventory update + every ledger row go in one
+        // db.batch() call. If any statement fails, none of them persist.
+        const statements = [];
+        for (const c of computed) {
+            statements.push(this.db.prepare(`
+          INSERT INTO inventory (variant_id, sku, available_stock, reserved_stock, updated_at)
+          VALUES (?, (SELECT sku FROM product_variants WHERE id = ?), ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(variant_id) DO UPDATE SET
+            available_stock = ?,
+            reserved_stock = ?,
+            updated_at = CURRENT_TIMESTAMP
+        `).bind(c.variantId, c.variantId, c.newAvailable, c.newReserved, c.newAvailable, c.newReserved));
+            statements.push(this.db.prepare(`
+          INSERT INTO inventory_movements (
+            id, variant_id, movement_type, quantity_delta, stock_after, reference_type, reference_id, reason, created_by
+          ) VALUES (?, ?, 'PURCHASE_RESERVE', ?, ?, ?, ?, ?, ?)
+        `).bind(c.movementId, c.variantId, c.requested, c.newAvailable, referenceType || null, referenceId || null, reason || null, actor));
+        }
+        await this.db.batch(statements);
+        return {
+            success: true,
+            perVariant: computed.map((c) => ({ variantId: c.variantId, newAvailableStock: c.newAvailable })),
+        };
     }
     async getRecentMovements(limit = 50) {
         const { results } = await this.db.prepare(`

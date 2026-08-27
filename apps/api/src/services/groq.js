@@ -4,6 +4,12 @@ export const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 export const FALLBACK_MODEL = 'openai/gpt-oss-20b';
 /** Ids Groq no longer serves. A request naming one of these fails outright. */
 const DECOMMISSIONED_MODELS = ['llama3-70b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it'];
+/**
+ * Speech-to-text model. Turbo is the right default for a conversational turn: it is materially
+ * faster than whisper-large-v3 and the accuracy difference does not show on a few seconds of
+ * someone asking about coffee. Overridable so a deployment can trade back the other way.
+ */
+export const DEFAULT_TRANSCRIBE_MODEL = 'whisper-large-v3-turbo';
 export class GroqService {
     apiKey;
     model;
@@ -105,6 +111,149 @@ export class GroqService {
         }
         // Return sommelier fallback if both API calls failed or offline
         return this.generateFallbackResponse(messages);
+    }
+    /**
+     * Streaming counterpart to chatCompletion. Yields text as it arrives instead of waiting for
+     * the whole reply, so the first token can reach the browser well before the model finishes.
+     *
+     * Tool calls do not stream incrementally in any way worth surfacing — Groq sends their
+     * arguments as JSON fragments keyed by index, so they are accumulated here and yielded once,
+     * complete, when the stream ends. A caller that gets a 'tool_calls' event should treat it like
+     * the tool_calls on the non-streaming response: execute the tools and make a second call for
+     * the actual answer.
+     *
+     * Falls back to the ordinary blocking chatCompletion (which already retries and has a fully
+     * offline canned response) whenever the streaming request itself fails to start, so a network
+     * blip costs the streaming benefit for that one turn rather than the whole reply.
+     */
+    async *streamChatCompletion(messages, tools, temperature = 0.5, signal) {
+        if (!this.apiKey || this.apiKey === 'placeholder' || this.apiKey.trim() === '') {
+            const fallback = await this.chatCompletion(messages, tools, temperature);
+            if (fallback.content)
+                yield { type: 'delta', content: fallback.content };
+            yield { type: 'done', content: fallback.content || '' };
+            return;
+        }
+        const formattedMessages = messages.map((m) => {
+            const msg = { role: m.role, content: m.content ?? '' };
+            if (m.tool_calls && m.tool_calls.length > 0)
+                msg.tool_calls = m.tool_calls;
+            if (m.tool_call_id)
+                msg.tool_call_id = m.tool_call_id;
+            if (m.name)
+                msg.name = m.name;
+            return msg;
+        });
+        const payload = {
+            model: this.model,
+            messages: formattedMessages,
+            temperature,
+            max_tokens: 1024,
+            stream: true,
+        };
+        if (tools && tools.length > 0) {
+            payload.tools = tools;
+            payload.tool_choice = 'auto';
+        }
+        let res;
+        try {
+            res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal,
+            });
+        }
+        catch (networkErr) {
+            // A caller-driven abort (the browser disconnected mid-reply) is not a Groq failure — there
+            // is no one left to hand a fallback reply to, and starting a second, unabortable request
+            // would be the opposite of what the caller asked for by aborting.
+            if (signal?.aborted)
+                return;
+            console.error('Groq streaming network error, falling back to blocking call:', networkErr);
+            const fallback = await this.chatCompletion(messages, tools, temperature);
+            if (fallback.content)
+                yield { type: 'delta', content: fallback.content };
+            yield { type: 'done', content: fallback.content || '' };
+            return;
+        }
+        if (!res.ok || !res.body) {
+            // Same reasoning as the network-error branch above: a disconnected caller has no one left
+            // to hand a fallback reply to, and this is exactly the slow path (a Groq error response)
+            // an abandoned request is most likely to be sitting on.
+            if (signal?.aborted)
+                return;
+            console.warn(`Groq streaming request returned ${res.status}, falling back to blocking call.`);
+            const fallback = await this.chatCompletion(messages, tools, temperature);
+            if (fallback.content)
+                yield { type: 'delta', content: fallback.content };
+            yield { type: 'done', content: fallback.content || '' };
+            return;
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let accumulated = '';
+        // Tool call fragments arrive keyed by their position in the array, not necessarily in order,
+        // and each fragment carries only the piece of the JSON arguments string seen so far.
+        const toolCallsByIndex = new Map();
+        try {
+            while (true) {
+                if (signal?.aborted)
+                    return;
+                const { done, value } = await reader.read();
+                if (done)
+                    break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() ?? '';
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed.startsWith('data:'))
+                        continue;
+                    const data = trimmed.slice(5).trim();
+                    if (data === '[DONE]')
+                        continue;
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(data);
+                    }
+                    catch {
+                        continue;
+                    }
+                    const delta = parsed?.choices?.[0]?.delta;
+                    if (!delta)
+                        continue;
+                    if (typeof delta.content === 'string' && delta.content.length > 0) {
+                        accumulated += delta.content;
+                        yield { type: 'delta', content: delta.content };
+                    }
+                    if (Array.isArray(delta.tool_calls)) {
+                        for (const tc of delta.tool_calls) {
+                            const idx = tc.index ?? 0;
+                            const existing = toolCallsByIndex.get(idx) || { type: 'function', function: { name: '', arguments: '' } };
+                            if (tc.id)
+                                existing.id = tc.id;
+                            if (tc.function?.name)
+                                existing.function.name += tc.function.name;
+                            if (tc.function?.arguments)
+                                existing.function.arguments += tc.function.arguments;
+                            toolCallsByIndex.set(idx, existing);
+                        }
+                    }
+                }
+            }
+        }
+        finally {
+            reader.releaseLock();
+        }
+        if (toolCallsByIndex.size > 0) {
+            const toolCalls = Array.from(toolCallsByIndex.entries())
+                .sort(([a], [b]) => a - b)
+                .map(([, tc]) => tc);
+            yield { type: 'tool_calls', tool_calls: toolCalls };
+        }
+        yield { type: 'done', content: accumulated };
     }
     generateFallbackResponse(messages) {
         const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content.toLowerCase() || '';
@@ -306,6 +455,64 @@ I am **Maya**, your Master Barista & Roastery Sommelier. I can assist you with:
 - 📦 **Order Tracking & Cart Building:** Add coffees directly to your cart or track your roasting batch
 
 What flavors or brewing techniques would you like to explore today?`,
+        };
+    }
+    /**
+     * Transcribes a single utterance. The audio never touches disk and is not retained here or,
+     * per Groq's API, on their side beyond the request.
+     *
+     * Deliberately does NOT fall back to another model: a failed transcription must surface as a
+     * failure so the caller can keep the typed input working, rather than silently returning a
+     * worse guess at what someone said and sending it to the chat as if they had typed it.
+     */
+    async transcribe(audio, filename, opts = {}) {
+        if (!this.apiKey)
+            throw new Error('GROQ_API_KEY is not configured');
+        const form = new FormData();
+        form.append('file', audio, filename);
+        form.append('model', opts.model || DEFAULT_TRANSCRIBE_MODEL);
+        // verbose_json carries per-segment no_speech_prob and avg_logprob. Plain json does not, and
+        // without them there is no principled way to tell speech from Whisper's confident
+        // hallucination on silence — it returns things like "Thank you." for a silent clip.
+        form.append('response_format', 'verbose_json');
+        // Whisper hallucinates plausible-sounding words on silence; a prompt anchored to the domain
+        // measurably reduces mangled coffee vocabulary ("your gachef" for Yirgacheffe, and so on).
+        form.append('prompt', 'A customer talking to a specialty coffee roastery in Bangalore about coffee: Chikmagalur, Attikan, Araku, Yirgacheffe, Huila, filter kaapi, V60, AeroPress, espresso, grind, roast, subscription.');
+        if (opts.language)
+            form.append('language', opts.language);
+        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${this.apiKey}` },
+            body: form,
+        });
+        if (!res.ok) {
+            const detail = await res.text().catch(() => '');
+            throw new Error(`Groq transcription failed (${res.status}): ${detail.slice(0, 300)}`);
+        }
+        const data = await res.json();
+        const segments = Array.isArray(data.segments) ? data.segments : [];
+        // Averaged across segments rather than taken from the first: a clip that is silent
+        // throughout should score high everywhere, whereas one quiet gap at the start of real
+        // speech should not throw the whole utterance away.
+        const noSpeech = segments.length
+            ? segments.reduce((sum, sg) => sum + (sg.no_speech_prob ?? 0), 0) / segments.length
+            : 0;
+        const avgLogprob = segments.length
+            ? segments.reduce((sum, sg) => sum + (sg.avg_logprob ?? 0), 0) / segments.length
+            : 0;
+        // Whisper's own hallucination tell: repetitive output compresses far better than speech
+        // does. Taken as the maximum across segments rather than the mean, because one degenerate
+        // repeating segment is the thing being looked for and averaging hides it.
+        const compressionRatio = segments.length
+            ? Math.max(...segments.map((sg) => sg.compression_ratio ?? 0))
+            : 0;
+        return {
+            text: (data.text || '').trim(),
+            model: opts.model || DEFAULT_TRANSCRIBE_MODEL,
+            noSpeech,
+            avgLogprob,
+            compressionRatio,
+            hasSegments: segments.length > 0,
         };
     }
 }

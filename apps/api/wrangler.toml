@@ -10,6 +10,15 @@ ADMIN_URL = "http://localhost:5174"
 CURRENCY = "usd"
 GROQ_MODEL = "openai/gpt-oss-120b"
 SHIPROCKET_PICKUP_LOCATION = "Primary"
+# Optional: Cloudflare Zero Trust — used by apps/api/src/middleware/zeroTrust.ts
+# to verify the CF_Authorization cookie on cross-origin admin SPA → API calls.
+# Only needed if you actually have a Cloudflare Access application gating
+# admin.dailyroast.in at the edge. If you don't, leave these blank and rely
+# on the ADMIN_TOKEN bearer below for production auth.
+#   ACCESS_TEAM_DOMAIN: the team slug (e.g. "dailyroast")
+#   ACCESS_AUD:         the application's AUD tag
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
 
 # Shiprocket secrets (set via `wrangler secret put <NAME>`, not committed here):
 #   SHIPROCKET_EMAIL             — Shiprocket account login email
@@ -95,6 +104,10 @@ CURRENCY = "usd"
 GROQ_MODEL = "openai/gpt-oss-120b"
 SHIPROCKET_PICKUP_LOCATION = "Primary"
 RESEND_FROM_EMAIL = "The Daily Roast <orders@dailyroast.in>"
+# Optional: see [vars] above. Leave blank if you don't have a Cloudflare
+# Access application covering admin.dailyroast.in.
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
 
 # Named environments do NOT inherit top-level bindings in Wrangler — each one needs its
 # own copy, confirmed via `wrangler deploy --env production --dry-run`.

@@ -7,7 +7,7 @@
  * be booked, so slot creation is the primary action here rather than an afterthought.
  */
 
-import { adminFetch, esc } from './shared';
+import { adminFetch, esc, toast, confirmModal } from './shared';
 import type { RouteModule } from '../router';
 
 const PANEL = 'panel-experiences';
@@ -164,7 +164,7 @@ function mount(container: HTMLElement): void {
           method: 'PATCH',
           json: { status: btn.dataset.next },
         });
-        if (!res.success) { alert(res.error || 'Could not change the status'); return; }
+        if (!res.success) { toast(res.error || 'Could not change the status', 'error'); return; }
         await loadExperiences();
       });
     });
@@ -210,7 +210,7 @@ function mount(container: HTMLElement): void {
           `/api/experiences/admin/slots/${encodeURIComponent(btn.dataset.promote!)}/promote-waitlist`,
           { method: 'POST' }
         );
-        alert(res.promotedBookingId ? 'Offered the seat to the next person on the waitlist.' : 'Nobody is waiting for this slot.');
+        toast(res.promotedBookingId ? 'Offered the seat to the next person on the waitlist.' : 'Nobody is waiting for this slot.', res.promotedBookingId ? 'success' : 'info');
         await loadSlots();
       });
     });
@@ -219,13 +219,19 @@ function mount(container: HTMLElement): void {
       btn.addEventListener('click', async () => {
         // Cancelling a slot cancels every live booking on it, refunding payments and returning
         // entitlements. Spell that out — it is not recoverable from this screen.
-        if (!confirm('Cancel this slot? Everyone booked on it is cancelled, refunded, and told by email.')) return;
+        const ok = await confirmModal({
+          title: 'Cancel this slot?',
+          body: 'Everyone booked on it is cancelled, refunded, and told by email. This is not recoverable from this screen.',
+          confirmLabel: 'Cancel slot',
+          danger: true,
+        });
+        if (!ok) return;
         const res = await adminFetch<{ cancelledBookings?: number }>(
           `/api/experiences/admin/slots/${encodeURIComponent(btn.dataset.cancelSlot!)}`,
           { method: 'DELETE' }
         );
-        if (!res.success) { alert(res.error || 'Could not cancel the slot'); return; }
-        alert(`Slot cancelled. ${res.cancelledBookings ?? 0} booking(s) were cancelled and refunded.`);
+        if (!res.success) { toast(res.error || 'Could not cancel the slot', 'error'); return; }
+        toast(`Slot cancelled. ${res.cancelledBookings ?? 0} booking(s) were cancelled and refunded.`, 'success');
         rosterHost.innerHTML = '';
         await loadSlots();
       });
@@ -272,7 +278,7 @@ function mount(container: HTMLElement): void {
           method: 'POST',
           json: { outcome: btn.dataset.outcome },
         });
-        if (!res.success) { alert(res.error || 'Could not mark attendance'); return; }
+        if (!res.success) { toast(res.error || 'Could not mark attendance', 'error'); return; }
         await loadRoster(slotId);
       });
     });

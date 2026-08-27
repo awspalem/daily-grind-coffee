@@ -1,4 +1,4 @@
-import { adminFetch, esc, triggerHaptic } from './shared';
+import { adminFetch, esc, triggerHaptic, toast } from './shared';
 import type { RouteModule } from '../router';
 
 const PANEL_HTML = `
@@ -98,9 +98,9 @@ const route: RouteModule = {
 
       if (result.success) {
         await load();
-        alert(result.message || 'Batch logged.');
+        toast(result.message || 'Batch logged.', 'success');
       } else {
-        alert(`Could not log batch: ${result.error || 'Unknown error'}`);
+        toast(`Could not log batch: ${result.error || 'Unknown error'}`, 'error');
       }
     });
   },

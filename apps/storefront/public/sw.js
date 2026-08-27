@@ -1,5 +1,5 @@
 // The Daily Roast — Storefront Service Worker (PWA Offline & Asset Cache)
-const CACHE_NAME = 'tdg-storefront-v1.1.0';
+const CACHE_NAME = 'tdg-storefront-v1.2.0';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -8,9 +8,13 @@ const PRECACHE_ASSETS = [
   '/favicon.svg',
   '/icon-192.png',
   '/images/pour_over.jpg',
+  '/images/pour_over.webp',
   '/images/roaster.jpg',
+  '/images/roaster.webp',
   '/images/bag_ethiopia.jpg',
-  '/images/espresso.jpg'
+  '/images/bag_ethiopia.webp',
+  '/images/espresso.jpg',
+  '/images/espresso.webp'
 ];
 
 // Install: Pre-cache core application shell
@@ -50,12 +54,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API Requests: Network-First with graceful offline fallback
+  // API Requests: Stale-While-Revalidate with graceful offline fallback.
+  // Returns the cached response immediately (when present) and refreshes the
+  // cache in the background. Public read endpoints also set Cache-Control
+  // headers in the Worker so the network response is itself edge-cacheable.
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cached = await caches.match(request);
-        if (cached) return cached;
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(request);
+        const networkPromise = fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(request, networkResponse.clone());
+            }
+            return networkResponse;
+          })
+          .catch(() => null);
+        if (cached) {
+          // Don't block the response on the network — let the next visit see it.
+          networkPromise.catch(() => {});
+          return cached;
+        }
+        const networkResponse = await networkPromise;
+        if (networkResponse) return networkResponse;
         return new Response(
           JSON.stringify({ offline: true, message: 'Offline mode: connection unavailable. Showing local roastery state.' }),
           { headers: { 'Content-Type': 'application/json' } }

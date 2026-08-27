@@ -1,4 +1,5 @@
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
+import { cachedFetch } from './utils/fetchCache';
 import { getSessionToken } from './features/shared';
 import { initProfile } from './features/profile';
 import { initLoyalty, redeemPointsForSubtotal } from './features/loyalty';
@@ -260,6 +261,47 @@ export const SCA_FLAVOR_CATEGORIES = [
         description: 'Aromatic Malabar green cardamom, warm cinnamon stick, smoky cured cedar, and spiced dark rum.'
     }
 ];
+/**
+ * Reads a Server-Sent Events body as it arrives, yielding one `{event, data}` per message.
+ * `fetch`'s ReadableStream (not EventSource, which cannot POST or carry the session header) is
+ * the only way to stream a request that needs a body and custom headers, so this is the minimal
+ * parser for the wire format `/api/agent/chat/stream` sends: `event: name` then `data: json`
+ * lines, terminated by a blank line.
+ */
+async function* parseSSEStream(body) {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let eventName = 'message';
+    let dataLines = [];
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done)
+                break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+            for (const line of lines) {
+                if (line === '') {
+                    if (dataLines.length > 0)
+                        yield { event: eventName, data: dataLines.join('\n') };
+                    eventName = 'message';
+                    dataLines = [];
+                }
+                else if (line.startsWith('event:')) {
+                    eventName = line.slice(6).trim();
+                }
+                else if (line.startsWith('data:')) {
+                    dataLines.push(line.slice(5).trim());
+                }
+            }
+        }
+    }
+    finally {
+        reader.releaseLock();
+    }
+}
 function polarToCartesian(cx, cy, r, angleDeg) {
     const rad = ((angleDeg - 90) * Math.PI) / 180.0;
     return {
@@ -341,6 +383,7 @@ class StorefrontApp {
         this.handleOrderConfirmationDeepLink();
         this.handleResumeOrderDeepLink();
         this.handleReviewProductDeepLink();
+        void this.hydrateChatHistory();
         await this.loadCatalog();
     }
     setCurrency(curr) {
@@ -390,49 +433,54 @@ class StorefrontApp {
         }
     }
     async loadCatalog() {
-        try {
-            const res = await fetch(`${API_BASE}/api/products`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.products && data.products.length > 0) {
-                    this.products = data.products.map((p) => ({
-                        ...p,
-                        // scripts/generate-seo.mjs builds /coffee/<slug> from this same endpoint, so a
-                        // product that came from it has a page and a product that did not may not.
-                        has_detail_page: true,
-                        variants: p.variants.map((v) => ({
-                            ...v,
-                            price_inr: v.price_inr || Math.round(v.price_cents * 0.23),
-                            price_usd_cents: v.price_usd_cents || v.price_cents,
-                            discount_percent: v.discount_percent || 0
-                        }))
-                    }));
-                }
-                else {
-                    this.products = FALLBACK_PRODUCTS;
-                }
+        // Run the catalog and reviews fetches in parallel — the critical path
+        // is now max(t_catalog, t_reviews) instead of their sum. Both go through
+        // the 30s in-tab cache so navigating away and back is instant.
+        const [productsResult, reviewsResult] = await Promise.allSettled([
+            cachedFetch(`${API_BASE}/api/products`, async () => {
+                const res = await fetch(`${API_BASE}/api/products`);
+                if (!res.ok)
+                    throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            }),
+            cachedFetch(`${API_BASE}/api/reviews/summary`, async () => {
+                const res = await fetch(`${API_BASE}/api/reviews/summary`);
+                if (!res.ok)
+                    throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            }),
+        ]);
+        if (productsResult.status === 'fulfilled') {
+            const data = productsResult.value;
+            if (data.products && data.products.length > 0) {
+                this.products = data.products.map((p) => ({
+                    ...p,
+                    // scripts/generate-seo.mjs builds /coffee/<slug> from this same endpoint, so a
+                    // product that came from it has a page and a product that did not may not.
+                    has_detail_page: true,
+                    variants: p.variants.map((v) => ({
+                        ...v,
+                        price_inr: v.price_inr || Math.round(v.price_cents * 0.23),
+                        price_usd_cents: v.price_usd_cents || v.price_cents,
+                        discount_percent: v.discount_percent || 0
+                    }))
+                }));
             }
             else {
                 this.products = FALLBACK_PRODUCTS;
             }
         }
-        catch {
+        else {
             this.products = FALLBACK_PRODUCTS;
         }
         const countAllEl = document.getElementById('count-wheel-all');
         if (countAllEl) {
             countAllEl.textContent = `${this.products.length} Roasts`;
         }
-        try {
-            const res = await fetch(`${API_BASE}/api/reviews/summary`);
-            if (res.ok) {
-                const data = await res.json();
-                this.reviewSummary = data.summary || {};
-            }
+        if (reviewsResult.status === 'fulfilled') {
+            this.reviewSummary = reviewsResult.value.summary || {};
         }
-        catch {
-            // Reviews are non-critical — leave summary empty rather than blocking catalog render
-        }
+        // Reviews are non-critical — leave summary empty rather than blocking catalog render
         this.renderProducts();
         this.renderFlavorWheelSVGs();
         this.injectProductStructuredData();
@@ -586,7 +634,10 @@ class StorefrontApp {
             return `
         <article class="product-card ${isWheelMatch ? 'wheel-match' : ''} ${isProductSoldOut ? 'is-sold-out' : ''}" data-product-id="${prod.id}">
           <div class="card-media">
-            <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" loading="lazy">
+            <picture>
+              <source type="image/webp" srcset="${(prod.image_url || '/images/bag_ethiopia.jpg').replace(/\.(jpe?g|png)$/i, '.webp')}">
+              <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" width="600" height="448" loading="lazy" decoding="async">
+            </picture>
             <span class="origin-badge">${prod.origin_country}</span>
             <span class="roast-level-tag">${prod.roast_level.replace('_', ' ')} ROAST</span>
             ${stockBadgeHtml}
@@ -2225,6 +2276,42 @@ class StorefrontApp {
                 end(e);
         });
     }
+    /**
+     * Restores the barista conversation on load, so a page refresh (or a return visit under the
+     * same localStorage session id) doesn't erase what Maya already knows about this chat. Best
+     * effort and non-blocking: a slow or failed history fetch must never delay the storefront or
+     * stop the chat from working fresh, so it runs fire-and-forget from init() and swallows its
+     * own errors.
+     */
+    async hydrateChatHistory() {
+        try {
+            const res = await fetch(`${API_BASE}/api/agent/history`, {
+                headers: {
+                    'X-Session-Token': this.sessionId,
+                    ...(this.customerSessionToken ? { 'X-Customer-Session': this.customerSessionToken } : {}),
+                },
+            });
+            if (!res.ok)
+                return;
+            const data = await res.json();
+            if (!data.success || !data.messages || data.messages.length === 0)
+                return;
+            // Restored below the static greeting already in the markup, not in place of it.
+            for (const m of data.messages) {
+                if (m.role === 'user') {
+                    this.appendMessage('user', m.content);
+                }
+                else {
+                    const bubble = this.appendMessage('agent', '');
+                    bubble.innerHTML = this.renderMarkdown(m.content);
+                }
+            }
+            this.chatHistory = data.messages.slice(-12);
+        }
+        catch {
+            // Restoring history is a nicety, not a requirement — a fresh chat is still a working chat.
+        }
+    }
     async sendAgentMessage(text) {
         if (!text || !text.trim())
             return;
@@ -2237,40 +2324,62 @@ class StorefrontApp {
         if (this.chatHistory.length > 12) {
             this.chatHistory = this.chatHistory.slice(-12);
         }
-        // 3. Show loading bubble
+        // 3. Show loading bubble — replaced with real tokens the moment the first one arrives.
         const loadingBubble = this.appendMessage('agent', 'Consulting our Indiranagar cupping table...');
+        const fail = () => {
+            // The user's turn never got a real answer, so it must not stay in history as
+            // though it did — otherwise the next turn sends Maya a transcript where she
+            // appears to have already made a recommendation she never made.
+            this.chatHistory.pop();
+            loadingBubble.innerHTML = this.renderMarkdown("I couldn't reach the roastery just now — please try asking again in a moment.");
+        };
         try {
-            const res = await fetch(`${API_BASE}/api/agent/chat`, {
+            const res = await fetch(`${API_BASE}/api/agent/chat/stream`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Session-Token': this.sessionId },
                 body: JSON.stringify({ messages: this.chatHistory })
             });
-            if (res.ok) {
-                const data = await res.json();
-                const replyContent = data.reply || "I'd love to help you find your next favourite roast or dial in your brew!";
-                this.chatHistory.push({ role: 'assistant', content: replyContent });
-                if (this.chatHistory.length > 12) {
-                    this.chatHistory = this.chatHistory.slice(-12);
+            if (!res.ok || !res.body)
+                return fail();
+            let fullText = '';
+            let done = null;
+            for await (const evt of parseSSEStream(res.body)) {
+                if (evt.event === 'delta') {
+                    const { text: chunk } = JSON.parse(evt.data);
+                    fullText += chunk;
+                    loadingBubble.innerHTML = this.renderMarkdown(fullText);
                 }
-                // Render formatted markdown inside bubble
-                loadingBubble.innerHTML = this.renderMarkdown(replyContent);
-                if (this.speakReplies)
-                    voice.speak(replyContent);
-                // Render interactive action cards if present
-                this.renderAgentActionCards(loadingBubble, data, cleanText, replyContent);
+                else if (evt.event === 'status') {
+                    if (!fullText) {
+                        const { label } = JSON.parse(evt.data);
+                        loadingBubble.textContent = label;
+                    }
+                }
+                else if (evt.event === 'done') {
+                    done = JSON.parse(evt.data);
+                }
+                else if (evt.event === 'error') {
+                    // hono/streaming writes this event's data as the bare error message, not JSON —
+                    // do not JSON.parse it here.
+                    return fail();
+                }
             }
-            else {
-                const fallbackReply = "I highly recommend our **Chikmagalur Attikan Estate Honey** for sweet sugarcane jaggery and red apple notes, or our **Dawn Patrol Bangalore Blend** for morning comfort!";
-                this.chatHistory.push({ role: 'assistant', content: fallbackReply });
-                loadingBubble.innerHTML = this.renderMarkdown(fallbackReply);
-                this.renderAgentActionCards(loadingBubble, { success: true, reply: fallbackReply }, cleanText, fallbackReply);
+            if (!done)
+                return fail();
+            // The 'done' payload is authoritative — it is what actually goes into history, gets
+            // spoken and drives the action card, even though the deltas already rendered it once.
+            const replyContent = done.reply || "I'd love to help you find your next favourite roast or dial in your brew!";
+            this.chatHistory.push({ role: 'assistant', content: replyContent });
+            if (this.chatHistory.length > 12) {
+                this.chatHistory = this.chatHistory.slice(-12);
             }
+            loadingBubble.innerHTML = this.renderMarkdown(replyContent);
+            if (this.speakReplies)
+                voice.speak(replyContent);
+            this.renderAgentActionCards(loadingBubble, { proposed_actions: done.proposed_actions }, cleanText, replyContent);
         }
         catch {
-            const fallbackReply = "For traditional filter kaapi or pour over, try our **Chikmagalur Attikan Estate Honey**. For a rich dark espresso with thick golden crema, **Midnight Runner** is phenomenal!";
-            this.chatHistory.push({ role: 'assistant', content: fallbackReply });
-            loadingBubble.innerHTML = this.renderMarkdown(fallbackReply);
-            this.renderAgentActionCards(loadingBubble, { success: true, reply: fallbackReply }, cleanText, fallbackReply);
+            fail();
         }
     }
     renderAgentActionCards(bubble, data, userQuery, replyText) {
@@ -2298,18 +2407,24 @@ class StorefrontApp {
                 const pName = act.arguments.product_name || 'Specialty Coffee Selection';
                 const vId = act.arguments.variant_id || 'var_att_250';
                 const gType = act.arguments.grind_type || 'WHOLE_BEAN';
-                const pKey = Object.keys(knownProducts).find((k) => pName.toLowerCase().includes(k)) || 'attikan';
-                const matched = knownProducts[pKey];
-                actionItem = {
-                    product_id: matched ? matched.id : 'prod_chik_attikan',
-                    variant_id: vId,
-                    name: pName,
-                    weight_grams: matched ? matched.weight : 250,
-                    grind_type: gType,
-                    unit_price_inr: matched ? matched.inr : 450,
-                    unit_price_usd_cents: matched ? matched.usd : 1850,
-                    image_url: matched ? matched.img : '/images/pour_over.jpg'
-                };
+                // Only render a priced 1-click card when we actually recognise the coffee — showing
+                // another product's price, weight and image under this one's name would misquote it,
+                // and since the cart's checkout total trusts this client-side price, that's a real
+                // wrong-charge risk, not just a cosmetic one.
+                const pKey = Object.keys(knownProducts).find((k) => pName.toLowerCase().includes(k));
+                const matched = pKey ? knownProducts[pKey] : null;
+                if (matched) {
+                    actionItem = {
+                        product_id: matched.id,
+                        variant_id: vId,
+                        name: pName,
+                        weight_grams: matched.weight,
+                        grind_type: gType,
+                        unit_price_inr: matched.inr,
+                        unit_price_usd_cents: matched.usd,
+                        image_url: matched.img
+                    };
+                }
             }
         }
         else if (data.action_card && data.action_card.type === 'ADD_TO_CART') {

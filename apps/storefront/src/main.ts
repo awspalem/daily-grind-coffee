@@ -1,6 +1,7 @@
 // The Daily Roast — Bangalore Specialty Coffee Storefront Interactive Client
 import type { Cart, CartItem, Order, Product, ProductVariant } from '@daily-grind/shared-types';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
+import { cachedFetch } from './utils/fetchCache';
 import { getSessionToken } from './features/shared';
 import { initProfile } from './features/profile';
 import { initLoyalty, redeemPointsForSubtotal } from './features/loyalty';
@@ -477,30 +478,41 @@ class StorefrontApp {
   }
 
   private async loadCatalog() {
-    try {
-      const res = await fetch(`${API_BASE}/api/products`);
-      if (res.ok) {
-        const data = await res.json() as { products: any[] };
-        if (data.products && data.products.length > 0) {
-          this.products = data.products.map((p) => ({
-            ...p,
-            // scripts/generate-seo.mjs builds /coffee/<slug> from this same endpoint, so a
-            // product that came from it has a page and a product that did not may not.
-            has_detail_page: true,
-            variants: p.variants.map((v: any) => ({
-              ...v,
-              price_inr: v.price_inr || Math.round(v.price_cents * 0.23),
-              price_usd_cents: v.price_usd_cents || v.price_cents,
-              discount_percent: v.discount_percent || 0
-            }))
-          }));
-        } else {
-          this.products = FALLBACK_PRODUCTS;
-        }
+    // Run the catalog and reviews fetches in parallel — the critical path
+    // is now max(t_catalog, t_reviews) instead of their sum. Both go through
+    // the 30s in-tab cache so navigating away and back is instant.
+    const [productsResult, reviewsResult] = await Promise.allSettled([
+      cachedFetch(`${API_BASE}/api/products`, async () => {
+        const res = await fetch(`${API_BASE}/api/products`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<{ products: any[] }>;
+      }),
+      cachedFetch(`${API_BASE}/api/reviews/summary`, async () => {
+        const res = await fetch(`${API_BASE}/api/reviews/summary`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<{ success: boolean; summary: Record<string, { avg_rating: number; review_count: number }> }>;
+      }),
+    ]);
+
+    if (productsResult.status === 'fulfilled') {
+      const data = productsResult.value;
+      if (data.products && data.products.length > 0) {
+        this.products = data.products.map((p) => ({
+          ...p,
+          // scripts/generate-seo.mjs builds /coffee/<slug> from this same endpoint, so a
+          // product that came from it has a page and a product that did not may not.
+          has_detail_page: true,
+          variants: p.variants.map((v: any) => ({
+            ...v,
+            price_inr: v.price_inr || Math.round(v.price_cents * 0.23),
+            price_usd_cents: v.price_usd_cents || v.price_cents,
+            discount_percent: v.discount_percent || 0
+          }))
+        }));
       } else {
         this.products = FALLBACK_PRODUCTS;
       }
-    } catch {
+    } else {
       this.products = FALLBACK_PRODUCTS;
     }
 
@@ -509,15 +521,10 @@ class StorefrontApp {
       countAllEl.textContent = `${this.products.length} Roasts`;
     }
 
-    try {
-      const res = await fetch(`${API_BASE}/api/reviews/summary`);
-      if (res.ok) {
-        const data = await res.json() as { success: boolean; summary: Record<string, { avg_rating: number; review_count: number }> };
-        this.reviewSummary = data.summary || {};
-      }
-    } catch {
-      // Reviews are non-critical — leave summary empty rather than blocking catalog render
+    if (reviewsResult.status === 'fulfilled') {
+      this.reviewSummary = reviewsResult.value.summary || {};
     }
+    // Reviews are non-critical — leave summary empty rather than blocking catalog render
 
     this.renderProducts();
     this.renderFlavorWheelSVGs();
@@ -698,7 +705,10 @@ class StorefrontApp {
       return `
         <article class="product-card ${isWheelMatch ? 'wheel-match' : ''} ${isProductSoldOut ? 'is-sold-out' : ''}" data-product-id="${prod.id}">
           <div class="card-media">
-            <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" loading="lazy">
+            <picture>
+              <source type="image/webp" srcset="${(prod.image_url || '/images/bag_ethiopia.jpg').replace(/\.(jpe?g|png)$/i, '.webp')}">
+              <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" width="600" height="448" loading="lazy" decoding="async">
+            </picture>
             <span class="origin-badge">${prod.origin_country}</span>
             <span class="roast-level-tag">${prod.roast_level.replace('_', ' ')} ROAST</span>
             ${stockBadgeHtml}

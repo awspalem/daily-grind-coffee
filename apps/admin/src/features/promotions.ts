@@ -1,16 +1,16 @@
-import { adminFetch, esc, triggerHaptic } from './shared';
+import { adminFetch, esc, triggerHaptic, toast, openInlineModal } from './shared';
 import type { RouteModule } from '../router';
 
 const PANEL_HTML = `
   <section class="section-panel" id="panel-promotions">
     <div class="panel-header">
       <h2 class="panel-title">Sales &amp; Promotions</h2>
-      <button class="btn-table-action" id="btn-add-promotion">+ Plan Promotion</button>
+      <button class="btn-primary" id="btn-add-promotion">+ Plan Promotion</button>
     </div>
     <div class="table-responsive">
       <table class="data-table">
         <thead><tr><th>Promotion</th><th>Type</th><th>Dates</th><th>Status</th></tr></thead>
-        <tbody id="promotions-table-body"><tr><td colspan="4" style="text-align:center; color:var(--text-muted);">Loading…</td></tr></tbody>
+        <tbody id="promotions-table-body"><tr><td colspan="4"><div class="skeleton skeleton-row"></div></td></tr></tbody>
       </table>
     </div>
   </section>
@@ -18,6 +18,7 @@ const PANEL_HTML = `
 
 const STATUS_BADGE_CLASS: Record<string, string> = { SCHEDULED: 'shipped', ACTIVE: 'paid', ENDED: 'roasting' };
 const CYCLE: Record<string, string> = { SCHEDULED: 'ACTIVE', ACTIVE: 'ENDED', ENDED: 'SCHEDULED' };
+const PROMO_TYPES = ['SALE', 'BUNDLE', 'SEASONAL', 'CLEARANCE'];
 
 const route: RouteModule = {
   mount(container) {
@@ -25,6 +26,15 @@ const route: RouteModule = {
     const tbody = document.getElementById('promotions-table-body')!;
 
     const render = (promotions: any[]) => {
+      if (!promotions.length) {
+        tbody.innerHTML = `<tr><td colspan="4">
+          <div class="empty-state">
+            <div class="empty-state-title">No promotions yet</div>
+            <div class="empty-state-body">Plan a promotion above — e.g. "Bangalore Launch Week Sale". Status cycles SCHEDULED → ACTIVE → ENDED.</div>
+          </div>
+        </td></tr>`;
+        return;
+      }
       tbody.innerHTML = promotions.map((promo) => `
         <tr>
           <td data-label="Promotion"><strong>${esc(promo.name)}</strong></td>
@@ -39,7 +49,7 @@ const route: RouteModule = {
       const data = await adminFetch<{ promotions: any[] }>('/api/admin/promotions');
       render(data.promotions || []);
     };
-    load();
+    void load();
 
     tbody.addEventListener('click', async (e) => {
       const btn = (e.target as HTMLElement).closest('button[data-promotion-id]') as HTMLElement | null;
@@ -49,26 +59,52 @@ const route: RouteModule = {
       const result = await adminFetch<{ error?: string }>(`/api/admin/promotions/${btn.dataset.promotionId}/status`, {
         method: 'PATCH', json: { status: nextStatus },
       });
-      if (result.success) await load();
+      if (!result.success) { toast(result.error || 'Could not update status', 'error'); return; }
+      await load();
     });
 
-    document.getElementById('btn-add-promotion')?.addEventListener('click', async () => {
+    document.getElementById('btn-add-promotion')?.addEventListener('click', () => {
       triggerHaptic();
-      const name = prompt('Promotion name (e.g. Bangalore Launch Week Sale):');
-      if (!name) return;
-      const promoType = prompt('Promo type (SALE, BUNDLE, SEASONAL, CLEARANCE):', 'SALE') || 'SALE';
-      const startDate = prompt('Start date (YYYY-MM-DD, optional):', '') || undefined;
-      const endDate = prompt('End date (YYYY-MM-DD, optional):', '') || undefined;
-
-      const result = await adminFetch<{ error?: string }>('/api/admin/promotions', {
-        method: 'POST', json: { name, promo_type: promoType.toUpperCase(), start_date: startDate, end_date: endDate },
+      const typeOptions = PROMO_TYPES.map((t) => `<option value="${t}"${t === 'SALE' ? ' selected' : ''}>${t}</option>`).join('');
+      openInlineModal({
+        title: 'New promotion',
+        bodyHtml: `
+          <div class="form-grid">
+            <label class="form-field form-field--wide">
+              <span class="form-field-label">Name</span>
+              <input class="admin-input-styled" id="new-promotion-name" placeholder="Bangalore Launch Week Sale" />
+            </label>
+            <label class="form-field">
+              <span class="form-field-label">Type</span>
+              <select class="admin-input-styled" id="new-promotion-type">${typeOptions}</select>
+            </label>
+            <label class="form-field">
+              <span class="form-field-label">Start date</span>
+              <input class="admin-input-styled" id="new-promotion-start" type="date" />
+            </label>
+            <label class="form-field">
+              <span class="form-field-label">End date</span>
+              <input class="admin-input-styled" id="new-promotion-end" type="date" />
+            </label>
+          </div>
+        `,
+        primaryLabel: 'Create promotion',
+        onPrimary: async (close) => {
+          const name = ((document.getElementById('new-promotion-name') as HTMLInputElement)?.value || '').trim();
+          if (!name) { toast('Name is required', 'error'); return; }
+          const promoType = (document.getElementById('new-promotion-type') as HTMLSelectElement)?.value || 'SALE';
+          const startDate = (document.getElementById('new-promotion-start') as HTMLInputElement)?.value || undefined;
+          const endDate = (document.getElementById('new-promotion-end') as HTMLInputElement)?.value || undefined;
+          const result = await adminFetch<{ error?: string }>('/api/admin/promotions', {
+            method: 'POST',
+            json: { name, promo_type: promoType, start_date: startDate, end_date: endDate },
+          });
+          if (!result.success) { toast(result.error || 'Could not add promotion', 'error'); return; }
+          toast(`Promotion "${name}" created`, 'success');
+          close();
+          await load();
+        },
       });
-
-      if (result.success) {
-        await load();
-      } else {
-        alert(`Could not add promotion: ${result.error || 'Unknown error'}`);
-      }
     });
   },
 };

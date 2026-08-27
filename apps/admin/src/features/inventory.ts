@@ -1,4 +1,4 @@
-import { adminFetch, esc, triggerHaptic } from './shared';
+import { adminFetch, esc, triggerHaptic, toast } from './shared';
 import type { RouteModule } from '../router';
 
 const PANEL_HTML = `
@@ -150,7 +150,7 @@ const route: RouteModule = {
         reasonInput.value = '';
         await refreshAll();
       } else {
-        alert(`Inventory adjustment failed: ${result.error || 'Unknown error'}`);
+        toast(`Inventory adjustment failed: ${result.error || 'Unknown error'}`, 'error');
       }
     });
   },

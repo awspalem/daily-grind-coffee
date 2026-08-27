@@ -1,4 +1,4 @@
-import { triggerHaptic } from './shared';
+import { triggerHaptic, toast } from './shared';
 import { ROASTERY_LOT_PRESETS, generateThermalLabelHTML, BagLabelConfig } from '../utils/thermalLabel';
 import type { RouteModule } from '../router';
 
@@ -208,7 +208,7 @@ const route: RouteModule = {
           setTimeout(() => { btn.textContent = "Copy Maya's Brew Link"; }, 1500);
         }
       }).catch(() => {
-        prompt("Copy Maya's Brew Guide Direct URL:", link);
+        toast("Could not copy to clipboard — select the URL manually from the label preview.", 'warning');
       });
     });
 

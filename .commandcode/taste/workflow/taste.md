@@ -1,0 +1,22 @@
+# Workflow & Communication
+
+- Expects work committed, pushed, and deployed live as the default definition of "done" — frequently asks "is it committed/pushed/live?" and says "get it live". Confidence: 1.0
+- Prefers proactive, exhaustive iteration: keeps pushing with "what else?", "keep going", "are there no more improvements?" rather than stopping at the literal ask. Confidence: 0.9
+- Strongly prefers real, API-driven behavior over hardcoded/mock/fabricated data; treats hardcoded fallbacks and fake persistence as bugs to root out. Confidence: 0.9
+- Wants documentation (README, docs/, commit messages) kept in sync before moving to the next epic. Confidence: 0.8
+- Reaches for parallel/agentic orchestration ("/workflows") for large multi-part sweeps and audits. Confidence: 0.85
+- Wants strategic guidance and proactive next-step recommendations, not just execution ("what do you recommend?", "what should we logically do?"). Confidence: 0.85
+- Values automated test coverage and asks to increase it. Confidence: 0.7
+- Handles manual account/console steps himself (domain, email, Cloudflare/GitHub settings) and wants clear step-by-step instructions with links; expects the agent to do all code/config work. Confidence: 0.8
+- When proposing a fix, expects the agent to first verify the live/production reality (probe URLs, read the actual config in the repo, check what account/tenant is in play) rather than designing around an assumed architecture. A one-line correction like "I don't see X in the dashboard" should trigger a re-grounding of the whole approach, not a patch. Confidence: 0.9
+- Comfortable shipping with placeholders ("get some stock images for now") to keep momentum. Confidence: 0.6
+- For large UI/design overhauls, wants the agent to enter plan mode, ask structured multiple-choice questions about scope/deploy/theme-identity, get explicit approval, then implement in a clearly numbered order with a todo list. Confidence: 0.9
+- After approving a multi-workstream plan, prefers the agent to execute straight through in the proposed numbered order (DDL first, then low-risk changes, then features, then big-PR net-new) rather than re-prompting between workstreams. Confidence: 0.85
+- When planning UI work, wants hard constraints surfaced explicitly: no new dependencies, no backend changes, preserved auth (e.g. Cloudflare Access credentials:'include'), and preserved responsive behavior. Confidence: 0.85
+- Pushes for additional polish rounds with phrases like "do a few more rounds", "is it polished enough", "feels off" — judges surfaces by feel during long daily use, not by missing features. Confidence: 0.8
+- Treats performance/snappiness as a first-class concern, not a separate epic — "make the app more performant and snappy" gets bundled into the same delivery as UI polish, not punted to a later ticket. Confidence: 0.85
+- Surfaces production errors verbatim in feedback ("Could not load pricing: Access Denied: Protected by Cloudflare Zero Trust Access authentication.") and expects them investigated and fixed in the same pass, not just logged. Confidence: 0.85
+- When given a deploy choice, prefers "build + git push" (so Cloudflare Pages auto-deploys) over manual deploy or build-only. Confidence: 0.9
+- Expects visual verification via headless-browser screenshots before commit/push, on multiple viewports (desktop + mobile) and key screens. Confidence: 0.85
+- Wants honest UI states rather than fake/placeholder data — e.g. a "Coming Q4" empty card instead of a fake "88.4 PTS" value, full empty-state blocks instead of "No data" text. Confidence: 0.8
+- Wants every native browser dialog (alert/confirm/prompt) replaced with a branded in-app component (toast/confirm-modal/inline-modal) when touching admin code. Confidence: 0.85

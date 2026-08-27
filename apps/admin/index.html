@@ -68,6 +68,10 @@
           <kbd>⌘K</kbd>
         </button>
         <div class="top-actions">
+          <button class="btn-secondary" id="btn-open-admin-agent" type="button" aria-label="Open Maya operations assistant">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2l1.8 5.4L18 9l-5.2 1.6L11 16l-1.8-5.4L4 9l5.2-1.6Z"></path><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9Z"></path></svg>
+            Ask Maya
+          </button>
           <a href="/investor.html" class="btn-ghost">
             Investor Portal
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline></svg>
@@ -206,6 +210,10 @@
 
   <!-- Generic inline modal mount point (used by core/shell.ts for the Restock flow) -->
   <div id="inline-modal-root"></div>
+
+  <!-- Admin Maya drawer (lazy-mounted by features/agent.ts) -->
+  <aside id="admin-agent-drawer" class="admin-agent-drawer" aria-hidden="true" aria-label="Maya operations assistant"></aside>
+  <div id="admin-agent-backdrop" class="admin-agent-backdrop" aria-hidden="true"></div>
 
   <script type="module" src="/src/main.ts"></script>
 </body>

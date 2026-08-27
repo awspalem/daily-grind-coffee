@@ -12,6 +12,23 @@ import { getTasteProfile, summariseProfileForAgent } from '../services/customerP
 import { saveAgentTurn, loadAgentHistory } from '../services/agentMemory';
 import type { GrindType } from '@daily-grind/shared-types';
 
+/**
+ * Parse a stored embedding vector from the products.embedding_json column.
+ * Returns null on any shape mismatch so the caller can fall back to a
+ * synchronous on-the-fly embedding (and so a bad row never crashes a tool
+ * call — the search just reroutes the product through the slower path).
+ */
+function safeParseEmbedding(raw: string): number[] | null {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    if (!parsed.every((v) => typeof v === 'number' && Number.isFinite(v))) return null;
+    return parsed as number[];
+  } catch {
+    return null;
+  }
+}
+
 const agentApp = new Hono<{ Bindings: Env }>();
 
 const SYSTEM_PROMPT = `
@@ -185,17 +202,25 @@ async function runToolCall(
   }
 
   if (toolName === 'semantic_coffee_search') {
+    // One embedding call for the query; cosine similarity runs in-process
+    // against vectors stored on the products table (see packages/db/migrations
+    // /0021_product_embeddings.sql + the hourly backfill in services/maintenance.ts).
+    // Pre-storage cuts this tool turn from ~11 model calls + concurrency
+    // queuing to 1 call + a few array multiplies.
     const queryEmbedding = await ctx.ai.generateEmbedding(toolArgs.query || '');
     const products = await ctx.db.getAllProducts();
 
-    const scored = await Promise.all(
-      products.map(async (p) => {
-        const productText = `${p.name} ${p.tagline} ${p.description} ${p.tasting_notes.join(' ')} ${p.roast_level} ${p.origin_country}`;
-        const pEmb = await ctx.ai.generateEmbedding(productText);
-        const score = ctx.ai.calculateSimilarity(queryEmbedding, pEmb);
-        return { product: p, score };
-      })
-    );
+    const scored = products.map((p) => {
+      const productText = `${p.name} ${p.tagline} ${p.description} ${(p.tasting_notes || []).join(' ')} ${p.roast_level} ${p.origin_country}`;
+      // Fall back to embedding-on-the-fly only for products that the
+      // backfill hasn't processed yet (or that the synthetic-embedding
+      // local fallback produced). Caching kicks in for everything else.
+      const stored = (p as any).embedding_json as string | null | undefined;
+      const vec = stored ? safeParseEmbedding(stored) : null;
+      const productVec = vec ?? ctx.ai.generateEmbeddingSync(productText);
+      const score = ctx.ai.calculateSimilarity(queryEmbedding, productVec);
+      return { product: p, score };
+    });
 
     scored.sort((a, b) => b.score - a.score);
     const topMatches = scored.slice(0, 3).map((s) => ({

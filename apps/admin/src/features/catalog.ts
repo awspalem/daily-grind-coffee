@@ -1,4 +1,4 @@
-import { adminFetch, esc, triggerHaptic, API_BASE } from './shared';
+import { adminFetch, esc, triggerHaptic, toast, API_BASE } from './shared';
 import type { RouteModule } from '../router';
 
 const PANEL_HTML = `
@@ -186,7 +186,7 @@ const route: RouteModule = {
         const stock = Number((row.querySelector('.new-variant-stock') as HTMLInputElement)?.value) || 0;
 
         if (!weight || !price) {
-          alert('Weight and price are required to add a variant.');
+          toast('Weight and price are required to add a variant.', 'error');
           return;
         }
 
@@ -197,7 +197,7 @@ const route: RouteModule = {
         if (result.success) {
           await load();
         } else {
-          alert(`Could not add variant: ${result.error || 'Unknown error'}`);
+          toast(`Could not add variant: ${result.error || 'Unknown error'}`, 'error');
         }
       }
     });
@@ -264,7 +264,7 @@ const route: RouteModule = {
         if (imagePreview) imagePreview.style.display = 'none';
         await load();
       } else {
-        alert(`Could not create product: ${result.error || 'Unknown error'}`);
+        toast(`Could not create product: ${result.error || 'Unknown error'}`, 'error');
       }
     });
   },

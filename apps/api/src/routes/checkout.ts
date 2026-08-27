@@ -109,19 +109,22 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
 
   const ledger = new InventoryLedgerService(c.env.DB);
 
-  // 1. Verify stock availability and reserve items
+  // 1. Verify stock availability and reserve items. reserveMany does the
+  // entire 5-item reservation in one D1 round-trip pair (one SELECT for the
+  // snapshot of every affected variant, one db.batch for the inventory
+  // updates + ledger rows) instead of the N round-trips that recordMovement
+  // in a loop would cost. Either every variant reserves or none do — a
+  // mid-flight failure can't leave a half-applied hold behind.
   try {
-    for (const item of resolvedItems) {
-      await ledger.recordMovement({
-        variantId: item.variant_id,
-        movementType: 'PURCHASE_RESERVE',
-        delta: -item.quantity,
+    await ledger.reserveMany(
+      resolvedItems.map((item) => ({ variantId: item.variant_id, quantity: item.quantity })),
+      {
         referenceType: 'CART',
         referenceId: cartIdForLedger,
         reason: 'Checkout stock reservation hold',
         actor: 'CHECKOUT_SERVICE',
-      });
-    }
+      }
+    );
   } catch (err: any) {
     return c.json({ success: false, error: err.message || 'Stock reservation error' }, 409);
   }

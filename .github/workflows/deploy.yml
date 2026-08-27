@@ -69,6 +69,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           cd apps/api
           if [ -n "$GROQ_API_KEY" ]; then
@@ -76,6 +77,9 @@ jobs:
           fi
           if [ -n "$RESEND_API_KEY" ]; then
             echo "$RESEND_API_KEY" | npx wrangler secret put RESEND_API_KEY --env production || true
+          fi
+          if [ -n "$ADMIN_TOKEN" ]; then
+            echo "$ADMIN_TOKEN" | npx wrangler secret put ADMIN_TOKEN --env production || true
           fi
           npx wrangler deploy --env production
 
@@ -127,6 +131,8 @@ jobs:
         run: npm ci
 
       - name: Build Admin Portal
+        env:
+          VITE_ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
           npm run build --workspace=packages/shared-types
           npm run build --workspace=apps/admin
