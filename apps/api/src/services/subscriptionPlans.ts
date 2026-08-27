@@ -75,6 +75,10 @@ export interface SubscriptionRow {
   cancel_reason: string | null;
   save_offer_used_at: string | null;
   renewal_notice_sent_for: string | null;
+  past_due_at: string | null;
+  past_due_retry_count: number;
+  next_retry_at: string | null;
+  last_dunning_email_at: string | null;
   created_at: string;
 }
 
@@ -384,6 +388,16 @@ export async function activatePlanSubscription(
       sub.id
     )
     .run();
+
+  // PENDING_PAYMENT -> ACTIVE/PREPAID is its own transition in the customer-facing timeline,
+  // distinct from CREATED (which fires at checkout) and from any later renewal. Webhook replays
+  // are guarded by the `status = 'PENDING_PAYMENT'` predicate on the UPDATE, so the event can be
+  // written unconditionally after it.
+  await recordSubscriptionEvent(db, sub.id, 'ACTIVATED', 'SYSTEM', {
+    status: isAnnual ? 'PREPAID' : 'ACTIVE',
+    plan: plan.slug,
+    next_renewal_date: isAnnual ? startsAt : addDays(startsAt, days),
+  });
 }
 
 // ==================== Upcoming shipments ====================
@@ -686,6 +700,121 @@ export async function cancelSubscription(
   // Entitlements are NOT revoked here. A cancelled annual member paid for the year, so the
   // consultations and tour seats stay spendable until the term window they were granted for
   // lapses on its own. Refunds are the case that revokes — see hooks/plans.ts.
+}
+
+// ==================== Plan swap (upgrade / downgrade) ====================
+//
+// The plan a subscription is on defines what perks the customer can spend. Swapping between
+// Explorer and Connoisseur — or onto Founder — is an immediate swap of those perks, not a
+// deferred one. A perk that has been spent is spent, and stays spent: the ledger is the audit
+// trail and a downgrade cannot "un-spend" a tour seat the customer already booked. What changes
+// on a swap is the pool of perks that future bookings draw from.
+//
+//   upgrade   (higher tier, same term):  immediate swap, new perks issue NOW for the rest of
+//                                        the current term. The plan that was already paid for
+//                                        stays paid; the customer pays the *delta* for the
+//                                        upgrade separately, on the next renewal cycle.
+//   downgrade (lower tier, same term):   immediate swap, the new (smaller) perks take effect
+//                                        NOW. Anything the customer already booked from the old
+//                                        pool stays booked. Refunds are out of scope: the term
+//                                        the customer paid for at the higher price is non-
+//                                        refundable, and the lower renewal price kicks in at
+//                                        the next cycle.
+//   term swap (monthly <-> annual):      not supported mid-term. The customer has to let the
+//                                        current term run out and re-purchase.
+//
+// Mid-term swaps are intentionally simple: the renewal price for the new tier takes effect on
+// the next renewal, and the perks window of the new term starts at the *current term's end* so
+// the customer doesn't get two sets of perks for overlapping windows. The existing
+// (source_type, source_id, code, starts_at) tuple guard in `grantPlanEntitlements` makes this
+// safe against replays.
+
+export type PlanSwapDirection = 'UPGRADE' | 'DOWNGRADE' | 'LATERAL';
+
+/**
+ * Computes the direction of a plan swap from one row to another. Pricing is the canonical signal:
+ * a higher price is an upgrade, a lower one is a downgrade, equal prices are lateral (the same
+ * tier at a different term or a different perk mix). This deliberately ignores the catalog
+ * `display_order` column because pricing is what the customer was actually paying for.
+ */
+export function classifyPlanSwap(from: PlanRow, to: PlanRow): PlanSwapDirection {
+  if (from.id === to.id) return 'LATERAL';
+  if (to.price_cents > from.price_cents) return 'UPGRADE';
+  if (to.price_cents < from.price_cents) return 'DOWNGRADE';
+  return 'LATERAL';
+}
+
+export interface PlanSwapInput {
+  fromPlan: PlanRow;
+  toPlan: PlanRow;
+  actor?: 'CUSTOMER' | 'ADMIN';
+}
+
+/**
+ * Swaps a subscription to a different plan. The swap is:
+ *   1. row metadata: plan_id, plan_term, discount_percent all follow the new plan immediately
+ *   2. existing perks: kept spendable until they lapse on their own (downgrade) or replaced by
+ *      a fresh grant at the next term boundary (upgrade). Already-consumed units stay consumed.
+ *   3. renewal: the next renewal charges the new plan's price; the current cycle's price is
+ *      unchanged (no mid-term proration — see the policy comment above).
+ *
+ * Returns a result that the route can surface to the customer; the customer-facing message is
+ * the only consumer-facing difference between upgrade and downgrade.
+ */
+export async function swapPlan(
+  db: Env['DB'],
+  sub: SubscriptionRow,
+  input: PlanSwapInput
+): Promise<
+  | { ok: true; direction: PlanSwapDirection; message: string; newTermEndsAt: string }
+  | { ok: false; error: string }
+> {
+  const { fromPlan, toPlan, actor = 'CUSTOMER' } = input;
+  if (sub.plan_id === toPlan.id) return { ok: false, error: 'Already on that plan' };
+  if (fromPlan.term !== toPlan.term) {
+    return { ok: false, error: 'Plan term cannot be changed mid-term — let the current term end and resubscribe.' };
+  }
+  if (!sub.customer_id) return { ok: false, error: 'Subscription is not linked to a customer account' };
+
+  const direction = classifyPlanSwap(fromPlan, toPlan);
+  // The current term's end is unchanged; that's the boundary the new plan's perks window starts
+  // at, so the customer doesn't get two overlapping grants.
+  const termEndsAt = sub.term_ends_at || addMonths(new Date().toISOString(), toPlan.term_months || 1);
+
+  await db.prepare(`
+    UPDATE subscriptions
+    SET plan_id = ?, plan_term = ?, discount_percent = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(toPlan.id, toPlan.term, toPlan.discount_percent, sub.id).run();
+
+  await recordSubscriptionEvent(db, sub.id, 'PLAN_SWAPPED', actor, {
+    from: fromPlan.slug, to: toPlan.slug, direction,
+  });
+
+  if (direction === 'UPGRADE') {
+    // Issue the new tier's perks for the rest of the current term. Downgrades do NOT issue
+    // anything new — the next term boundary is when the new plan's perks arrive, and
+    // `grantPlanEntitlements` is idempotent on the (source, starts_at) tuple so a webhook
+    // replay can't double up.
+    if (sub.term_started_at) {
+      await grantPlanEntitlements(db, {
+        customerId: sub.customer_id,
+        subscriptionId: sub.id,
+        plan: toPlan,
+        sourceType: 'SUBSCRIPTION',
+        startsAt: sub.term_started_at,
+        expiresAt: termEndsAt,
+      });
+    }
+  }
+
+  const message = direction === 'UPGRADE'
+    ? `Upgraded to ${toPlan.name}. Your new perks are available now; the upgraded rate takes effect on your next renewal.`
+    : direction === 'DOWNGRADE'
+      ? `Downgraded to ${toPlan.name}. Existing bookings stay as they are; the new (lower) rate takes effect on your next renewal.`
+      : `Switched to ${toPlan.name}.`;
+
+  return { ok: true, direction, message, newTermEndsAt: termEndsAt };
 }
 
 // ==================== Dunning ====================

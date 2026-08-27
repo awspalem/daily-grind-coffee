@@ -109,6 +109,27 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
 
   const ledger = new InventoryLedgerService(c.env.DB);
 
+  // Releases the inventory we reserved earlier in this request. Called by the early-return
+  // paths below; the happy path leaves the reservation in place to be marked fulfilled when
+  // the Stripe webhook arrives.
+  const releaseReservation = async (reason: string) => {
+    for (const item of resolvedItems) {
+      try {
+        await ledger.recordMovement({
+          variantId: item.variant_id,
+          movementType: 'RESERVATION_EXPIRED',
+          delta: item.quantity,
+          referenceType: 'CART',
+          referenceId: cartIdForLedger,
+          reason,
+          actor: 'CHECKOUT_SERVICE',
+        });
+      } catch (relErr) {
+        console.error('Failed to release reservation:', relErr);
+      }
+    }
+  };
+
   // 1. Verify stock availability and reserve items. reserveMany does the
   // entire 5-item reservation in one D1 round-trip pair (one SELECT for the
   // snapshot of every affected variant, one db.batch for the inventory
@@ -142,6 +163,7 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
   if (body.coupon_code) {
     const couponResult = await validateCoupon(c.env.DB, body.coupon_code, subtotalCents);
     if (!couponResult.valid) {
+      await releaseReservation(`Invalid coupon at checkout — releasing reservation`);
       return c.json({ success: false, error: couponResult.error || 'Invalid coupon code' }, 400);
     }
     discountCents = couponResult.discountCents;
@@ -159,17 +181,16 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
   let referralCode: string | null = null;
   let referralDiscountCents = 0;
 
-  // Both the referral discount and the points rate are denominated in paise (see
-  // REFERRAL_RATES.REFEREE_DISCOUNT_CENTS and LOYALTY_RATES.POINT_VALUE_CENTS), and neither
-  // service is told the order's currency. Applying either to a `usd` order would take the paise
-  // figure off as US cents — a discount roughly 85× too large. Until gap 0.2 is settled and the
-  // shop is single-currency, both are refused outside INR rather than silently converted.
-  //
-  // The gate is the *order's* currency (what `subtotalCents` is denominated in and what the
-  // order row records), not `env.CURRENCY` — which still forces the Stripe charge to `usd`
-  // regardless. That mismatch is gap 0.2 and is unchanged here.
-  const orderCurrency = String(body.currency || 'usd').toLowerCase();
-  const rewardsRedeemable = orderCurrency === 'inr';
+  // The storefront is INR-only. Referral and points discounts are denominated in paise
+  // (see REFERRAL_RATES.REFEREE_DISCOUNT_CENTS and LOYALTY_RATES.POINT_VALUE_CENTS) and would be
+  // applied to the order as if they were US cents — roughly 85× too large — on a USD order, so
+  // both are gated to INR. Anything other than INR is now an explicit error rather than a silent
+  // currency-mismatch wait-for-the-refund.
+  const orderCurrency = String(body.currency || 'inr').toLowerCase();
+  if (orderCurrency !== 'inr') {
+    return c.json({ success: false, error: 'This storefront only accepts orders priced in Indian rupees (INR). Please refresh and try again.' }, 400);
+  }
+  const rewardsRedeemable = true;
 
   if (body.referral_code && !rewardsRedeemable) {
     return c.json({ success: false, error: 'Referral codes can only be used on orders priced in rupees' }, 400);
@@ -184,6 +205,7 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
       subtotalCents: Math.max(0, subtotalCents - couponDiscountCents),
     });
     if (!referral.valid) {
+      await releaseReservation(`Invalid referral at checkout — releasing reservation`);
       return c.json({ success: false, error: referral.error || 'Referral code cannot be applied' }, 400);
     }
     referralCode = referral.code!;
@@ -207,9 +229,11 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
   const requestedPoints = Math.floor(Number(body.redeem_points) || 0);
   if (requestedPoints > 0) {
     if (!customerSession) {
+      await releaseReservation(`Points requested without sign-in — releasing reservation`);
       return c.json({ success: false, error: 'Sign in to redeem loyalty points' }, 401);
     }
     if (!rewardsRedeemable) {
+      await releaseReservation(`Points requested on non-INR order — releasing reservation`);
       return c.json({ success: false, error: 'Points can only be redeemed on orders priced in rupees' }, 400);
     }
     const redeemable = Math.max(0, subtotalCents - couponDiscountCents - referralDiscountCents);
@@ -221,6 +245,7 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
       redeemable
     );
     if (!redemption.success) {
+      await releaseReservation(`Points redemption refused — releasing reservation`);
       return c.json({ success: false, error: redemption.error || 'Points could not be redeemed' }, 400);
     }
     loyaltyPoints = redemption.points;
@@ -256,7 +281,7 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
       taxCents,
       discountCents,
       totalCents,
-      body.currency || 'usd',
+      orderCurrency,
       JSON.stringify(shippingAddress),
       loyaltyPoints,
       loyaltyDiscountCents,
@@ -318,8 +343,21 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
   }
 
   if (appliedCoupon) {
+    // Race-safe increment: the conditional WHERE atomically claims a slot in the coupon's
+    // max_uses budget. A concurrent checkout that took the last slot leaves times_used
+    // == max_uses, this UPDATE matches zero rows, and we fail the order before any other
+    // state is created.
+    const claimRes = await c.env.DB.prepare(`
+      UPDATE coupons SET times_used = times_used + 1
+      WHERE id = ? AND (max_uses IS NULL OR times_used < max_uses)
+    `).bind(appliedCoupon.id).run();
+
+    if (!((claimRes as any)?.meta?.changes)) {
+      await releaseReservation(`Coupon ${appliedCoupon.code} exhausted at checkout — releasing reservation`);
+      return c.json({ success: false, error: 'This coupon has reached its usage limit. Please remove it and try again.' }, 409);
+    }
+
     orderStatements.push(
-      c.env.DB.prepare('UPDATE coupons SET times_used = times_used + 1 WHERE id = ?').bind(appliedCoupon.id),
       c.env.DB.prepare(`
         INSERT INTO coupon_redemptions (id, coupon_id, order_id, customer_email, discount_applied_cents)
         VALUES (?, ?, ?, ?, ?)
@@ -388,7 +426,7 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
       shippingCents,
       successUrl: `${storefrontUrl}/order-confirmation?order_id=${orderId}&order_number=${orderNumber}`,
       cancelUrl: `${storefrontUrl}/cart?cancelled=true`,
-      currency: c.env.CURRENCY || body.currency || 'usd',
+      currency: orderCurrency,
       saveForSubscription: resolvedItems.some((it) => Boolean(it.subscription_frequency)),
     });
 
@@ -410,15 +448,26 @@ async function processCheckout(c: Context<{ Bindings: Env }>, isSessionRoute: bo
       referral_discount_cents: referralDiscountCents,
     });
   } catch (err: any) {
-    console.error('Checkout session warning (fallback simulation active):', err);
+    console.error('Stripe checkout session creation failed for order', orderId, err);
+
+    // The order is already on the books (PENDING_PAYMENT, inventory reserved) — the Stripe
+    // call is the only thing that didn't land. Mark the order CANCELLED and release the
+    // reservation so the shopper can retry from a clean slate instead of a PENDING_PAYMENT
+    // ghost the abandoned-cart cron only picks up 30 minutes later.
+    try {
+      await releaseReservation(`Stripe session creation failed for order ${orderId} — releasing reservation`);
+      await c.env.DB.prepare(
+        "UPDATE orders SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+      ).bind(orderId).run();
+    } catch (rollbackErr) {
+      console.error('Checkout rollback after Stripe failure also failed for order', orderId, rollbackErr);
+    }
+
     return c.json({
-      success: true,
+      success: false,
+      error: 'Could not create the payment session with the gateway. No charge was attempted — please try again.',
       order_id: orderId,
-      order_number: orderNumber,
-      checkout_url: null,
-      session_id: 'sim_sess_' + orderId,
-      message: 'Order placed & scheduled for roasting',
-    });
+    }, 502);
   }
 }
 

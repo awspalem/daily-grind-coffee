@@ -21,6 +21,12 @@ export interface ReferralStats {
   invited: number;
   signed_up: number;
   purchased: number;
+  /** All referral rows for this referrer, including reversed ones. */
+  total: number;
+  /** Referral rows that reached DELIVERED and so paid out. */
+  successful: number;
+  /** Referral rows still waiting on delivery (or refund). */
+  pending: number;
   /** Points already paid out to the referrer (delivered orders only). */
   points_earned: number;
   /** Points attributed but not yet delivered, so not yet payable. */

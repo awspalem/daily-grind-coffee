@@ -38,6 +38,8 @@ export interface LoyaltyTierInfo {
   next_tier: LoyaltyTier | null;
   /** Minor units still needed to reach `next_tier`; 0 when already at the top. */
   cents_to_next_tier: number;
+  /** Absolute spend threshold (minor units) to reach `next_tier`; 0 at the top. */
+  next_tier_threshold_cents: number;
   earn_multiplier: number;
   perks: string[];
 }
@@ -50,6 +52,8 @@ export interface LoyaltySummary {
   expiring_soon_points: number;
   expiring_soon_at: string | null;
   point_value_cents: number;
+  /** The most recent ledger entries, newest first. Capped — see LOYALTY_RATES.SUMMARY_RECENT_ENTRIES. */
+  recent_entries: LoyaltyLedgerEntry[];
 }
 
 /** Result of asking "how much can I take off this basket?" — advisory; checkout re-validates. */

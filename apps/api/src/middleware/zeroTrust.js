@@ -121,10 +121,18 @@ async function verifyCFAuthCookie(c, cookieValue) {
  * Accepts, in order:
  *   1. Cf-Access-Jwt-Assertion + Cf-Access-Authenticated-User-Email headers
  *      (same-host Access application — zero round-trips on the happy path).
- *   2. A verified CF_Authorization cookie (cross-origin SPA → API).
- *   3. In non-production, a Bearer token from ADMIN_TOKEN.
+ *   2. A verified CF_Authorization cookie (cross-origin SPA → API, when
+ *      ACCESS_TEAM_DOMAIN + ACCESS_AUD are configured).
+ *   3. Bearer ADMIN_TOKEN — trusted in any environment when ADMIN_TOKEN
+ *      is configured. Used by the admin SPA on first deploy (before the
+ *      user has a Cloudflare Access session) and by any admin tooling.
  *   4. In non-production with no ADMIN_TOKEN set, an open dev bypass.
  *   5. Otherwise: 401.
+ *
+ * The Access paths (1 and 2) only fire if a real Access application is
+ * configured to gate the SPA/API. If you don't have one, only paths 3, 4,
+ * 5 apply — and you must set ADMIN_TOKEN as a Wrangler secret in
+ * production, or every /api/admin/* call will 401.
  */
 export async function zeroTrustAdminGuard(c, next) {
     const cfEmail = c.req.header('Cf-Access-Authenticated-User-Email');
@@ -159,14 +167,16 @@ export async function zeroTrustAdminGuard(c, next) {
             console.warn('[zeroTrust] CF_Authorization cookie rejected:', result.reason);
         }
     }
-    // Fallback: a pre-shared bearer token, for local tooling/scripts. Only ever trusted when a
-    // real ADMIN_TOKEN secret is configured — never a hardcoded literal, and never in production
-    // (production must go through Cloudflare Access above).
-    if (!isProduction && authHeader && authHeader.startsWith('Bearer ')) {
+    // Bearer ADMIN_TOKEN — works in any environment when ADMIN_TOKEN is set.
+    // This is the production fallback when Cloudflare Access isn't gating the
+    // SPA/API at the edge. The token never leaves the admin SPA bundle (it's
+    // fetched at build time from a Wrangler secret in CI) and is sent on every
+    // /api/admin/* request via the adminFetch helper. Rotate by re-deploying.
+    if (authHeader && authHeader.startsWith('Bearer ') && c.env.ADMIN_TOKEN) {
         const token = authHeader.replace('Bearer ', '').trim();
-        if (c.env.ADMIN_TOKEN && token === c.env.ADMIN_TOKEN) {
+        if (token === c.env.ADMIN_TOKEN) {
             c.set('adminActor', {
-                id: actorId,
+                id: 'actor_admin_01',
                 email: actorEmail,
                 role: 'ADMIN',
             });
@@ -184,7 +194,7 @@ export async function zeroTrustAdminGuard(c, next) {
     }
     return c.json({
         success: false,
-        error: 'Access Denied: Protected by Cloudflare Zero Trust Access authentication.',
+        error: 'Access Denied: admin route requires a valid session, CF_Authorization cookie (when ACCESS_TEAM_DOMAIN is set), or ADMIN_TOKEN bearer.',
     }, 401);
 }
 /**

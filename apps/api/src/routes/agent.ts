@@ -6,10 +6,11 @@ import { CoffeeDatabase } from '@daily-grind/db';
 import { getOrCreateCart } from './cart';
 import { WorkersAIService } from '../services/workersAI';
 import { turnstileValidator } from '../middleware/turnstile';
-import { rateLimiter } from '../middleware/rateLimit';
+import { rateLimiter, sessionRateLimiter } from '../middleware/rateLimit';
 import { resolveCustomerSession } from '../middleware/customerAuth';
 import { getTasteProfile, summariseProfileForAgent } from '../services/customerProfile';
 import { saveAgentTurn, loadAgentHistory } from '../services/agentMemory';
+import { checkAndReserveSessionBudget } from '../services/agentCostGuard';
 import type { GrindType } from '@daily-grind/shared-types';
 
 /**
@@ -81,6 +82,17 @@ AGENT GUIDELINES:
 4. If a customer asks about order status, call 'check_order_status'.
 5. If searching coffee flavor notes, call 'search_coffee' or 'semantic_coffee_search'.
 6. If asking for brewing guides, call 'get_brewing_guide'.
+7. If a customer asks about their subscription (which coffee, when it renews, is it still active), call 'get_subscription_status'.
+8. If a customer asks about loyalty points or their tier, call 'get_loyalty_balance'.
+9. If a customer asks for a personalised recommendation or "what should I try", call 'get_recommendations'.
+10. If a customer asks to cancel a subscription, call 'propose_cancel_subscription' — never cancel without an explicit user request and a confirmation card.
+
+GROUNDING & HALLUCINATION GUARD (CRITICAL):
+- NEVER invent a product name, price, or order status. Use only the IDs, prices and statuses returned by the tool calls.
+- If a tool returns an empty result or "not found", say so plainly: "I couldn't find an order with that number — could you double-check it?" Do not fabricate an order, an ETA, or a tracking number.
+- If you are unsure of a tasting note, roast level, or origin, say "I'm not certain — let me look that up" and call a search tool, or admit you don't know.
+- Prices come from the catalog tool results, not from the catalog block above. The catalog block is a guide for which products exist; the tool is the source of truth for the price the customer will pay.
+- If a customer asks something outside coffee (general knowledge, politics, unrelated topics), answer briefly and warmly, then steer back to coffee — but do not make up facts.
 `;
 
 const AGENT_TOOLS: GroqToolDefinition[] = [
@@ -170,6 +182,55 @@ const AGENT_TOOLS: GroqToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'get_subscription_status',
+      description: 'Look up the customer\'s active subscriptions: which coffee, frequency, next renewal date, and current status (ACTIVE / PAUSED / PAST_DUE / CANCELLED). Use this when the customer asks about their subscription, when the next delivery is, or whether a subscription is still running.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscription_id: { type: 'string', description: 'Optional: a specific subscription id. Omit to list all of the caller\'s subscriptions.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_loyalty_balance',
+      description: 'Look up the customer\'s current loyalty points balance, lifetime total, and tier. Use this when the customer asks how many points they have or what tier they are on.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_recommendations',
+      description: 'Get personalised coffee recommendations derived from the customer\'s purchase and review history. Use this when the customer asks for a recommendation, a "what should I try next" or "what do you think I\'d like" question, especially after they have ordered before.',
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max number of recommendations to return (default 3, max 5).' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'propose_cancel_subscription',
+      description: 'Propose cancelling one of the customer\'s active subscriptions. Requires user confirmation. NEVER cancel without a real user request — every cancellation stops a future recurring charge and a future shipment.',
+      parameters: {
+        type: 'object',
+        properties: {
+          subscription_id: { type: 'string', description: 'The subscription id to cancel.' },
+          product_name: { type: 'string', description: 'The coffee this subscription is for, shown on the confirmation card.' },
+        },
+        required: ['subscription_id', 'product_name'],
+      },
+    },
+  },
 ];
 
 /** Shown to the user while a tool call is in flight, so streamed replies don't go silent during it. */
@@ -179,6 +240,10 @@ const TOOL_STATUS_LABEL: Record<string, string> = {
   get_brewing_guide: 'Pulling up the brew guide...',
   check_order_status: 'Checking your order...',
   propose_add_to_cart: 'Preparing your cart update...',
+  get_subscription_status: 'Looking up your subscription...',
+  get_loyalty_balance: 'Checking your loyalty points...',
+  get_recommendations: 'Picking a recommendation for you...',
+  propose_cancel_subscription: 'Preparing your cancellation...',
 };
 
 /**
@@ -191,7 +256,7 @@ const TOOL_STATUS_LABEL: Record<string, string> = {
  */
 async function runToolCall(
   call: { id: string; function: { name: string; arguments: string } },
-  ctx: { env: Env; db: CoffeeDatabase; ai: WorkersAIService; sessionToken?: string }
+  ctx: { env: Env; db: CoffeeDatabase; ai: WorkersAIService; sessionToken?: string; customerId?: string | null; customerEmail?: string | null }
 ): Promise<{ toolResult: any; proposedAction?: any } | null> {
   const toolName = call.function.name;
   let toolArgs: any = {};
@@ -319,6 +384,163 @@ async function runToolCall(
     };
   }
 
+  if (toolName === 'get_subscription_status') {
+    if (!ctx.customerId && !ctx.customerEmail) {
+      return {
+        toolResult: {
+          tool_call_id: call.id,
+          name: toolName,
+          result: {
+            found: false,
+            reason: 'NOT_SIGNED_IN',
+            message: 'The caller is not signed in. Ask them to sign in to view their subscriptions, or offer a general answer about subscription options.',
+          },
+        },
+      };
+    }
+    const ownerClause = ctx.customerId
+      ? '(customer_id = ? OR LOWER(customer_email) = ?)'
+      : 'LOWER(customer_email) = ?';
+    const binds: any[] = ctx.customerId
+      ? [ctx.customerId, (ctx.customerEmail || '').toLowerCase()]
+      : [(ctx.customerEmail || '').toLowerCase()];
+    let sql = `SELECT id, product_name, frequency, quantity, status, next_renewal_date, discount_percent
+               FROM subscriptions WHERE ${ownerClause}`;
+    if (toolArgs.subscription_id) {
+      sql += ' AND id = ?';
+      binds.push(String(toolArgs.subscription_id));
+    }
+    sql += ' ORDER BY created_at DESC LIMIT 10';
+    const { results } = await ctx.env.DB.prepare(sql).bind(...binds).all<any>();
+    return {
+      toolResult: {
+        tool_call_id: call.id,
+        name: toolName,
+        result: {
+          subscriptions: (results || []).map((r) => ({
+            id: r.id,
+            product_name: r.product_name,
+            frequency: r.frequency,
+            quantity: r.quantity,
+            status: r.status,
+            next_renewal_date: r.next_renewal_date,
+            discount_percent: r.discount_percent,
+          })),
+        },
+      },
+    };
+  }
+
+  if (toolName === 'get_loyalty_balance') {
+    if (!ctx.customerId) {
+      return {
+        toolResult: {
+          tool_call_id: call.id,
+          name: toolName,
+          result: { found: false, reason: 'NOT_SIGNED_IN', message: 'The caller is not signed in.' },
+        },
+      };
+    }
+    const customer = await ctx.env.DB.prepare(
+      'SELECT loyalty_points, loyalty_points_lifetime, loyalty_tier FROM customers WHERE id = ?'
+    ).bind(ctx.customerId).first<any>();
+    if (!customer) {
+      return {
+        toolResult: {
+          tool_call_id: call.id,
+          name: toolName,
+          result: { found: false, reason: 'NO_CUSTOMER', message: 'No customer record was found.' },
+        },
+      };
+    }
+    return {
+      toolResult: {
+        tool_call_id: call.id,
+        name: toolName,
+        result: {
+          points: customer.loyalty_points,
+          lifetime_points: customer.loyalty_points_lifetime,
+          tier: customer.loyalty_tier,
+        },
+      },
+    };
+  }
+
+  if (toolName === 'get_recommendations') {
+    const limit = Math.min(5, Math.max(1, Number(toolArgs.limit) || 3));
+    let profile: any = null;
+    if (ctx.customerId) {
+      try {
+        const { getTasteProfile } = await import('../services/customerProfile');
+        profile = await getTasteProfile(ctx.env.DB as any, ctx.customerId, ctx.customerEmail || '');
+      } catch (err) {
+        console.warn('[agent] get_recommendations: profile lookup failed, falling back to catalog:', err);
+      }
+    }
+    const products = await ctx.db.getAllProducts();
+    const aff = (profile?.affinities || []) as { key: string; weight: number }[];
+    const weightFor = (p: any): number => {
+      if (!aff.length) return 0;
+      let score = 0;
+      const haystack = [p.roast_level, p.origin_country, p.process_method, ...(p.tasting_notes || [])]
+        .filter(Boolean)
+        .map((s) => String(s).toLowerCase());
+      for (const a of aff) {
+        const key = String(a.key).toLowerCase();
+        if (haystack.some((h) => h.includes(key))) score += a.weight;
+      }
+      return score;
+    };
+    const ranked = products
+      .map((p) => ({ product: p, score: weightFor(p) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+    return {
+      toolResult: {
+        tool_call_id: call.id,
+        name: toolName,
+        result: {
+          recommendations: ranked.map((r) => ({
+            id: r.product.id,
+            name: r.product.name,
+            roast_level: r.product.roast_level,
+            tasting_notes: r.product.tasting_notes,
+            starting_price_cents: r.product.variants[0]?.price_cents || 1850,
+            match_score: profile ? r.score : 0,
+          })),
+          personalised: Boolean(profile && aff.length > 0),
+        },
+      },
+    };
+  }
+
+  if (toolName === 'propose_cancel_subscription') {
+    const confirmationToken = 'act_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+    const actionPayload = {
+      confirmation_token: confirmationToken,
+      tool_name: 'cancel_subscription',
+      arguments: {
+        subscription_id: String(toolArgs.subscription_id || ''),
+        product_name: String(toolArgs.product_name || 'subscription'),
+        session_token: ctx.sessionToken,
+      },
+      summary: `Cancel your ${toolArgs.product_name || 'subscription'} — no future renewals, no more charges`,
+      expires_at: Date.now() + 15 * 60 * 1000,
+    };
+    return {
+      toolResult: {
+        tool_call_id: call.id,
+        name: toolName,
+        result: {
+          status: 'CONFIRMATION_REQUIRED',
+          message: 'User must confirm this cancellation.',
+          action: actionPayload,
+        },
+      },
+      proposedAction: actionPayload,
+    };
+  }
+
   return null;
 }
 
@@ -326,17 +548,19 @@ async function runToolCall(
 async function buildFullMessages(
   c: { env: Env; req: { header: (name: string) => string | undefined } },
   rawMessages: GroqChatMessage[]
-): Promise<{ messages: GroqChatMessage[]; customerId: string | null }> {
+): Promise<{ messages: GroqChatMessage[]; customerId: string | null; customerEmail: string | null }> {
   // Personalisation (gap 1.5): when the caller carries a customer session, Maya gets a compact
   // summary of their taste graph as a second system message. Deliberately additive and
   // best-effort — an anonymous visitor, an expired token or a profile failure must all leave the
   // chat working exactly as before, so nothing here can 401 or throw into the request.
   let customerContext: string | null = null;
   let customerId: string | null = null;
+  let customerEmail: string | null = null;
   try {
     const customerSession = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
     if (customerSession) {
       customerId = customerSession.customerId;
+      customerEmail = customerSession.email;
       const profile = await getTasteProfile(c.env.DB, customerSession.customerId, customerSession.email);
       const prefs = await c.env.DB
         .prepare('SELECT default_grind, default_weight_grams, brew_method FROM customer_preferences WHERE customer_id = ?')
@@ -355,11 +579,18 @@ async function buildFullMessages(
       ...rawMessages,
     ],
     customerId,
+    customerEmail,
   };
 }
 
+// Per-session-token cap: a customer can fire 30 turns every 10 minutes
+// before Maya slows them down. The global IP rate limit in index.ts still
+// applies on top, so an attacker rotating session tokens still hits the
+// outer ceiling.
+const chatLimiter = sessionRateLimiter({ windowSeconds: 10 * 60, maxRequests: 30, scope: 'agent_chat' });
+
 // POST /api/agent/chat
-agentApp.post('/chat', turnstileValidator, async (c) => {
+agentApp.post('/chat', chatLimiter, turnstileValidator, async (c) => {
   const sessionToken = c.req.header('X-Session-Token');
   const body = await c.req.json<{
     message?: string;
@@ -388,7 +619,18 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     });
   }
 
-  const { messages: fullMessages, customerId } = await buildFullMessages(c, rawMessages);
+  // Two model calls (pass 1 + pass 2) at max_tokens=1024 each, plus a margin
+  // for the system prompt and history — over-estimate so a long reply never
+  // overshoots the cap after the model has already streamed.
+  const budget = await checkAndReserveSessionBudget(c.env, sessionToken, 4096);
+  if (!budget.ok) {
+    return c.json({
+      success: false,
+      error: 'You have reached today\'s Maya conversation limit. Please come back tomorrow.',
+    }, 429);
+  }
+
+  const { messages: fullMessages, customerId, customerEmail: customerEmailResolved } = await buildFullMessages(c, rawMessages);
   const newestUserMessage = rawMessages[rawMessages.length - 1];
 
   const responseMessage = await groq.chatCompletion(fullMessages, AGENT_TOOLS);
@@ -399,7 +641,7 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
     const proposedActions: any[] = [];
 
     for (const call of responseMessage.tool_calls) {
-      const outcome = await runToolCall(call, { env: c.env, db, ai, sessionToken });
+      const outcome = await runToolCall(call, { env: c.env, db, ai, sessionToken, customerId, customerEmail: customerEmailResolved });
       if (outcome) {
         executedToolResults.push(outcome.toolResult);
         if (outcome.proposedAction) proposedActions.push(outcome.proposedAction);
@@ -459,8 +701,10 @@ agentApp.post('/chat', turnstileValidator, async (c) => {
  * `app.request(...)` resolving does NOT mean the turn (including its persisted history) is done.
  * A test observing side effects of this route must drain the body first, e.g. `await res.text()`.
  */
-agentApp.post('/chat/stream', turnstileValidator, async (c) => {
+agentApp.post('/chat/stream', chatLimiter, turnstileValidator, async (c) => {
   const sessionToken = c.req.header('X-Session-Token');
+  const lastEventIdHeader = c.req.header('Last-Event-ID');
+  const resumeFrom = lastEventIdHeader ? Number(lastEventIdHeader) : null;
   const body = await c.req.json<{
     message?: string;
     messages?: { role: 'user' | 'assistant' | 'system'; content: string }[];
@@ -487,13 +731,36 @@ agentApp.post('/chat/stream', turnstileValidator, async (c) => {
 
     if (rawMessages.length === 0) {
       const greeting = "Namaskara! I'm Maya, your Master Barista at The Daily Roast. How can I guide your coffee journey today?";
-      await stream.writeSSE({ event: 'delta', data: JSON.stringify({ text: greeting }) });
-      await stream.writeSSE({ event: 'done', data: JSON.stringify({ reply: greeting, proposed_actions: [] }) });
+      await stream.writeSSE({ event: 'delta', id: '0', data: JSON.stringify({ text: greeting }) });
+      await stream.writeSSE({ event: 'done', id: '1', data: JSON.stringify({ reply: greeting, proposed_actions: [] }) });
       return;
     }
 
-    const { messages: fullMessages, customerId } = await buildFullMessages(c, rawMessages);
+    // The wire format is `event:` / `data:` only. Resume is a deliberate, partial
+    // feature: a client that reconnects with `Last-Event-ID` gets a single error
+    // event explaining the stream is not replayable, and is expected to resend its
+    // last user message. Storing and replaying the whole Groq token stream would
+    // be far more expensive than it is worth — Maya's reply is recoverable from
+    // history (`/api/agent/history`) once the model has finished it.
+    if (resumeFrom !== null && Number.isFinite(resumeFrom) && resumeFrom > 0) {
+      await stream.writeSSE({ event: 'error', data: 'Stream is not resumable. Please resend your last message to get a fresh reply.' });
+      return;
+    }
+
+    const budget = await checkAndReserveSessionBudget(c.env, sessionToken, 4096);
+    if (!budget.ok) {
+      await stream.writeSSE({ event: 'error', data: "You've reached today's Maya conversation limit. Please come back tomorrow." });
+      return;
+    }
+
+    const { messages: fullMessages, customerId, customerEmail: customerEmailResolved } = await buildFullMessages(c, rawMessages);
     const newestUserMessage = rawMessages[rawMessages.length - 1];
+
+    let eventCounter = 0;
+    const writeDelta = async (text: string) => {
+      eventCounter += 1;
+      await stream.writeSSE({ event: 'delta', id: String(eventCounter), data: JSON.stringify({ text }) });
+    };
 
     // Pass 1: decide whether Maya can answer directly or needs a tool. A tool-calling response
     // and a text response are mutually exclusive in practice (Groq/OpenAI-style function calling
@@ -504,7 +771,7 @@ agentApp.post('/chat/stream', turnstileValidator, async (c) => {
     for await (const event of groq.streamChatCompletion(fullMessages, AGENT_TOOLS, 0.5, abortController.signal)) {
       if (event.type === 'delta') {
         firstPassContent += event.content;
-        await stream.writeSSE({ event: 'delta', data: JSON.stringify({ text: event.content }) });
+        await writeDelta(event.content);
       } else if (event.type === 'tool_calls') {
         toolCalls = event.tool_calls;
       }
@@ -514,7 +781,8 @@ agentApp.post('/chat/stream', turnstileValidator, async (c) => {
       if (sessionToken && newestUserMessage?.role === 'user') {
         await saveAgentTurn(c.env.DB, { sessionToken, customerId, userContent: newestUserMessage.content, assistantContent: firstPassContent });
       }
-      await stream.writeSSE({ event: 'done', data: JSON.stringify({ reply: firstPassContent, proposed_actions: [] }) });
+      eventCounter += 1;
+      await stream.writeSSE({ event: 'done', id: String(eventCounter), data: JSON.stringify({ reply: firstPassContent, proposed_actions: [] }) });
       return;
     }
 
@@ -522,8 +790,9 @@ agentApp.post('/chat/stream', turnstileValidator, async (c) => {
     const proposedActions: any[] = [];
     for (const call of toolCalls) {
       const label = TOOL_STATUS_LABEL[call.function?.name] || 'Working on it...';
-      await stream.writeSSE({ event: 'status', data: JSON.stringify({ label }) });
-      const outcome = await runToolCall(call, { env: c.env, db, ai, sessionToken });
+      eventCounter += 1;
+      await stream.writeSSE({ event: 'status', id: String(eventCounter), data: JSON.stringify({ label }) });
+      const outcome = await runToolCall(call, { env: c.env, db, ai, sessionToken, customerId, customerEmail: customerEmailResolved });
       if (outcome) {
         executedToolResults.push(outcome.toolResult);
         if (outcome.proposedAction) proposedActions.push(outcome.proposedAction);
@@ -546,7 +815,7 @@ agentApp.post('/chat/stream', turnstileValidator, async (c) => {
     for await (const event of groq.streamChatCompletion(secondPassMessages, undefined, 0.5, abortController.signal)) {
       if (event.type === 'delta') {
         secondPassContent += event.content;
-        await stream.writeSSE({ event: 'delta', data: JSON.stringify({ text: event.content }) });
+        await writeDelta(event.content);
       }
     }
 
@@ -554,8 +823,10 @@ agentApp.post('/chat/stream', turnstileValidator, async (c) => {
     if (sessionToken && newestUserMessage?.role === 'user') {
       await saveAgentTurn(c.env.DB, { sessionToken, customerId, userContent: newestUserMessage.content, assistantContent: finalReply });
     }
+    eventCounter += 1;
     await stream.writeSSE({
       event: 'done',
+      id: String(eventCounter),
       data: JSON.stringify({ reply: finalReply, proposed_actions: proposedActions }),
     });
   });
@@ -585,17 +856,34 @@ agentApp.post('/confirm-action', async (c) => {
     action: {
       tool_name: string;
       arguments: {
-        variant_id: string;
-        grind_type: GrindType;
-        quantity: number;
+        variant_id?: string;
+        grind_type?: GrindType;
+        quantity?: number;
         session_token?: string;
+        subscription_id?: string;
+        product_name?: string;
+        expires_at?: number;
+        confirmation_token?: string;
       };
     };
   }>();
 
+  const args = body.action?.arguments || {};
+
+  // Every proposed action embeds `expires_at` (set to Date.now() + 15 min when
+  // Maya proposes the action). Enforcing it here means a stale confirmation
+  // card from a previous session can't actually mutate anything; the customer
+  // has to ask Maya to propose it again.
+  if (typeof args.expires_at === 'number' && Date.now() > args.expires_at) {
+    return c.json({ success: false, error: 'Action expired — please ask Maya to propose it again.' }, 410);
+  }
+
   if (body.action?.tool_name === 'add_to_cart') {
-    const { variant_id, grind_type, quantity } = body.action.arguments;
-    const cart = await getOrCreateCart(c.env.DB, sessionToken || body.action.arguments.session_token);
+    const { variant_id, grind_type, quantity } = args;
+    if (!variant_id || !grind_type) {
+      return c.json({ success: false, error: 'Missing variant_id or grind_type' }, 400);
+    }
+    const cart = await getOrCreateCart(c.env.DB, sessionToken || args.session_token);
 
     const variant = await c.env.DB.prepare(
       'SELECT price_cents FROM product_variants WHERE id = ? AND is_active = 1'
@@ -612,13 +900,13 @@ agentApp.post('/confirm-action', async (c) => {
     if (existingItem) {
       await c.env.DB.prepare(
         'UPDATE cart_items SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-      ).bind(quantity, existingItem.id).run();
+      ).bind(quantity || 1, existingItem.id).run();
     } else {
       const itemId = 'ci_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
       await c.env.DB.prepare(`
         INSERT INTO cart_items (id, cart_id, variant_id, grind_type, quantity, unit_price_cents)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).bind(itemId, cart.id, variant_id, grind_type, quantity, variant.price_cents).run();
+      `).bind(itemId, cart.id, variant_id, grind_type, quantity || 1, variant.price_cents).run();
     }
 
     const updatedCart = await getOrCreateCart(c.env.DB, cart.session_token);
@@ -626,6 +914,30 @@ agentApp.post('/confirm-action', async (c) => {
       success: true,
       message: 'Added to your cart successfully!',
       cart: updatedCart,
+    });
+  }
+
+  if (body.action?.tool_name === 'cancel_subscription') {
+    const { subscription_id } = args;
+    if (!subscription_id) {
+      return c.json({ success: false, error: 'Missing subscription_id' }, 400);
+    }
+    const sub = await c.env.DB.prepare(
+      'SELECT id, status FROM subscriptions WHERE id = ?'
+    ).bind(subscription_id).first<{ id: string; status: string }>();
+    if (!sub) {
+      return c.json({ success: false, error: 'Subscription not found' }, 404);
+    }
+    if (sub.status === 'CANCELLED') {
+      return c.json({ success: true, message: 'Subscription is already cancelled.', status: 'CANCELLED' });
+    }
+    await c.env.DB.prepare(
+      "UPDATE subscriptions SET status = 'CANCELLED', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).bind(subscription_id).run();
+    return c.json({
+      success: true,
+      message: `${args.product_name || 'Subscription'} cancelled. No future renewals will be charged.`,
+      status: 'CANCELLED',
     });
   }
 

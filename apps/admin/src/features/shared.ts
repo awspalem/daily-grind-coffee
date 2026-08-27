@@ -26,9 +26,9 @@ export const API_BASE = import.meta.env.DEV ? '' : 'https://api.dailyroast.in';
  */
 export async function adminFetch<T = any>(
   path: string,
-  options: RequestInit & { json?: unknown } = {}
+  options: RequestInit & { json?: unknown; silent?: boolean } = {}
 ): Promise<T & { success: boolean; error?: string }> {
-  const { json, ...rest } = options;
+  const { json, silent, ...rest } = options;
   const adminToken = (typeof __ADMIN_TOKEN__ !== 'undefined' ? __ADMIN_TOKEN__ : '') || '';
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -44,9 +44,15 @@ export async function adminFetch<T = any>(
       headers,
       body: json !== undefined ? JSON.stringify(json) : rest.body,
     });
+    if (!res.ok) {
+      const message = `Admin API ${res.status} on ${path}`;
+      if (!silent) toast(message, 'error');
+      return { success: false, error: message } as any;
+    }
     return (await res.json()) as any;
   } catch (err) {
     console.error(`[admin feature] ${path} failed`, err);
+    if (!silent) toast(`Network error calling ${path}`, 'error');
     return { success: false, error: 'Network error' } as any;
   }
 }
@@ -127,11 +133,12 @@ export function confirmModal(opts: ConfirmModalOptions): Promise<boolean> {
     backdrop.className = 'admin-modal-backdrop visible';
     backdrop.setAttribute('role', 'dialog');
     backdrop.setAttribute('aria-modal', 'true');
+    backdrop.setAttribute('aria-labelledby', 'admin-confirm-title');
     backdrop.innerHTML = `
       <div class="admin-modal-dialog confirm-modal" style="max-width: 440px;">
         <div class="sheet-drag-handle"><div class="drag-pill"></div></div>
         <div class="admin-modal-header">
-          <h3>${esc(opts.title)}</h3>
+          <h3 id="admin-confirm-title">${esc(opts.title)}</h3>
           <button type="button" class="admin-modal-close" data-act="close" aria-label="Close">×</button>
         </div>
         <div class="admin-modal-body" style="padding: 1.4rem 1.6rem; color: var(--text-muted); line-height: 1.55;">${esc(opts.body)}</div>
@@ -141,12 +148,26 @@ export function confirmModal(opts: ConfirmModalOptions): Promise<boolean> {
         </div>
       </div>`;
     document.body.appendChild(backdrop);
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     let resolved = false;
+    const focusable = () => Array.from(backdrop.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+      .filter((el) => !el.hasAttribute('disabled'));
+    const onTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const items = focusable();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     const close = (val: boolean) => {
       if (resolved) return;
       resolved = true;
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onTab, true);
       backdrop.remove();
+      previouslyFocused?.focus?.();
       resolve(val);
     };
     function onKey(e: KeyboardEvent) {
@@ -160,6 +181,7 @@ export function confirmModal(opts: ConfirmModalOptions): Promise<boolean> {
       else if (act === 'cancel' || act === 'close') close(false);
     });
     document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onTab, true);
     // Auto-focus the confirm button so Enter works without a click
     backdrop.querySelector<HTMLButtonElement>('[data-act="confirm"]')?.focus();
   });

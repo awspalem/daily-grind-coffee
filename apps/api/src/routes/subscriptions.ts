@@ -26,6 +26,7 @@ import {
   serialiseSubscription,
   skipNextDelivery,
   swapCoffee,
+  swapPlan,
   updateSubscription,
 } from '../services/subscriptionPlans';
 
@@ -415,6 +416,53 @@ subscriptionsApp.post('/:id/swap', async (c) => {
   const result = await swapCoffee(c.env.DB, sub, String(body.variant_id || ''));
   if (!result.ok) return c.json({ success: false, error: result.error }, 400);
   return c.json({ success: true, message: `Switched to ${result.product_name}.` });
+});
+
+/**
+ * POST /api/subscriptions/:id/change-plan — moves a subscription from one plan to another.
+ *
+ * Same-term swaps only: a customer cannot move from a monthly to an annual (or vice versa) mid
+ * term, because the billing cadence, term end and perk window are all anchored to the original
+ * purchase. The customer has to let the current term run out and re-purchase.
+ *
+ * Upgrades issue the new tier's perks immediately for the rest of the current term. Downgrades
+ * take effect at the next renewal. The route is the customer-facing surface; the policy is
+ * encoded in `subscriptionPlans.swapPlan` and the audit trail in `subscription_events`.
+ */
+subscriptionsApp.post('/:id/change-plan', async (c) => {
+  const { session, res } = await requireCustomer(c);
+  if (!session) return res;
+  const { sub, res: notFound } = await requireOwnedSubscription(c, session);
+  if (!sub) return notFound;
+
+  if (sub.status === 'CANCELLED') {
+    return c.json({ success: false, error: 'This subscription is cancelled' }, 400);
+  }
+  if (!sub.plan_id) {
+    return c.json({ success: false, error: 'This subscription is not on a plan and cannot be changed' }, 400);
+  }
+
+  const body = await readJson(c);
+  const toPlan = body.plan_slug ? await getPlan(c.env.DB, String(body.plan_slug)) : null;
+  if (!toPlan || !toPlan.is_active) {
+    return c.json({ success: false, error: 'Plan not found' }, 404);
+  }
+
+  const fromPlan = await getPlan(c.env.DB, sub.plan_id);
+  if (!fromPlan) {
+    return c.json({ success: false, error: 'Current plan is no longer available' }, 409);
+  }
+
+  const result = await swapPlan(c.env.DB, sub, { fromPlan, toPlan });
+  if (!result.ok) return c.json({ success: false, error: result.error }, 400);
+
+  const fresh = await findOwnedSubscription(c.env.DB, sub.id, session);
+  return c.json({
+    success: true,
+    message: result.message,
+    direction: result.direction,
+    subscription: fresh ? await serialiseSubscription(c.env.DB, fresh) : null,
+  });
 });
 
 // ==================== Cancellation & the save offer ====================

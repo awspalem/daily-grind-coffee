@@ -6,7 +6,9 @@ import {
   creditPoints,
   getStatement,
   getSummary,
+  loadLoyaltyConfig,
   previewRedemption,
+  tierHistory,
 } from '../services/loyalty';
 
 // Loyalty points ledger: earning, redemption, tiers, statement.
@@ -19,23 +21,25 @@ import {
 const loyaltyApp = new Hono<{ Bindings: Env }>();
 
 /** Public programme terms, so the storefront can explain the scheme before anyone signs in. */
-loyaltyApp.get('/config', (c) =>
-  c.json({
+loyaltyApp.get('/config', async (c) => {
+  const cfg = await loadLoyaltyConfig(c.env.DB);
+  return c.json({
     success: true,
     config: {
-      rupees_per_point_earned: LOYALTY_RATES.RUPEES_PER_POINT_EARNED,
-      point_value_cents: LOYALTY_RATES.POINT_VALUE_CENTS,
-      min_redeem_points: LOYALTY_RATES.MIN_REDEEM_POINTS,
-      max_redeem_percent: LOYALTY_RATES.MAX_REDEEM_PERCENT,
-      expiry_months: LOYALTY_RATES.EXPIRY_MONTHS,
-      signup_bonus_points: LOYALTY_RATES.SIGNUP_BONUS_POINTS,
-      review_bonus_points: LOYALTY_RATES.REVIEW_BONUS_POINTS,
-      tier_thresholds_cents: LOYALTY_RATES.TIER_THRESHOLDS_CENTS,
+      rupees_per_point_earned: cfg.RUPEES_PER_POINT_EARNED,
+      point_value_cents: cfg.POINT_VALUE_CENTS,
+      min_redeem_points: cfg.MIN_REDEEM_POINTS,
+      max_redeem_percent: cfg.MAX_REDEEM_PERCENT,
+      expiry_months: cfg.EXPIRY_MONTHS,
+      signup_bonus_points: cfg.SIGNUP_BONUS_POINTS,
+      review_bonus_points: cfg.REVIEW_BONUS_POINTS,
+      tier_thresholds_cents: cfg.TIER_THRESHOLDS_CENTS,
     },
-  })
-);
+  });
+});
 
-// GET /api/loyalty/summary — balance, tier, progress, expiry warning.
+// GET /api/loyalty/summary — balance, lifetime, tier, next-tier threshold, expiring points,
+// recent ledger entries. Single round-trip for the loyalty section of the account page.
 loyaltyApp.get('/summary', async (c) => {
   const session = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
   if (!session) return c.json(UNAUTHENTICATED, 401);
@@ -43,6 +47,18 @@ loyaltyApp.get('/summary', async (c) => {
   const summary = await getSummary(c.env.DB, session.customerId);
   if (!summary) return c.json({ success: false, error: 'Customer not found' }, 404);
   return c.json({ success: true, summary });
+});
+
+// GET /api/loyalty/tier-history — newest first. The support tool reads this when answering
+// "when did this customer last move up or down?"; the storefront only shows the most recent
+// transition (if any) inline with the summary.
+loyaltyApp.get('/tier-history', async (c) => {
+  const session = await resolveCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
+  if (!session) return c.json(UNAUTHENTICATED, 401);
+
+  const limit = Math.max(1, Math.min(50, Number(c.req.query('limit') || 10)));
+  const history = await tierHistory(c.env.DB, session.customerId, limit);
+  return c.json({ success: true, history });
 });
 
 // GET /api/loyalty/statement — the ledger, human-readable. 2.5.

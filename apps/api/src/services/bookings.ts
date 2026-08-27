@@ -28,11 +28,11 @@ import { StripeService } from './stripe';
 export const ROASTERY_TIMEZONE = 'Asia/Kolkata';
 
 /** How long an unfunded hold keeps a seat before the sweep takes it back. */
-const HOLD_MINUTES = 15;
+export const HOLD_MINUTES = 15;
 /** How long a waitlisted customer gets to claim a seat that opened up. */
-const WAITLIST_OFFER_HOURS = 24;
+export const WAITLIST_OFFER_HOURS = 24;
 /** A Stripe session left unfinished this long is reconciled or released. */
-const PENDING_PAYMENT_MINUTES = 60;
+export const PENDING_PAYMENT_MINUTES = 60;
 
 // ---------------------------------------------------------------------------
 // Small helpers

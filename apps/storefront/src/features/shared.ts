@@ -44,6 +44,13 @@ export async function apiFetch<T = any>(
 
   try {
     const res = await fetch(`${API_BASE}${path}`, { ...init, headers, body });
+    if (res.status === 401) {
+      const body = await res.clone().json().catch(() => null);
+      if (body && (body.code === 'SESSION_EXPIRED' || body.error === 'SESSION_EXPIRED')) {
+        localStorage.removeItem('tdg_customer_session');
+        localStorage.removeItem('tdg_customer_email');
+      }
+    }
     return (await res.json()) as any;
   } catch (err) {
     console.error(`[feature] ${path} failed`, err);

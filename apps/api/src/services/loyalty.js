@@ -50,6 +50,10 @@ export const LOYALTY_RATES = {
     TIER_THRESHOLDS_CENTS: { BRONZE: 0, SILVER: 1_000_000, GOLD: 3_000_000 },
     /** Earn rate multiplier by tier. */
     TIER_MULTIPLIERS: { BRONZE: 1, SILVER: 1.25, GOLD: 1.5 },
+    /** Number of days the summary's "expiring soon" window looks ahead. */
+    EXPIRY_SUMMARY_WINDOW_DAYS: 30,
+    /** Number of recent ledger entries returned by the summary endpoint. */
+    SUMMARY_RECENT_ENTRIES: 5,
 };
 const TIER_ORDER = ['BRONZE', 'SILVER', 'GOLD'];
 /**
@@ -74,6 +78,49 @@ function addMonths(from, months) {
     const d = new Date(from.getTime());
     d.setUTCMonth(d.getUTCMonth() + months);
     return d.toISOString();
+}
+export async function loadLoyaltyConfig(db) {
+    const row = await db
+        .prepare('SELECT * FROM loyalty_config WHERE id = 1')
+        .first();
+    if (!row) {
+        return {
+            RUPEES_PER_POINT_EARNED: LOYALTY_RATES.RUPEES_PER_POINT_EARNED,
+            POINT_VALUE_CENTS: LOYALTY_RATES.POINT_VALUE_CENTS,
+            SIGNUP_BONUS_POINTS: LOYALTY_RATES.SIGNUP_BONUS_POINTS,
+            REVIEW_BONUS_POINTS: LOYALTY_RATES.REVIEW_BONUS_POINTS,
+            SUBSCRIPTION_STREAK_POINTS: LOYALTY_RATES.SUBSCRIPTION_STREAK_POINTS,
+            SUBSCRIPTION_STREAK_EVERY: LOYALTY_RATES.SUBSCRIPTION_STREAK_EVERY,
+            MIN_REDEEM_POINTS: LOYALTY_RATES.MIN_REDEEM_POINTS,
+            MAX_REDEEM_PERCENT: LOYALTY_RATES.MAX_REDEEM_PERCENT,
+            EXPIRY_MONTHS: LOYALTY_RATES.EXPIRY_MONTHS,
+            REDEMPTION_HOLD_MINUTES: LOYALTY_RATES.REDEMPTION_HOLD_MINUTES,
+            TIER_THRESHOLDS_CENTS: { ...LOYALTY_RATES.TIER_THRESHOLDS_CENTS },
+            TIER_MULTIPLIERS: { ...LOYALTY_RATES.TIER_MULTIPLIERS },
+        };
+    }
+    return {
+        RUPEES_PER_POINT_EARNED: Number(row.rupees_per_point_earned),
+        POINT_VALUE_CENTS: Number(row.point_value_cents),
+        SIGNUP_BONUS_POINTS: Number(row.signup_bonus_points),
+        REVIEW_BONUS_POINTS: Number(row.review_bonus_points),
+        SUBSCRIPTION_STREAK_POINTS: Number(row.subscription_streak_points),
+        SUBSCRIPTION_STREAK_EVERY: Number(row.subscription_streak_every),
+        MIN_REDEEM_POINTS: Number(row.min_redeem_points),
+        MAX_REDEEM_PERCENT: Number(row.max_redeem_percent),
+        EXPIRY_MONTHS: Number(row.expiry_months),
+        REDEMPTION_HOLD_MINUTES: Number(row.redemption_hold_minutes),
+        TIER_THRESHOLDS_CENTS: {
+            BRONZE: 0,
+            SILVER: Number(row.tier_threshold_silver_cents),
+            GOLD: Number(row.tier_threshold_gold_cents),
+        },
+        TIER_MULTIPLIERS: {
+            BRONZE: 1,
+            SILVER: Number(row.tier_multiplier_silver),
+            GOLD: Number(row.tier_multiplier_gold),
+        },
+    };
 }
 /** Points earned by a given amount of net merchandise spend at a given tier. */
 export function pointsForSpend(netCents, tier = 'BRONZE') {
@@ -263,16 +310,22 @@ async function expireLapsedPoints(db, customerId) {
     const points = Math.min(lapsedPoints, balance);
     if (points <= 0)
         return 0;
-    // Keyed on the oldest lapsed lot plus the amount, so a concurrent second pass is a no-op.
+    // FIFO: the EXPIRE row's refId is the OLDEST lapsed EARN lot. The idempotency key
+    // combines that lot id with the *cumulative* expired-for-this-lot total, so a re-run on the
+    // same ledger state hits ON CONFLICT and is a no-op. A pass with a different points value
+    // (because the balance shifted, or a clawback left a residual) writes a fresh row with a
+    // fresh key, never duplicates an earlier one.
+    const oldest = lapsed[0];
+    const cumulativeAfter = oldest.points_consumed + points;
     const result = await debitPoints(db, {
         customerId,
         points,
         entryType: 'EXPIRE',
         reason: 'POINTS_EXPIRED',
         refType: 'LEDGER',
-        refId: lapsed[0].id,
-        note: `${points} points lapsed after ${LOYALTY_RATES.EXPIRY_MONTHS} months`,
-        idempotencyKey: `loyalty:expire:${lapsed[0].id}:${points}`,
+        refId: oldest.id,
+        note: `${points} points lapsed after ${LOYALTY_RATES.EXPIRY_MONTHS} months (oldest EARN row: ${oldest.id})`,
+        idempotencyKey: `loyalty:expire:${oldest.id}:${cumulativeAfter}`,
     });
     return result.applied ? result.points : 0;
 }
@@ -370,11 +423,13 @@ export function tierForSpend(spendCents) {
 }
 export function describeTier(tier, spendCents) {
     const next = TIER_ORDER[TIER_ORDER.indexOf(tier) + 1] ?? null;
+    const threshold = next ? LOYALTY_RATES.TIER_THRESHOLDS_CENTS[next] : 0;
     return {
         tier,
         trailing_spend_cents: spendCents,
         next_tier: next,
-        cents_to_next_tier: next ? Math.max(0, LOYALTY_RATES.TIER_THRESHOLDS_CENTS[next] - spendCents) : 0,
+        cents_to_next_tier: next ? Math.max(0, threshold - spendCents) : 0,
+        next_tier_threshold_cents: threshold,
         earn_multiplier: LOYALTY_RATES.TIER_MULTIPLIERS[tier],
         perks: TIER_PERK_LABELS[tier],
     };
@@ -386,15 +441,36 @@ export function describeTier(tier, spendCents) {
  * here: every tier grant carries a deterministic `source_id` of `<customerId>:<tier>:<year>`
  * and is skipped when an ACTIVE grant with that id already exists. Without it, every delivery
  * would mint another free-shipping grant.
+ *
+ * Tier policy:
+ *  - Upgrade is immediate on the next refresh that crosses a threshold (delivery, refund, or
+ *    any read that calls `refreshCustomerLoyalty`).
+ *  - Downgrade is also immediate. Tier perks are 12-month entitlement grants, so the lost
+ *    perks stay usable until their own expiry, but the displayed tier flips on the same
+ *    pass that detects the spend drop. A grace period would mean a Gold customer's spend
+ *    drops under the Silver threshold but they keep earning at 1.5× for another month —
+ *    that feels generous, but it is the kind of "free points" that turns into support
+ *    tickets when the eventual downgrade is unexpected. The history table keeps the audit.
+ *  - Every transition (up or down) writes one row to `loyalty_tier_history`. The hooks
+ *    layer in `apps/api/src/hooks/loyalty.ts` reads the new tier from the returned
+ *    `LoyaltyTierInfo` and fires the customer notification.
  */
 export async function refreshTier(db, customer) {
     const spend = await trailingSpendCents(db, customer.id, customer.email);
     const tier = tierForSpend(spend);
     if (tier !== customer.loyalty_tier) {
-        await db
-            .prepare('UPDATE customers SET loyalty_tier = ?, loyalty_tier_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-            .bind(tier, customer.id)
-            .run();
+        const fromTier = customer.loyalty_tier;
+        await db.batch([
+            db
+                .prepare('UPDATE customers SET loyalty_tier = ?, loyalty_tier_updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+                .bind(tier, customer.id),
+            db
+                .prepare(`
+          INSERT INTO loyalty_tier_history (id, customer_id, from_tier, to_tier, trailing_spend_cents)
+          VALUES (?, ?, ?, ?, ?)
+        `)
+                .bind(newId('lth'), customer.id, fromTier, tier, spend),
+        ]);
     }
     const year = new Date().getUTCFullYear();
     const existing = await listActiveGrants(db, customer.id);
@@ -415,6 +491,24 @@ export async function refreshTier(db, customer) {
     }
     return describeTier(tier, spend);
 }
+/**
+ * The customer's tier history, newest first. Used by the support tool that answers
+ * "when did this customer last move up or down?" and by the loyalty hooks' notification
+ * payload to back-fill the most recent transition.
+ */
+export async function tierHistory(db, customerId, limit = 10) {
+    const { results } = await db
+        .prepare(`
+      SELECT id, from_tier, to_tier, trailing_spend_cents, created_at
+      FROM loyalty_tier_history
+      WHERE customer_id = ?
+      ORDER BY datetime(created_at) DESC, rowid DESC
+      LIMIT ?
+    `)
+        .bind(customerId, Math.max(1, Math.min(50, limit)))
+        .all();
+    return (results || []);
+}
 // ---------------------------------------------------------------------------------------------
 // Summary & statement
 // ---------------------------------------------------------------------------------------------
@@ -433,9 +527,19 @@ export async function getSummary(db, customerId) {
         AND expires_at IS NOT NULL
         AND datetime(expires_at) <= datetime('now', ?)
     `)
-        .bind(customerId, `+${LOYALTY_RATES.EXPIRY_WARNING_DAYS} days`)
+        .bind(customerId, `+${LOYALTY_RATES.EXPIRY_SUMMARY_WINDOW_DAYS} days`)
         .first();
     const balance = Number(customer.loyalty_points || 0);
+    const recent = await db
+        .prepare(`
+      SELECT id, entry_type, reason, points_delta, ref_type, ref_id, expires_at, note, created_at
+      FROM loyalty_ledger
+      WHERE customer_id = ?
+      ORDER BY datetime(created_at) DESC, rowid DESC
+      LIMIT ?
+    `)
+        .bind(customerId, LOYALTY_RATES.SUMMARY_RECENT_ENTRIES)
+        .all();
     return {
         balance,
         lifetime_points: await lifetimePoints(db, customerId),
@@ -444,6 +548,7 @@ export async function getSummary(db, customerId) {
         expiring_soon_points: Math.max(0, Math.min(Number(soon?.points || 0), balance)),
         expiring_soon_at: soon?.soonest || null,
         point_value_cents: LOYALTY_RATES.POINT_VALUE_CENTS,
+        recent_entries: (recent?.results || []),
     };
 }
 async function lifetimePoints(db, customerId) {

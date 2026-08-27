@@ -20,3 +20,10 @@
 - Expects visual verification via headless-browser screenshots before commit/push, on multiple viewports (desktop + mobile) and key screens. Confidence: 0.85
 - Wants honest UI states rather than fake/placeholder data — e.g. a "Coming Q4" empty card instead of a fake "88.4 PTS" value, full empty-state blocks instead of "No data" text. Confidence: 0.8
 - Wants every native browser dialog (alert/confirm/prompt) replaced with a branded in-app component (toast/confirm-modal/inline-modal) when touching admin code. Confidence: 0.85
+- Prefers vertically-sliced parallel subagent orchestration for app-wide improvement sweeps: each subagent owns a non-overlapping file scope, is given concrete improvement criteria, and reports back with files-changed / build-test verdict / out-of-scope issues. Confidence: 0.9
+- Expects the orchestrating agent to verify all subagent work after the swarm completes: diff stat, run build, run full test suite, then repair any agent-introduced breakage (missing imports, lost changes from turn limits, broken test assertions, naive splitters, etc.) before declaring done. Confidence: 0.9
+- Dislikes agents rewriting whole files or touching out-of-scope files; expects targeted `edit_file` patches within an explicit allowlisted path list. Confidence: 0.85
+- Wants new code to follow existing style silently (indentation, naming, semicolons, framework idioms) and only get comments when logic is genuinely non-obvious. Confidence: 0.8
+- Prefers fix-the-shared-infrastructure over hack-around-it when subagents hit a tooling bug (e.g. fix the SQL splitter to handle triggers, don't restructure the migration to dodge it). Confidence: 0.85
+- Doesn't want subagents to bump dependencies; audit findings should be documented in the report instead. Confidence: 0.85
+- Wants end-to-end verification ("200/200 tests pass, build green") reported as the final summary after a parallel improvement sweep, not just a list of changes. Confidence: 0.9

@@ -50,6 +50,52 @@ export function rateLimiter(config = { windowSeconds: 60, maxRequests: 120 }) {
         return next();
     };
 }
+/**
+ * Per-session-token rate limit. Used by the agent chat endpoints so a
+ * signed-out IP shared with many visitors doesn't share a budget. The
+ * bucket key is `X-Session-Token` (or, for admin, `X-Admin-Session`); when
+ * the header is missing the request is allowed through unmetered so a
+ * brand-new browser tab can still open the chat.
+ *
+ * Same KV + memory-store pattern as the IP rate limiter so the in-memory
+ * fallback in dev covers both. A different `scope` keeps its bucket
+ * separate from the IP limiter, so the two never cross-count.
+ */
+export function sessionRateLimiter(config = { windowSeconds: 600, maxRequests: 30 }) {
+    const { windowSeconds, maxRequests, sessionHeader = 'X-Session-Token', scope = 'session_default' } = config;
+    return async (c, next) => {
+        const session = c.req.header(sessionHeader);
+        if (!session)
+            return next();
+        const windowIndex = Math.floor(Date.now() / (windowSeconds * 1000));
+        const key = `ratelimit:${scope}:session:${session.slice(0, 32)}:${windowIndex}`;
+        const kv = c.env.CONFIG_KV;
+        let count;
+        if (kv && typeof kv.get === 'function' && typeof kv.put === 'function') {
+            try {
+                const current = await kv.get(key);
+                count = current ? Number(current) + 1 : 1;
+                await kv.put(key, String(count), { expirationTtl: windowSeconds + 5 });
+            }
+            catch (err) {
+                console.warn('[sessionRateLimit] KV read/write failed, falling back to memory:', err);
+                count = memoryIncrement(memoryRateLimitStore, key, windowSeconds * 1000);
+            }
+        }
+        else {
+            count = memoryIncrement(memoryRateLimitStore, key, windowSeconds * 1000);
+        }
+        c.header('X-RateLimit-Limit', maxRequests.toString());
+        c.header('X-RateLimit-Remaining', Math.max(0, maxRequests - count).toString());
+        if (count > maxRequests) {
+            return c.json({
+                success: false,
+                error: 'You are sending messages a little too quickly. Please take a sip of coffee and try again in a minute.',
+            }, 429);
+        }
+        return next();
+    };
+}
 function memoryIncrement(store, key, windowMs) {
     const now = Date.now();
     const existing = store.get(key);

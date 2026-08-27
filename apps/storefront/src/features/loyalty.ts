@@ -42,12 +42,14 @@ interface Summary {
     trailing_spend_cents: number;
     next_tier: string | null;
     cents_to_next_tier: number;
+    next_tier_threshold_cents: number;
     earn_multiplier: number;
     perks: string[];
   };
   expiring_soon_points: number;
   expiring_soon_at: string | null;
   point_value_cents: number;
+  recent_entries: StatementEntry[];
 }
 
 interface StatementEntry {

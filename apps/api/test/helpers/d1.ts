@@ -195,13 +195,23 @@ function plain<T extends object>(row: T): T {
  * Splits on `;`, ignoring separators and `--` comments that fall inside a string literal.
  *
  * A line-wise regex strip cannot do this: the seed rows in `0016` contain prose with both
- * semicolons and double hyphens, and cutting them produces SQL that fails to parse. The
- * migrations contain no triggers or BEGIN…END blocks, so `;` is otherwise a real boundary.
+ * semicolons and double hyphens, and cutting them produces SQL that fails to parse. `;` is
+ * otherwise a real boundary, except inside a `BEGIN…END` block (a CREATE TRIGGER body), where
+ * SQLite requires the body to end with `END;` and the `;` after the matching `END` is the
+ * statement terminator — not the `;` that may appear inside the body. Track the BEGIN/END
+ * nesting so semicolons inside a body are kept verbatim and the trigger ships as one statement.
  */
 function splitStatements(sql: string): string[] {
   const statements: string[] = [];
   let current = '';
   let inString = false;
+  let blockDepth = 0;
+
+  const flush = () => {
+    const stmt = current.trim();
+    if (stmt) statements.push(stmt);
+    current = '';
+  };
 
   for (let i = 0; i < sql.length; i++) {
     const ch = sql[i];
@@ -223,12 +233,35 @@ function splitStatements(sql: string): string[] {
       continue;
     }
 
-    if (ch === ';') { statements.push(current); current = ''; continue; }
+    // Track BEGIN…END nesting so semicolons inside a trigger body are not treated as
+    // statement terminators. The BEGIN/END keywords are followed by whitespace in a
+    // trigger body; an identifier like `beginTime` won't have a trailing word boundary
+    // at this position.
+    const lastWordBoundary = /(^|\s)(BEGIN|END)$/i.exec(current);
+    if (lastWordBoundary && (ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t')) {
+      const kw = lastWordBoundary[2].toUpperCase();
+      if (kw === 'BEGIN') blockDepth += 1;
+    }
+
+    if (ch === ';' && blockDepth > 0) {
+      current += ch;
+      // The body terminator is `END;` — the moment we see the closing `;` after `END`,
+      // we leave the body. The trigger statement itself is terminated by the *next* `;`
+      // (the one after END), so the trigger body swallows its own internal `;`s and
+      // ends right at the closing END;. Flush here so the trigger ships as one statement.
+      if (/(?:^|\s)END;$/i.test(current)) {
+        blockDepth -= 1;
+        flush();
+      }
+      continue;
+    }
+
+    if (ch === ';') { flush(); continue; }
     current += ch;
   }
-  statements.push(current);
+  flush();
 
-  return statements.map((s) => s.trim()).filter(Boolean);
+  return statements;
 }
 
 /** A customer row, since every ledger table has a foreign key to one. */

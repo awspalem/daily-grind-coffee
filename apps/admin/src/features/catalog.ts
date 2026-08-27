@@ -1,5 +1,9 @@
 import { adminFetch, esc, triggerHaptic, toast, API_BASE } from './shared';
+import { skeletonTableRow, statusBadge, emptyStateHtml } from '../components/ui';
+import { requireRole } from '../components/actor';
 import type { RouteModule } from '../router';
+
+const PRODUCT_COL_WIDTHS = [180, 110, 100, 60, 90, 110];
 
 const PANEL_HTML = `
   <section class="section-panel" id="panel-catalog">
@@ -15,19 +19,19 @@ const PANEL_HTML = `
       <form id="product-add-form" style="display: none; flex-direction: column; gap: 0.9rem; background: var(--admin-bg); border: 1px solid var(--admin-border); border-radius: var(--radius-md); padding: 1.2rem;">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
           <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-            <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Name</label>
+            <label for="product-name" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Name</label>
             <input id="product-name" type="text" required placeholder="e.g. Coorg Peaberry Natural" class="admin-input-styled" style="min-height: 44px;">
           </div>
           <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-            <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Category</label>
+            <label for="product-category" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Category</label>
             <select id="product-category" required class="admin-input-styled" style="min-height: 44px;"></select>
           </div>
           <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-            <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Origin Country</label>
+            <label for="product-origin" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Origin Country</label>
             <input id="product-origin" type="text" required placeholder="e.g. India" class="admin-input-styled" style="min-height: 44px;">
           </div>
           <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-            <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Roast Level</label>
+            <label for="product-roast-level" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Roast Level</label>
             <select id="product-roast-level" required class="admin-input-styled" style="min-height: 44px;">
               <option value="LIGHT">Light</option>
               <option value="MEDIUM_LIGHT">Medium-Light</option>
@@ -39,31 +43,31 @@ const PANEL_HTML = `
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-          <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Description</label>
+          <label for="product-description" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Description</label>
           <textarea id="product-description" required rows="2" placeholder="Short tasting/description copy for the storefront" class="admin-input-styled"></textarea>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-          <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Product Image</label>
+          <label for="product-image-file" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Product Image</label>
           <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
             <input id="product-image-file" type="file" accept="image/*" style="color: var(--text-main);">
-            <span id="product-image-status" style="font-size: 0.8rem; color: var(--text-muted);">No image uploaded yet</span>
-            <img id="product-image-preview" style="display: none; height: 44px; width: 44px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--admin-border);">
+            <span id="product-image-status" style="font-size: 0.8rem; color: var(--text-muted);" aria-live="polite">No image uploaded yet</span>
+            <img id="product-image-preview" alt="" style="display: none; height: 44px; width: 44px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--admin-border);">
           </div>
           <input id="product-image-url" type="hidden">
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;">
           <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-            <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Bag Size (grams)</label>
+            <label for="product-weight" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Bag Size (grams)</label>
             <input id="product-weight" type="number" required value="250" class="admin-input-styled" style="min-height: 44px;">
           </div>
           <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-            <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Price (cents/paise)</label>
+            <label for="product-price" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Price (cents/paise)</label>
             <input id="product-price" type="number" required placeholder="e.g. 1850" class="admin-input-styled" style="min-height: 44px;">
           </div>
           <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-            <label style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Initial Stock</label>
+            <label for="product-initial-stock" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Initial Stock</label>
             <input id="product-initial-stock" type="number" value="0" class="admin-input-styled" style="min-height: 44px;">
           </div>
         </div>
@@ -79,12 +83,14 @@ const PANEL_HTML = `
           <thead>
             <tr><th>Product</th><th>Category</th><th>Roast Level</th><th>Variants</th><th>Status</th><th>Action</th></tr>
           </thead>
-          <tbody id="catalog-table-body"><tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Loading…</td></tr></tbody>
+          <tbody id="catalog-table-body"></tbody>
         </table>
       </div>
     </div>
   </section>
 `;
+
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?auto=format&fit=crop&w=800&q=80';
 
 const route: RouteModule = {
   mount(container) {
@@ -97,10 +103,17 @@ const route: RouteModule = {
     const imageUrlInput = document.getElementById('product-image-url') as HTMLInputElement;
     const imageStatus = document.getElementById('product-image-status');
     const imagePreview = document.getElementById('product-image-preview') as HTMLImageElement;
+    const submitBtn = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+
+    tbody.innerHTML = Array.from({ length: 4 }, () => skeletonTableRow(PRODUCT_COL_WIDTHS, { badgeCols: [4] })).join('');
 
     const loadCategories = async () => {
       const data = await adminFetch<{ categories: any[] }>('/api/categories');
-      categorySelect.innerHTML = (data.categories || []).map((cat) => `<option value="${cat.id}">${esc(cat.name)}</option>`).join('');
+      if (!data.success || !data.categories || data.categories.length === 0) {
+        categorySelect.innerHTML = '<option value="" disabled selected>No categories</option>';
+        return;
+      }
+      categorySelect.innerHTML = (data.categories || []).map((cat) => `<option value="${esc(cat.id)}">${esc(cat.name)}</option>`).join('');
     };
 
     const renderVariantRow = (variant: any) => `
@@ -108,8 +121,8 @@ const route: RouteModule = {
         <td data-label="Variant" colspan="2" style="padding-left: 2.4rem;">${variant.weight_grams}g · ${esc(variant.sku)}</td>
         <td data-label="Price">₹${(variant.price_cents / 100).toFixed(2)}</td>
         <td data-label="Stock">${variant.available_stock ?? 0} available</td>
-        <td data-label="Status">${variant.is_active ? '<span class="status-badge paid">Active</span>' : '<span class="status-badge low-stock">Inactive</span>'}</td>
-        <td data-label="Action"><button class="btn-table-action" data-variant-toggle="${variant.id}" data-current-active="${variant.is_active ? '1' : '0'}">${variant.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
+        <td data-label="Status">${statusBadge(variant.is_active ? 'ACTIVE' : 'INACTIVE')}</td>
+        <td data-label="Action"><button class="btn-table-action" data-variant-toggle="${esc(variant.id)}" data-current-active="${variant.is_active ? '1' : '0'}">${variant.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
       </tr>
     `;
 
@@ -119,10 +132,10 @@ const route: RouteModule = {
           <details>
             <summary style="cursor: pointer; color: var(--text-muted); font-size: 0.85rem;">+ Add bag-size variant</summary>
             <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.6rem; align-items: center;">
-              <input type="number" placeholder="Grams" class="new-variant-weight admin-input-styled" style="min-height: 40px; width: 100px;">
-              <input type="number" placeholder="Price (cents)" class="new-variant-price admin-input-styled" style="min-height: 40px; width: 130px;">
-              <input type="number" placeholder="Initial stock" class="new-variant-stock admin-input-styled" style="min-height: 40px; width: 110px;">
-              <button type="button" class="btn-table-action" data-add-variant="${productId}">Add Variant</button>
+              <input type="number" placeholder="Grams" class="new-variant-weight admin-input-styled" style="min-height: 40px; width: 100px;" aria-label="Variant weight in grams">
+              <input type="number" placeholder="Price (cents)" class="new-variant-price admin-input-styled" style="min-height: 40px; width: 130px;" aria-label="Variant price in cents">
+              <input type="number" placeholder="Initial stock" class="new-variant-stock admin-input-styled" style="min-height: 40px; width: 110px;" aria-label="Initial stock units">
+              <button type="button" class="btn-table-action" data-add-variant="${esc(productId)}">Add Variant</button>
             </div>
           </details>
         </td>
@@ -130,14 +143,18 @@ const route: RouteModule = {
     `;
 
     const render = (products: any[]) => {
+      if (products.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6">${emptyStateHtml({ title: 'No products yet', body: 'Click "+ Add Product" above to publish your first coffee.' })}</td></tr>`;
+        return;
+      }
       tbody.innerHTML = products.map((p) => `
         <tr>
           <td data-label="Product"><strong>${esc(p.name)}</strong></td>
           <td data-label="Category">${esc(p.category_name)}</td>
           <td data-label="Roast Level">${esc(p.roast_level)}</td>
           <td data-label="Variants">${(p.variants || []).length}</td>
-          <td data-label="Status">${p.is_active ? '<span class="status-badge paid">Active</span>' : '<span class="status-badge low-stock">Inactive</span>'}</td>
-          <td data-label="Action"><button class="btn-table-action" data-product-toggle="${p.id}" data-current-active="${p.is_active ? '1' : '0'}">${p.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
+          <td data-label="Status">${statusBadge(p.is_active ? 'ACTIVE' : 'INACTIVE')}</td>
+          <td data-label="Action"><button class="btn-table-action" data-product-toggle="${esc(p.id)}" data-current-active="${p.is_active ? '1' : '0'}">${p.is_active ? 'Deactivate' : 'Reactivate'}</button></td>
         </tr>
         ${(p.variants || []).map((v: any) => renderVariantRow(v)).join('')}
         ${renderAddVariantRow(p.id)}
@@ -146,39 +163,53 @@ const route: RouteModule = {
 
     const load = async () => {
       const data = await adminFetch<{ products: any[] }>('/api/admin/products');
+      if (!data.success) {
+        tbody.innerHTML = `<tr><td colspan="6">${emptyStateHtml({ title: 'Could not load products', body: data.error || 'Unknown error', action: { label: 'Retry', id: 'catalog-retry' } })}</td></tr>`;
+        document.getElementById('catalog-retry')?.addEventListener('click', () => { void load(); });
+        return;
+      }
       render(data.products || []);
     };
 
-    loadCategories();
-    load();
+    void loadCategories();
+    void load();
 
     tbody.addEventListener('click', async (e) => {
       const target = e.target as HTMLElement;
 
       const productToggle = target.closest('button[data-product-toggle]') as HTMLElement | null;
       if (productToggle) {
+        if (!requireRole('ADMIN', 'Changing product status')) return;
         triggerHaptic();
         const nextActive = productToggle.dataset.currentActive !== '1';
         const result = await adminFetch<{ error?: string }>(`/api/admin/products/${productToggle.dataset.productToggle}`, {
           method: 'PATCH', json: { is_active: nextActive },
         });
-        if (result.success) await load();
+        if (result.success) {
+          toast(nextActive ? 'Product reactivated' : 'Product deactivated', 'success');
+          await load();
+        }
         return;
       }
 
       const variantToggle = target.closest('button[data-variant-toggle]') as HTMLElement | null;
       if (variantToggle) {
+        if (!requireRole('ADMIN', 'Changing variant status')) return;
         triggerHaptic();
         const nextActive = variantToggle.dataset.currentActive !== '1';
         const result = await adminFetch<{ error?: string }>(`/api/admin/variants/${variantToggle.dataset.variantToggle}/status`, {
           method: 'PATCH', json: { is_active: nextActive },
         });
-        if (result.success) await load();
+        if (result.success) {
+          toast(nextActive ? 'Variant reactivated' : 'Variant deactivated', 'success');
+          await load();
+        }
         return;
       }
 
       const addVariantBtn = target.closest('button[data-add-variant]') as HTMLElement | null;
       if (addVariantBtn) {
+        if (!requireRole('ADMIN', 'Adding variants')) return;
         triggerHaptic();
         const row = addVariantBtn.closest('td') as HTMLElement;
         const weight = Number((row.querySelector('.new-variant-weight') as HTMLInputElement)?.value);
@@ -189,15 +220,23 @@ const route: RouteModule = {
           toast('Weight and price are required to add a variant.', 'error');
           return;
         }
+        if (price <= 0) {
+          toast('Price must be greater than zero.', 'error');
+          return;
+        }
 
+        const originalText = addVariantBtn.textContent;
+        addVariantBtn.setAttribute('disabled', 'true');
+        addVariantBtn.textContent = 'Adding…';
         const result = await adminFetch<{ error?: string }>(`/api/admin/products/${addVariantBtn.dataset.addVariant}/variants`, {
           method: 'POST', json: { weight_grams: weight, price_cents: price, initial_stock: stock },
         });
+        addVariantBtn.removeAttribute('disabled');
+        addVariantBtn.textContent = originalText;
 
         if (result.success) {
+          toast('Variant added', 'success');
           await load();
-        } else {
-          toast(`Could not add variant: ${result.error || 'Unknown error'}`, 'error');
         }
       }
     });
@@ -206,27 +245,36 @@ const route: RouteModule = {
       const file = imageFileInput.files?.[0];
       if (!file) return;
 
-      if (imageStatus) imageStatus.textContent = 'Uploading...';
+      if (imageStatus) imageStatus.textContent = 'Uploading…';
 
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch(`${API_BASE}/api/media/upload`, { method: 'POST', credentials: 'include', body: formData });
-      const data = await res.json() as { success: boolean; url?: string; error?: string };
-
-      if (data.success && data.url) {
-        imageUrlInput.value = data.url;
-        if (imageStatus) imageStatus.textContent = 'Image uploaded';
-        if (imagePreview) {
-          imagePreview.src = data.url;
-          imagePreview.style.display = 'block';
+      try {
+        const res = await fetch(`${API_BASE}/api/media/upload`, { method: 'POST', credentials: 'include', body: formData });
+        const data = await res.json() as { success: boolean; url?: string; error?: string };
+        if (data.success && data.url) {
+          imageUrlInput.value = data.url;
+          if (imageStatus) imageStatus.textContent = 'Image uploaded';
+          if (imagePreview) {
+            imagePreview.src = data.url;
+            imagePreview.style.display = 'block';
+          }
+          toast('Product image uploaded', 'success');
+        } else {
+          const reason = data.error || 'Unknown error';
+          if (imageStatus) imageStatus.textContent = `Upload failed: ${reason}`;
+          toast(`Image upload failed: ${reason}`, 'error', 4500);
         }
-      } else if (imageStatus) {
-        imageStatus.textContent = `Upload failed: ${data.error || 'Unknown error'}`;
+      } catch (err) {
+        console.error('Image upload failed', err);
+        if (imageStatus) imageStatus.textContent = 'Upload failed (network)';
+        toast('Image upload failed: network error', 'error', 4500);
       }
     });
 
     document.getElementById('btn-add-product')?.addEventListener('click', () => {
+      if (!requireRole('ADMIN', 'Adding products')) return;
       triggerHaptic();
       form.style.display = form.style.display === 'none' ? 'flex' : 'none';
     });
@@ -240,7 +288,19 @@ const route: RouteModule = {
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!requireRole('ADMIN', 'Creating products')) return;
       triggerHaptic();
+
+      const priceCents = Number((document.getElementById('product-price') as HTMLInputElement).value);
+      const weight = Number((document.getElementById('product-weight') as HTMLInputElement).value);
+      if (!weight || !priceCents) {
+        toast('Bag size and price are required.', 'error');
+        return;
+      }
+      if (priceCents <= 0) {
+        toast('Price must be greater than zero.', 'error');
+        return;
+      }
 
       const payload = {
         name: (document.getElementById('product-name') as HTMLInputElement).value,
@@ -248,23 +308,27 @@ const route: RouteModule = {
         origin_country: (document.getElementById('product-origin') as HTMLInputElement).value,
         roast_level: (document.getElementById('product-roast-level') as HTMLSelectElement).value,
         description: (document.getElementById('product-description') as HTMLTextAreaElement).value,
-        image_url: imageUrlInput.value || 'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?auto=format&fit=crop&w=800&q=80',
-        weight_grams: Number((document.getElementById('product-weight') as HTMLInputElement).value),
-        price_cents: Number((document.getElementById('product-price') as HTMLInputElement).value),
+        image_url: imageUrlInput.value || FALLBACK_IMAGE,
+        weight_grams: weight,
+        price_cents: priceCents,
         initial_stock: Number((document.getElementById('product-initial-stock') as HTMLInputElement).value) || 0,
       };
 
+      const originalText = submitBtn.textContent;
+      submitBtn.setAttribute('disabled', 'true');
+      submitBtn.textContent = 'Creating…';
       const result = await adminFetch<{ error?: string }>('/api/admin/products', { method: 'POST', json: payload });
+      submitBtn.removeAttribute('disabled');
+      submitBtn.textContent = originalText;
 
       if (result.success) {
+        toast('Product created', 'success');
         form.style.display = 'none';
         form.reset();
         imageUrlInput.value = '';
         if (imageStatus) imageStatus.textContent = 'No image uploaded yet';
         if (imagePreview) imagePreview.style.display = 'none';
         await load();
-      } else {
-        toast(`Could not create product: ${result.error || 'Unknown error'}`, 'error');
       }
     });
   },

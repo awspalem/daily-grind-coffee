@@ -456,24 +456,58 @@ profileApp.put('/preferences', async (c) => {
     .run();
 
   if (body.channels && typeof body.channels === 'object') {
-    const statements = Object.entries(body.channels).map(([channelId, optedIn]) =>
-      c.env.DB
+    const entries = Object.entries(body.channels);
+    const placeholders = entries.map(() => '?').join(', ');
+    const { results: validChannels } = placeholders
+      ? await c.env.DB
+          .prepare(`SELECT id FROM communication_channels WHERE id IN (${placeholders})`)
+          .bind(...entries.map(([id]) => id))
+          .all<{ id: string }>()
+      : { results: [] as { id: string }[] };
+    const validIds = new Set((validChannels || []).map((row: any) => row.id));
+    const rejected: string[] = [];
+    const statements = entries.flatMap(([channelId, optedIn]) => {
+      if (!validIds.has(channelId)) {
+        rejected.push(channelId);
+        return [];
+      }
+      return [
+        c.env.DB
+          .prepare(
+            `INSERT INTO customer_channel_optins (id, customer_id, channel_id, opted_in)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(customer_id, channel_id) DO UPDATE SET
+               opted_in = excluded.opted_in,
+               updated_at = CURRENT_TIMESTAMP`
+          )
+          .bind(
+            'opt_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16),
+            session.customerId,
+            channelId,
+            optedIn ? 1 : 0
+          ),
+      ];
+    });
+    if (rejected.length > 0) {
+      return c.json({ success: false, error: `Unknown channel id(s): ${rejected.join(', ')}` }, 400);
+    }
+    // Consent is all-or-nothing: a half-applied set of toggles is worse than a rejected one.
+    if (statements.length > 0) {
+      await c.env.DB.batch(statements);
+      await c.env.DB
         .prepare(
-          `INSERT INTO customer_channel_optins (id, customer_id, channel_id, opted_in)
-           VALUES (?, ?, ?, ?)
-           ON CONFLICT(customer_id, channel_id) DO UPDATE SET
-             opted_in = excluded.opted_in,
-             updated_at = CURRENT_TIMESTAMP`
+          `INSERT INTO audit_log (id, actor_id, actor_email, action, entity_type, entity_id, new_value_json)
+           VALUES (?, ?, ?, 'CHANNEL_OPTIN_UPDATE', 'customer', ?, ?)`
         )
         .bind(
-          'opt_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16),
+          'al_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16),
           session.customerId,
-          channelId,
-          optedIn ? 1 : 0
+          session.email,
+          session.customerId,
+          JSON.stringify(Object.fromEntries(entries))
         )
-    );
-    // Consent is all-or-nothing: a half-applied set of toggles is worse than a rejected one.
-    if (statements.length > 0) await c.env.DB.batch(statements);
+        .run().catch(() => { /* best-effort: consent is the source of truth */ });
+    }
   }
 
   return c.json({ success: true, preferences: await loadPreferences(c.env.DB, session.customerId) });

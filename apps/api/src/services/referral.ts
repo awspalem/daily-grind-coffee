@@ -27,11 +27,14 @@ export const REFERRAL_RATES = {
   REFERRER_POINTS: 300,
   /** Velocity cap: rewarded referrals one account can accrue in a rolling 30 days. */
   MAX_REFERRALS_PER_30_DAYS: 10,
+  /** How long a share-link landing stays "fresh" for the dashboard's invited count. */
+  VISIT_WINDOW_DAYS: 30,
 } as const;
 
 const CODE_LENGTH = 8;
 // No I/O/0/1 — these codes get read off a phone screen and typed back in.
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const CODE_ALPHABET_REGEX = /^[A-HJ-NP-Z2-9]+$/;
 
 function newId(prefix: string): string {
   return prefix + '_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
@@ -394,6 +397,15 @@ function maskEmail(email: string): string {
   return `${head}${'•'.repeat(Math.max(2, local.length - 2))}@${domain}`;
 }
 
+/**
+ * Whether a recorded visit is still inside its `VISIT_WINDOW_DAYS` attribution window. The window
+ * is computed from `created_at` (the schema predates an explicit `expires_at` column) so a stale
+ * dashboard does not keep counting an old link as a fresh invite.
+ */
+function visitStillFreshSql(): string {
+  return `datetime(created_at, '+${REFERRAL_RATES.VISIT_WINDOW_DAYS} days') > datetime('now')`;
+}
+
 export async function getDashboard(
   db: Env['DB'],
   customerId: string,
@@ -402,22 +414,31 @@ export async function getDashboard(
   const code = await getOrCreateCode(db, customerId);
 
   const invited = await db
-    .prepare('SELECT COUNT(*) AS n FROM referral_visits WHERE referrer_customer_id = ?')
+    .prepare(`
+      SELECT COUNT(*) AS n FROM referral_visits
+      WHERE referrer_customer_id = ? AND ${visitStillFreshSql()}
+    `)
     .bind(customerId)
     .first<{ n: number }>();
 
   const funnel = await db
     .prepare(`
       SELECT
-        COUNT(*) AS purchased,
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'QUALIFIED' THEN 1 ELSE 0 END) AS successful,
+        SUM(CASE WHEN status = 'ATTRIBUTED' THEN 1 ELSE 0 END) AS pending_count,
         SUM(CASE WHEN referee_customer_id IS NOT NULL THEN 1 ELSE 0 END) AS signed_up,
+        SUM(CASE WHEN status <> 'REVERSED' THEN 1 ELSE 0 END) AS purchased,
         SUM(CASE WHEN status = 'QUALIFIED' THEN referrer_points_awarded ELSE 0 END) AS earned,
-        SUM(CASE WHEN status = 'ATTRIBUTED' THEN ? ELSE 0 END) AS pending
+        SUM(CASE WHEN status = 'ATTRIBUTED' THEN ? ELSE 0 END) AS pending_points
       FROM referrals
       WHERE referrer_customer_id = ? AND status <> 'BLOCKED'
     `)
     .bind(REFERRAL_RATES.REFERRER_POINTS, customerId)
-    .first<{ purchased: number; signed_up: number; earned: number; pending: number }>();
+    .first<{
+      total: number; successful: number; pending_count: number; signed_up: number;
+      purchased: number; earned: number; pending_points: number;
+    }>();
 
   const { results: recent } = await db
     .prepare(`
@@ -435,8 +456,11 @@ export async function getDashboard(
     invited: Math.max(Number(invited?.n || 0), Number(funnel?.purchased || 0)),
     signed_up: Number(funnel?.signed_up || 0),
     purchased: Number(funnel?.purchased || 0),
+    total: Number(funnel?.total || 0),
+    successful: Number(funnel?.successful || 0),
+    pending: Number(funnel?.pending_count || 0),
     points_earned: Number(funnel?.earned || 0),
-    points_pending: Number(funnel?.pending || 0),
+    points_pending: Number(funnel?.pending_points || 0),
   };
 
   return {
