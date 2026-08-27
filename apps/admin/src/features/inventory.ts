@@ -19,7 +19,7 @@ const PANEL_HTML = `
           <thead>
             <tr><th>Coffee Lot</th><th>SKU</th><th>Available</th><th>Reserved</th><th>Status</th></tr>
           </thead>
-          <tbody id="inventory-stock-table-body"></tbody>
+          <tbody id="inventory-stock-table-body"><tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Loading…</td></tr></tbody>
         </table>
       </div>
 
@@ -54,7 +54,7 @@ const PANEL_HTML = `
             <thead>
               <tr><th>When</th><th>SKU</th><th>Type</th><th>Δ</th><th>Stock After</th><th>Reason</th></tr>
             </thead>
-            <tbody id="inventory-movements-table-body"></tbody>
+            <tbody id="inventory-movements-table-body"><tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Loading…</td></tr></tbody>
           </table>
         </div>
       </div>

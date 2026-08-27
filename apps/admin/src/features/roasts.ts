@@ -40,7 +40,7 @@ const PANEL_HTML = `
           <thead>
             <tr><th>Batch ID</th><th>Lot / Varietal</th><th>Green In</th><th>Roasted Out</th><th>Roast Loss %</th><th>Calculated Green Cost / Bag</th><th>Status</th></tr>
           </thead>
-          <tbody id="batch-table-body"></tbody>
+          <tbody id="batch-table-body"><tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>

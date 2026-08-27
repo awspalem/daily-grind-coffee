@@ -10,7 +10,7 @@ const PANEL_HTML = `
     <div class="table-responsive">
       <table class="data-table">
         <thead><tr><th>Promotion</th><th>Type</th><th>Dates</th><th>Status</th></tr></thead>
-        <tbody id="promotions-table-body"></tbody>
+        <tbody id="promotions-table-body"><tr><td colspan="4" style="text-align:center; color:var(--text-muted);">Loading…</td></tr></tbody>
       </table>
     </div>
   </section>

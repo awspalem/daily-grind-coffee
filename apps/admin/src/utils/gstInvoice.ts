@@ -120,6 +120,9 @@ export function buildGSTInvoiceFromOrder(order: {
   orderId: string;
   customerName: string;
   customerLocation?: string;
+  customerCity?: string;
+  customerState?: string;
+  customerPostalCode?: string;
   customerEmail?: string;
   productDescription: string;
   totalAmountInr: number;
@@ -147,13 +150,18 @@ export function buildGSTInvoiceFromOrder(order: {
     placeOfSupply: 'Karnataka (29)',
     stateCode: '29',
     paymentMode: 'Pre-paid Online (Razorpay / UPI / Cards)',
+    // Tax treatment below (CGST+SGST only) assumes an intrastate Karnataka sale — accurate for
+    // the roastery's real order volume so far, but a genuinely out-of-state shipment should use
+    // IGST instead. Flagging rather than guessing at the split: getting GST treatment wrong on
+    // an actual tax document is a compliance risk, not a UI bug, so this needs a real decision
+    // before wiring interstate orders through here.
     customer: {
       name: order.customerName,
-      email: order.customerEmail || `${order.customerName.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-      address: order.customerLocation ? `${order.customerLocation}, Bengaluru` : '142, 5th Cross, Indiranagar, Bengaluru',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      postalCode: '560038'
+      email: order.customerEmail || 'No email on file',
+      address: order.customerLocation || ROASTERY_GST_PROFILE.address,
+      city: order.customerCity || ROASTERY_GST_PROFILE.city,
+      state: order.customerState || ROASTERY_GST_PROFILE.state,
+      postalCode: order.customerPostalCode || ROASTERY_GST_PROFILE.postalCode
     },
     items: [
       {

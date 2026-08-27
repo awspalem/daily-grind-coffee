@@ -406,8 +406,16 @@ body {
 
 .kpi-sub {
   font-size: 0.78rem;
-  color: var(--emerald);
+  color: var(--text-muted);
   font-weight: 500;
+}
+
+.kpi-sub.positive {
+  color: var(--emerald);
+}
+
+.kpi-sub.negative {
+  color: var(--rose);
 }
 
 /* Operational Tables & Panels */
@@ -490,12 +498,24 @@ body {
   color: var(--emerald);
 }
 
-.status-badge.shipped {
+.status-badge.shipped,
+.status-badge.packed {
   background: var(--accent-bg);
   color: var(--accent);
 }
 
-.status-badge.low-stock {
+.status-badge.delivered {
+  background: var(--emerald-bg);
+  color: var(--emerald);
+}
+
+.status-badge.neutral {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-muted);
+}
+
+.status-badge.low-stock,
+.status-badge.cancelled {
   background: var(--rose-bg);
   color: var(--rose);
 }

@@ -79,7 +79,7 @@ const PANEL_HTML = `
           <thead>
             <tr><th>Product</th><th>Category</th><th>Roast Level</th><th>Variants</th><th>Status</th><th>Action</th></tr>
           </thead>
-          <tbody id="catalog-table-body"></tbody>
+          <tbody id="catalog-table-body"><tr><td colspan="6" style="text-align:center; color:var(--text-muted);">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>

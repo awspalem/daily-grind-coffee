@@ -8,8 +8,10 @@
 
 // vite.config.ts proxies /api -> localhost:8787 in dev; use that instead of hitting prod
 // directly so local testing doesn't read/write real data (and doesn't need prod CORS to
-// allow the dev origin).
-export const API_BASE = import.meta.env.DEV ? '/api' : 'https://api.dailyroast.in';
+// allow the dev origin). Every call site already includes the leading /api itself (e.g.
+// adminFetch('/api/admin/orders')), so the dev base must be empty — NOT '/api' — or every
+// request doubles up into /api/api/admin/orders and 404s.
+export const API_BASE = import.meta.env.DEV ? '' : 'https://api.dailyroast.in';
 
 /**
  * fetch() against the admin API. Auth is Cloudflare Access at the edge — `credentials:

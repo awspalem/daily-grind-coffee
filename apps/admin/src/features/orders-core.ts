@@ -118,6 +118,10 @@ export function openInvoiceModalForOrder(orderData: {
   orderId: string;
   customerName: string;
   customerLocation?: string;
+  customerCity?: string;
+  customerState?: string;
+  customerPostalCode?: string;
+  customerEmail?: string;
   productDescription: string;
   totalAmountInr: number;
 }): void {

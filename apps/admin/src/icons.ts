@@ -29,6 +29,11 @@ export const icons = {
   home: icon('<path d="M4 11 12 4l8 7"></path><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9"></path>'),
   layers: icon('<path d="M12 3 2 8l10 5 10-5-10-5Z"></path><path d="M2 12l10 5 10-5"></path><path d="M2 16l10 5 10-5"></path>'),
   calendar: icon('<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4"></path><path d="M8 3v4"></path><path d="M3 10h18"></path>'),
+  bank: icon('<path d="M3 10 12 4l9 6"></path><path d="M5 10v9"></path><path d="M9 10v9"></path><path d="M15 10v9"></path><path d="M19 10v9"></path><path d="M3 21h18"></path>'),
+  trending: icon('<path d="M3 17 10 10l4 4 7-7"></path><path d="M15 6h6v6"></path>'),
+  target: icon('<circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r="0.8" fill="currentColor"></circle>'),
+  calculator: icon('<rect x="4" y="2.5" width="16" height="19" rx="2"></rect><line x1="7" y1="6.5" x2="17" y2="6.5"></line><line x1="7" y1="11" x2="7" y2="11.01"></line><line x1="12" y1="11" x2="12" y2="11.01"></line><line x1="17" y1="11" x2="17" y2="11.01"></line><line x1="7" y1="15" x2="7" y2="15.01"></line><line x1="12" y1="15" x2="12" y2="15.01"></line><line x1="17" y1="15" x2="17" y2="18.5"></line><line x1="7" y1="18.5" x2="7" y2="18.51"></line><line x1="12" y1="18.5" x2="12" y2="18.51"></line>'),
+  folder: icon('<path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"></path>'),
 };
 
 export type IconName = keyof typeof icons;
