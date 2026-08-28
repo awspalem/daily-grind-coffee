@@ -22,6 +22,18 @@ import { JSDOM } from 'jsdom';
 import { productPage, indexPage, sitemap, llmsTxt } from './seo-render.mjs';
 import { readBrewMethods, brewPage, brewIndexPage, hasRecipe } from './seo-brew.mjs';
 import { faqPage } from './seo-faq.mjs';
+import { aeoPage, aeoFeed, aeoSnippetsForPage, aeoAsideHtml } from './seo-aeo.mjs';
+import { agentCapabilityTxt, agentLandingHtml } from './seo-agent.mjs';
+import { fetchExperiences, experiencePage, experiencesIndexPage } from './seo-experiences.mjs';
+import {
+  llmsFullTxt,
+  humansTxt,
+  securityTxt,
+  agentJson,
+  mcpJson,
+  imageSitemap,
+  aiRobotsTxt,
+} from './seo-discoverability.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -105,5 +117,51 @@ writeFileSync(join(DIST, 'faq.html'), faqPage(css));
 writeFileSync(join(DIST, 'sitemap.xml'), sitemap(products, brewMethods));
 writeFileSync(join(DIST, 'llms.txt'), llmsTxt(products, brewMethods));
 
+// Agent-facing discovery surface. agent.txt is the plain-text capability card (the
+// llms.txt equivalent for agent-shaped consumers); agent.html is a minimal HTML page
+// that meta-refreshes to it and lists the same endpoints as plain <a> links, so the
+// surface is reachable from the homepage without modifying the owned index.html head.
+writeFileSync(join(DIST, 'agent.txt'), agentCapabilityTxt());
+writeFileSync(join(DIST, 'agent.html'), agentLandingHtml());
+
+// LLM discoverability — verbose catalog, standard .well-known/ files, and image-sitemap.
+// The .well-known/ directory is a public directory; Cloudflare Pages serves it as
+// static content just like the rest of dist/, so writing into it here is enough to
+// expose /llms-full.txt, /.well-known/agent.json, etc.
+writeFileSync(join(DIST, 'llms-full.txt'), llmsFullTxt(products, brewMethods));
+writeFileSync(join(DIST, 'humans.txt'), humansTxt());
+mkdirSync(join(DIST, '.well-known'), { recursive: true });
+writeFileSync(join(DIST, '.well-known', 'agent.json'), agentJson());
+writeFileSync(join(DIST, '.well-known', 'mcp.json'), mcpJson());
+writeFileSync(join(DIST, '.well-known', 'security.txt'), securityTxt());
+writeFileSync(join(DIST, 'image-sitemap.xml'), imageSitemap(products));
+writeFileSync(join(DIST, 'robots.txt'), aiRobotsTxt());
+
+// AEO — Answer Engine Optimization. aeo.html is the human-readable Q&A page; aeo-feed.json
+// is the machine-readable feed for LLM ingestion (third LLM-readable file alongside
+// llms.txt and llms-full.txt). Inject the homepage aside so the AEO page is reachable
+// from /, and inject per-page snippets for products/brews so LLMs find direct answers.
+writeFileSync(join(DIST, 'aeo.html'), aeoPage(css));
+writeFileSync(join(DIST, 'aeo-feed.json'), JSON.stringify(aeoFeed(), null, 2));
+const distIndex = join(DIST, 'index.html');
+const indexHtml = readFileSync(distIndex, 'utf8');
+const withAeoAside = indexHtml.replace('</main>', `${aeoAsideHtml()}\n</main>`);
+if (withAeoAside !== indexHtml) writeFileSync(distIndex, withAeoAside);
+
 const urlCount = (sitemap(products, brewMethods).match(/<loc>/g) || []).length;
-console.log(`seo: ${products.length} coffee + ${brewMethods.length} brew + faq, ${urlCount} sitemap urls, llms.txt`);
+console.log(`seo: ${products.length} coffee + ${brewMethods.length} brew + faq, ${urlCount} sitemap urls, llms.txt, llms-full.txt, agent.txt, aeo.html, .well-known/, image-sitemap.xml`);
+
+// ------------------------------------------------------------------------------------------
+// Experiences — Course JSON-LD, individual /experiences/<slug>.html pages, and an index.
+//
+// Sits at the end of the pipeline so a failing experiences fetch does not lose the
+// product/brew/FAQ pages already on disk: those are the site, this just adds the
+// bookable experiences the SPA was already showing behind `#experiences`.
+const experiences = await fetchExperiences(API);
+mkdirSync(join(DIST, 'experiences'), { recursive: true });
+for (const e of experiences) {
+  writeFileSync(join(DIST, 'experiences', `${e.slug}.html`), experiencePage(e, css));
+}
+writeFileSync(join(DIST, 'experiences', 'index.html'), experiencesIndexPage(experiences, css));
+
+console.log(`seo: + ${experiences.length} experiences (Course schema) and /experiences/ index`);

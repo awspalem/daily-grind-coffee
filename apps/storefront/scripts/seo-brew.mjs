@@ -8,7 +8,7 @@
  * the card, so a page can never quote 92°C beside a card that says 94°C.
  */
 import { SITE, esc, jsonLd } from './seo-data.mjs';
-import { PAGE_CSS } from './seo-render.mjs';
+import { PAGE_CSS, PAGE_CSS_SEO } from './seo-render.mjs';
 
 /** Reads the brew methods out of the shipped markup. `doc` is a DOM Document. */
 export function readBrewMethods(doc) {
@@ -84,6 +84,72 @@ const RECIPES = {
 /** Doses chosen per method because a 20 g espresso dose is nonsense in a 18 g basket. */
 const DOSE = { v60: 20, 'filter-kaapi': 30, aeropress: 15, espresso: 18 };
 
+/**
+ * Per-method facts that the same data shape could not derive from the brew card alone: the
+ * standard yield description (1 cup vs 1 double shot), which step is the bloom/steep prep
+ * versus the main draw, and the tool name as baristas would call it. Keeping these here
+ * instead of inside RECIPES keeps the step text self-contained and the two schemas
+ * (Recipe and HowTo) easy to compare.
+ */
+const METHOD_META = {
+  v60: {
+    yield: '1 cup',
+    yieldUnit: 'cup',
+    tool: 'Hario V60 dripper',
+    keywords: 'pour over, v60, hario, single cup coffee, manual brew, pour over recipe',
+    hasBloom: true,
+  },
+  'filter-kaapi': {
+    yield: '1 decoction',
+    yieldUnit: 'decoction',
+    tool: 'South Indian filter coffee brewer',
+    keywords: 'south indian filter coffee, filter kaapi, decoction, bangalore coffee, brass dabarah',
+    hasBloom: false,
+  },
+  aeropress: {
+    yield: '1 cup',
+    yieldUnit: 'cup',
+    tool: 'AeroPress',
+    keywords: 'aeropress, inverted aeropress, quick brew, single cup coffee',
+    hasBloom: false,
+  },
+  espresso: {
+    yield: '1 double shot',
+    yieldUnit: 'double shot',
+    tool: 'Espresso machine with portafilter',
+    keywords: 'espresso, double shot, 1:2 ratio, espresso extraction, single origin espresso',
+    hasBloom: false,
+  },
+};
+
+/** A duration string like "PT3M15S" plus its components, so Recipe/HowTo can share one parser. */
+function durationsFor(m) {
+  const total = isoDuration(m.time);
+  // Bloom is the only prep step; the rest of the time is the main draw. We split the
+  // total into a 45s bloom + remainder so the prepTime / cookTime fields describe
+  // what is actually happening, not a guess.
+  const hasBloom = METHOD_META[m.method]?.hasBloom;
+  if (hasBloom) return { prep: 'PT45S', cook: remainderDuration(total, 45), total };
+  return { prep: undefined, cook: total, total };
+}
+
+/**
+ * `PT3M15S` minus 45s → `PT2M30S`. Falls back to the original on a bad parse so we never
+ * emit a negative or wrong-shaped duration.
+ */
+function remainderDuration(total, subtractSeconds) {
+  if (!total) return undefined;
+  const m = /PT(?:(\d+)M)?(?:(\d+)S)?/.exec(total);
+  if (!m) return total;
+  let mins = Number(m[1] || 0);
+  let secs = Number(m[2] || 0);
+  let totalSecs = mins * 60 + secs - subtractSeconds;
+  if (totalSecs < 1) return undefined;
+  const outM = Math.floor(totalSecs / 60);
+  const outS = totalSecs % 60;
+  return `PT${outM ? `${outM}M` : ''}${outS ? `${outS}S` : ''}` || 'PT1S';
+}
+
 export const hasRecipe = (method) => Object.prototype.hasOwnProperty.call(RECIPES, method);
 
 export function recipeFor(m) {
@@ -91,21 +157,92 @@ export function recipeFor(m) {
   return RECIPES[m.method](m, DOSE[m.method] ?? 20);
 }
 
+/** The publisher block is the same on every Recipe and HowTo. */
+const PUBLISHER = {
+  '@type': 'Organization',
+  name: 'The Daily Roast',
+  url: 'https://dailyroast.in/',
+};
+
+/** The cost of a 15-gram dose of roasted beans, used as `estimatedCost` for the HowTo. */
+const BEAN_COST_INR = '8';
+
+/**
+ * schema.org/Recipe — richer than the HowTo: it carries the ingredient strings, nutrition,
+ * yield language, keywords and a publisher/author pair, which is what Google's recipe
+ * carousel actually reads. Yielded as a separate <script> block on the brew page so the
+ * Recipe markup can change without touching the HowTo markup.
+ */
+export function recipeSchema(m, r) {
+  const meta = METHOD_META[m.method] || {};
+  const water = r.dose * m.ratio;
+  const ingredients = [
+    `${r.dose} g freshly ground ${m.grind.toLowerCase()} coffee`,
+    `${water} g filtered water at ${m.temp}°C`,
+  ];
+  const dur = durationsFor(m);
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Recipe',
+    name: m.title,
+    description: `Step-by-step ${m.title.toLowerCase()} recipe: ${r.dose} g of ${m.grind.toLowerCase()} coffee and ${water} g of water at ${m.temp}°C, ${m.summary || ''}`.trim().slice(0, 300),
+    recipeCategory: 'Coffee',
+    recipeCuisine: 'Coffee',
+    recipeYield: meta.yield || `${water} g brewed`,
+    prepTime: dur.prep,
+    cookTime: dur.cook,
+    totalTime: dur.total,
+    recipeIngredient: ingredients,
+    recipeInstructions: r.steps.map(([name, text]) => ({
+      '@type': 'HowToStep',
+      name,
+      text,
+    })),
+    tool: meta.tool
+      ? [{ '@type': 'HowToTool', name: meta.tool }, { '@type': 'HowToTool', name: m.title }]
+      : [{ '@type': 'HowToTool', name: m.title }],
+    author: PUBLISHER,
+    publisher: PUBLISHER,
+    datePublished: '2025-01-15',
+    keywords: meta.keywords || `${m.title}, coffee, brew method`,
+    nutrition: {
+      '@type': 'NutritionInformation',
+      calories: '2 kcal',
+      carbohydrateContent: '0 g',
+      proteinContent: '0 g',
+      fatContent: '0 g',
+    },
+  };
+}
+
+/** schema.org/HowTo — a parallel block so Google can surface the same guide as a how-to. */
 function howTo(m, r) {
+  const dur = durationsFor(m);
+  const meta = METHOD_META[m.method] || {};
   return {
     '@context': 'https://schema.org',
     '@type': 'HowTo',
     name: `How to brew ${m.title}`,
     description: m.summary,
     url: `${SITE}/brew/${m.method}`,
-    totalTime: isoDuration(m.time),
+    totalTime: dur.total,
+    estimatedCost: {
+      '@type': 'MonetaryAmount',
+      currency: 'INR',
+      value: BEAN_COST_INR,
+    },
     supply: [
       { '@type': 'HowToSupply', name: `${r.dose} g of freshly roasted coffee` },
       { '@type': 'HowToSupply', name: `Water at ${m.temp}°C` },
     ],
-    tool: [{ '@type': 'HowToTool', name: m.title }],
+    tool: meta.tool
+      ? [{ '@type': 'HowToTool', name: meta.tool }, { '@type': 'HowToTool', name: m.title }]
+      : [{ '@type': 'HowToTool', name: m.title }],
     step: r.steps.map(([name, text], i) => ({
-      '@type': 'HowToStep', position: i + 1, name, text,
+      '@type': 'HowToStep',
+      position: i + 1,
+      name,
+      text,
     })),
   };
 }
@@ -124,6 +261,14 @@ export function brewPage(m, css) {
   if (!r) return null;
   const title = `How to Brew ${m.title} — Ratio, Grind &amp; Temperature | The Daily Roast`;
   const desc = `${m.title} at 1:${m.ratio}: ${r.dose} g of coffee, ${m.grind.toLowerCase()} grind, water at ${m.temp}°C, ${m.time}. ${m.summary || ''}`.slice(0, 158).trim();
+  /*
+   * Brew pages share the same hero source (the pour_over photo is the only large
+   * brew-themed image on the site; it was already preloaded in the SPA). Marking it as
+   * the LCP candidate for this page is the right call — it is the first contentful
+   * block the visitor sees after the title, and 1200x675 matches the source.
+   */
+  const heroSrc = '/images/pour_over.jpg';
+  const heroAlt = `${m.title} — step-by-step brewing guide`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -133,15 +278,26 @@ export function brewPage(m, css) {
 <title>${title}</title>
 <meta name="description" content="${esc(desc)}">
 <link rel="canonical" href="${SITE}/brew/${esc(m.method)}">
+<link rel="alternate" hreflang="en-in" href="${SITE}/brew/${esc(m.method)}">
+<link rel="alternate" hreflang="en" href="${SITE}/brew/${esc(m.method)}">
+<link rel="alternate" hreflang="x-default" href="${SITE}/brew/${esc(m.method)}">
 <meta name="theme-color" content="#1b1614">
 <meta property="og:type" content="article">
 <meta property="og:url" content="${SITE}/brew/${esc(m.method)}">
 <meta property="og:site_name" content="The Daily Roast">
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${esc(desc)}">
+<meta property="og:image" content="https://dailyroast.in${heroSrc}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="675">
+<meta property="og:image:alt" content="${esc(heroAlt)}">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="${css}">
 ${PAGE_CSS}
+${PAGE_CSS_SEO}
+<script type="application/ld+json">
+${jsonLd(recipeSchema(m, r))}
+</script>
 <script type="application/ld+json">
 ${jsonLd(howTo(m, r))}
 </script>
@@ -150,7 +306,7 @@ ${jsonLd(howTo(m, r))}
 <header class="site-header">
   <div class="nav-container">
     <a href="/" class="brand-logo"><div><span class="brand-name">THE DAILY ROAST</span></div></a>
-    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all roasts</a></div>
+    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all coffee</a></div>
   </div>
 </header>
 
@@ -163,6 +319,7 @@ ${jsonLd(howTo(m, r))}
     <p class="section-label">EXTRACTION MASTERY</p>
     <h1 class="section-title" style="margin:0.3rem 0 0.6rem;">How to brew ${esc(m.title)}</h1>
     ${m.summary ? `<p class="section-subtitle" style="margin:0 0 1.8rem;">${esc(m.summary)}</p>` : ''}
+    <img src="${heroSrc}" alt="${esc(heroAlt)}" width="1200" height="675" fetchpriority="high" decoding="async" class="brew-hero-img" style="width:100%; height:auto; aspect-ratio:16/9; object-fit:cover; border-radius:14px; margin-bottom:2rem;">
 
     <h2>The numbers</h2>
     <table style="width:100%; border-collapse:collapse; margin-bottom:2rem;">
@@ -188,8 +345,8 @@ ${jsonLd(howTo(m, r))}
 
     <h2>Which coffee</h2>
     <p>Every bag we roast can be ground for this method — pick the grind at checkout and we grind
-    it the day it ships. <a href="/coffee/">See all ten coffees</a>, or start with the
-    <a href="/#quiz">taste quiz</a> if you are not sure.</p>
+    it the day it ships. <a href="/coffee/">See the full coffee catalog</a>, or start with the
+    <a href="/#quiz">three-question taste quiz</a> if you are not sure which roast fits you.</p>
   </article>
 </main>
 
@@ -214,12 +371,16 @@ export function brewIndexPage(methods, css) {
 <title>Brewing Guides — Ratios, Grind and Temperature | The Daily Roast</title>
 <meta name="description" content="Ratio, grind, water temperature and timing for ${usable.length} brew methods: ${usable.map((m) => m.title).join(', ')}.">
 <link rel="canonical" href="${SITE}/brew/">
+<link rel="alternate" hreflang="en-in" href="${SITE}/brew/">
+<link rel="alternate" hreflang="en" href="${SITE}/brew/">
+<link rel="alternate" hreflang="x-default" href="${SITE}/brew/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${SITE}/brew/">
 <meta property="og:title" content="Brewing Guides | The Daily Roast">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="${css}">
 ${PAGE_CSS}
+${PAGE_CSS_SEO}
 <script type="application/ld+json">
 ${jsonLd({
   '@context': 'https://schema.org',
@@ -240,7 +401,7 @@ ${jsonLd({
 <header class="site-header">
   <div class="nav-container">
     <a href="/" class="brand-logo"><div><span class="brand-name">THE DAILY ROAST</span></div></a>
-    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all roasts</a></div>
+    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all coffee</a></div>
   </div>
 </header>
 <main id="main-content" style="max-width:780px; margin:0 auto; padding:2.5rem 1.5rem 4rem;">

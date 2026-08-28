@@ -614,7 +614,15 @@ body {
   margin-top: 1rem;
 }
 
-.stat-item h4 {
+/*
+ * Hero stat numbers and floating-card title are now h2/h3 in the markup, so the visual style
+ * is keyed off the new BEM-ish classes. The old h4/h5 selectors stayed here for the
+ * transition so any pre-existing markup continues to render; remove when nothing in the
+ * repo emits a bare h4 or h5 inside these containers.
+ */
+.stat-item h2,
+.stat-item h4,
+.hero-stat-num {
   font-family: var(--font-serif);
   font-size: 1.6rem;
   color: var(--text-main);
@@ -676,7 +684,9 @@ body {
   color: var(--accent-gold);
 }
 
-.floating-text h5 {
+.floating-text h3,
+.floating-text h5,
+.floating-card-title {
   font-size: 0.92rem;
   font-weight: 700;
   color: var(--text-main);

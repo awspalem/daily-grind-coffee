@@ -11,7 +11,7 @@
  * aggregateRating on the coffee pages: never mark up something a visitor cannot read.
  */
 import { SITE, esc, jsonLd } from './seo-data.mjs';
-import { PAGE_CSS } from './seo-render.mjs';
+import { PAGE_CSS, PAGE_CSS_SEO } from './seo-render.mjs';
 
 export const FAQS = [
   {
@@ -77,6 +77,14 @@ export function faqPage(css) {
       acceptedAnswer: { '@type': 'Answer', text: a },
     })),
   };
+  /*
+   * The FAQ has no product image to lean on, so the roaster photo doubles as a hero. Width
+   * and height match the source (1200x896) so the browser reserves the slot; fetchpriority
+   * marks it as the LCP candidate since it is the largest contentful block the visitor
+   * sees after the heading.
+   */
+  const heroSrc = '/images/roaster.jpg';
+  const heroAlt = 'The Daily Roast roastery on 100ft Road, Indiranagar, Bangalore';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -86,15 +94,23 @@ export function faqPage(css) {
 <title>Frequently Asked Questions — Roasting, Shipping &amp; Subscriptions | The Daily Roast</title>
 <meta name="description" content="How our coffee is roasted to order, how long delivery takes across India, grind options, returns, how subscriptions and the loyalty programme work, and what you can book at the Bangalore roastery.">
 <link rel="canonical" href="${SITE}/faq">
+<link rel="alternate" hreflang="en-in" href="${SITE}/faq">
+<link rel="alternate" hreflang="en" href="${SITE}/faq">
+<link rel="alternate" hreflang="x-default" href="${SITE}/faq">
 <meta name="theme-color" content="#1b1614">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${SITE}/faq">
 <meta property="og:site_name" content="The Daily Roast">
 <meta property="og:title" content="Frequently Asked Questions | The Daily Roast">
 <meta property="og:description" content="Roasting, shipping across India, grind options, returns, subscriptions and the loyalty programme.">
+<meta property="og:image" content="https://dailyroast.in${heroSrc}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="896">
+<meta property="og:image:alt" content="${esc(heroAlt)}">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="${css}">
 ${PAGE_CSS}
+${PAGE_CSS_SEO}
 <script type="application/ld+json">
 ${jsonLd(schema)}
 </script>
@@ -103,13 +119,14 @@ ${jsonLd(schema)}
 <header class="site-header">
   <div class="nav-container">
     <a href="/" class="brand-logo"><div><span class="brand-name">THE DAILY ROAST</span></div></a>
-    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all roasts</a></div>
+    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all coffee</a></div>
   </div>
 </header>
-<main id="main-content" style="max-width:780px; margin:0 auto; padding:2.5rem 1.5rem 4rem;">
+<main id="main-content" style="max-width:780px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem;">
   <nav aria-label="Breadcrumb" style="font-size:0.85rem; margin-bottom:1.6rem;"><a href="/">Home</a> · <span>FAQ</span></nav>
   <h1 class="section-title">Frequently asked questions</h1>
   <p class="section-subtitle" style="margin-bottom:2.5rem;">Roasting, delivery, grind, returns, subscriptions and the roastery.</p>
+  <img src="${heroSrc}" alt="${esc(heroAlt)}" width="1200" height="896" fetchpriority="high" decoding="async" style="width:100%; height:auto; aspect-ratio: 1200/896; object-fit:cover; border-radius:14px; margin-bottom:2.5rem;">
   ${FAQS.map(({ q, a }) => `<section style="margin-bottom:2rem;">
     <h2 style="font-size:1.12rem; margin-bottom:0.5rem;">${esc(q)}</h2>
     <p style="line-height:1.75;">${esc(a)}</p>

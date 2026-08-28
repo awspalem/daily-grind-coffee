@@ -26,6 +26,23 @@ export const PAGE_CSS = `<style>
   .footer-bottom { display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: space-between; }
 </style>`;
 
+/*
+ * Scoped styles added for SEO/CLS fixes. Kept in a separate constant so PAGE_CSS itself
+ * stays a single presentation block: dimensions on the catalog image belong with the
+ * rendered card, the hero shot is the one that gets fetchpriority="high" + preload.
+ */
+export const PAGE_CSS_SEO = `<style>
+  /* The catalog card image is a square crop; the source isn't always square, so the
+     explicit dimensions match the visual size and object-fit: cover does the trimming.
+     This stops the row jumping when the network image finally arrives. */
+  .catalog-card-img { width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 12px; }
+  /* Brew pages have no hero image today, but the rule is in place so a future one lands
+     pre-sized rather than contributing to CLS. */
+  .brew-hero-img { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 14px; }
+  /* The brew index list items mirror the catalog style. */
+  .brew-card-img { width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; }
+</style>`;
+
 export const cheapestVariant = (p) =>
   [...(p.variants || [])].filter((v) => v.is_active !== false)
     .sort((a, b) => Number(a.price_cents) - Number(b.price_cents))[0];
@@ -92,6 +109,21 @@ export const breadcrumb = (p) => ({
 });
 
 /**
+ * Breadcrumb for the experience pages: Home → Experiences → <Experience Name>. Kept
+ * separate from the product breadcrumb because the parent crumb is "Experiences", not
+ * "Coffee", and a shared function would have to special-case both.
+ */
+export const experienceBreadcrumb = (e) => ({
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE}/` },
+    { '@type': 'ListItem', position: 2, name: 'Experiences', item: `${SITE}/experiences/` },
+    { '@type': 'ListItem', position: 3, name: e.name, item: `${SITE}/experiences/${e.slug}` },
+  ],
+});
+
+/**
  * Search engines truncate around 155-160 characters; the point of doing it here is to choose
  * where the cut lands. Slicing blind ended a description mid-word ("with bal"), which is the
  * one thing worse than letting the engine truncate it.
@@ -128,6 +160,9 @@ export function productPage(p, css) {
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(desc.trim())}">
 <link rel="canonical" href="${SITE}/coffee/${esc(p.slug)}">
+<link rel="alternate" hreflang="en-in" href="${SITE}/coffee/${esc(p.slug)}">
+<link rel="alternate" hreflang="en" href="${SITE}/coffee/${esc(p.slug)}">
+<link rel="alternate" hreflang="x-default" href="${SITE}/coffee/${esc(p.slug)}">
 <meta name="theme-color" content="#1b1614">
 <meta property="og:type" content="product">
 <meta property="og:url" content="${SITE}/coffee/${esc(p.slug)}">
@@ -147,6 +182,7 @@ ${p.image_url ? `<meta name="twitter:image" content="${esc(ogImage(p.image_url))
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="stylesheet" href="${css}">
 ${PAGE_CSS}
+${PAGE_CSS_SEO}
 <script type="application/ld+json">
 ${jsonLd(productSchema(p))}
 </script>
@@ -158,7 +194,7 @@ ${jsonLd(breadcrumb(p))}
 <header class="site-header">
   <div class="nav-container">
     <a href="/" class="brand-logo"><div><span class="brand-name">THE DAILY ROAST</span></div></a>
-    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all roasts</a></div>
+    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all coffee</a></div>
   </div>
 </header>
 
@@ -173,7 +209,7 @@ ${jsonLd(breadcrumb(p))}
     ${p.tagline ? `<p class="section-subtitle" style="margin: 0 0 1.4rem;">${esc(p.tagline)}</p>` : ''}
     ${from ? `<p style="font-size: 1.3rem; font-weight: 600; margin-bottom: 1.6rem;">From ₹${from}<span style="font-size: 0.9rem; font-weight: 400;"> · ${esc(v.weight_grams)}g</span></p>` : ''}
 
-    ${p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" width="800" height="500" loading="lazy" class="hero-shot">` : ''}
+    ${p.image_url ? `<img src="${esc(p.image_url)}" alt="${esc(p.name)}" width="800" height="500" fetchpriority="high" decoding="async" class="hero-shot">` : ''}
 
     <p style="font-size: 1.02rem; line-height: 1.75; margin-bottom: 2rem;">${esc(p.description || '')}</p>
 
@@ -202,7 +238,7 @@ ${jsonLd(breadcrumb(p))}
     anywhere in India. Free shipping over ₹1,200.</p>
 
     <p style="margin-top: 2.5rem;">
-      <a class="btn-primary" href="/#catalog">Buy ${esc(p.name)}</a>
+      <a class="btn-primary" href="/#catalog">Add ${esc(p.name)} to cart</a>
     </p>
   </article>
 </main>
@@ -233,6 +269,28 @@ export function indexPage(products, css) {
     },
   };
 
+  /*
+   * A second ItemList whose items are the full Product objects rather than URLs. An LLM scraping
+   * /coffee/ gets every spec, offer and tasting note inline instead of dereferencing ten URLs and
+   * risking a partial graph if any one page is rate-limited. Schema.org allows nested entities
+   * through `item`, so the Product is emitted as the value rather than just a string.
+   */
+  const productList = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Every coffee we roast',
+    url: `${SITE}/coffee/`,
+    numberOfItems: products.length,
+    itemListOrder: 'https://schema.org/ItemListOrderAscending',
+    itemListElement: products.map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: p.name,
+      url: `${SITE}/coffee/${p.slug}`,
+      item: productSchema(p),
+    })),
+  };
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -241,6 +299,9 @@ export function indexPage(products, css) {
 <title>Every Coffee We Roast — Indian Micro-Lots &amp; Global Origins | The Daily Roast</title>
 <meta name="description" content="All ${products.length} coffees roasted to order at our Bangalore roastery: Indian estate micro-lots from Chikmagalur and Araku, and single origins from Ethiopia, Colombia, Guatemala and Sumatra.">
 <link rel="canonical" href="${SITE}/coffee/">
+<link rel="alternate" hreflang="en-in" href="${SITE}/coffee/">
+<link rel="alternate" hreflang="en" href="${SITE}/coffee/">
+<link rel="alternate" hreflang="x-default" href="${SITE}/coffee/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${SITE}/coffee/">
 <meta property="og:title" content="Every Coffee We Roast | The Daily Roast">
@@ -248,15 +309,19 @@ export function indexPage(products, css) {
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="${css}">
 ${PAGE_CSS}
+${PAGE_CSS_SEO}
 <script type="application/ld+json">
 ${jsonLd(list)}
+</script>
+<script type="application/ld+json">
+${jsonLd(productList)}
 </script>
 </head>
 <body>
 <header class="site-header">
   <div class="nav-container">
     <a href="/" class="brand-logo"><div><span class="brand-name">THE DAILY ROAST</span></div></a>
-    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all roasts</a></div>
+    <div class="nav-actions"><a class="btn-primary" href="/#catalog">Shop all coffee</a></div>
   </div>
 </header>
 <main id="main-content" style="max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem;">
@@ -266,10 +331,18 @@ ${jsonLd(list)}
   <ul style="list-style:none; padding:0; display:grid; gap:1.6rem;">
     ${products.map((p) => {
       const v = cheapestVariant(p);
-      return `<li style="border-bottom:1px solid rgba(0,0,0,0.08); padding-bottom:1.4rem;">
-      <h2 style="margin:0 0 0.3rem; font-size:1.2rem;"><a href="/coffee/${esc(p.slug)}">${esc(p.name)}</a></h2>
-      <p style="margin:0 0 0.4rem;">${esc(p.tagline || '')}</p>
-      <p style="margin:0; font-size:0.9rem;">${esc([p.region || p.origin_country, processLabel(p.process_method), roastLabel(p.roast_level) + ' roast'].filter(Boolean).join(' · '))}${v ? ` · from ₹${priceInr(v.price_cents)}` : ''}</p>
+      /*
+       * Width and height are explicit (96x96) so the browser reserves the slot before the
+       * network image arrives, eliminating the row shift that CLS measures. The displayed
+       * size is fixed by inline style; the attributes are what the browser uses for layout.
+       */
+      return `<li style="border-bottom:1px solid rgba(0,0,0,0.08); padding-bottom:1.4rem; display:grid; grid-template-columns: 96px 1fr; gap: 1rem; align-items: start;">
+      ${p.image_url ? `<a href="/coffee/${esc(p.slug)}" aria-label="${esc(p.name)}" style="display:block;"><img src="${esc(p.image_url)}" alt="${esc(p.name)}" width="96" height="96" loading="lazy" decoding="async" style="width:96px; height:96px; object-fit: cover; border-radius: 12px;"></a>` : ''}
+      <div>
+        <h2 style="margin:0 0 0.3rem; font-size:1.2rem;"><a href="/coffee/${esc(p.slug)}">${esc(p.name)}</a></h2>
+        <p style="margin:0 0 0.4rem;">${esc(p.tagline || '')}</p>
+        <p style="margin:0; font-size:0.9rem;">${esc([p.region || p.origin_country, processLabel(p.process_method), roastLabel(p.roast_level) + ' roast'].filter(Boolean).join(' · '))}${v ? ` · from ₹${priceInr(v.price_cents)}` : ''}</p>
+      </div>
     </li>`;
     }).join('\n    ')}
   </ul>
@@ -288,6 +361,11 @@ ${jsonLd(list)}
  * The sitemap is generated rather than hand-kept. It listed four URLs while the site had
  * fifteen; adding ten more by hand would have gone stale at the next catalog change.
  * No changefreq or priority — Google has said publicly that it ignores both.
+ *
+ * The image namespace is declared so each product URL can carry an <image:image> block — that
+ * is what lets Google Images surface product photos directly from the sitemap. The legal pages
+ * are stamped with a fixed lastmod rather than today, because they really do change on a slow
+ * schedule and a stamp that flapped every build would teach the crawler to ignore it.
  */
 export function sitemap(products, brewMethods = []) {
   const today = new Date().toISOString().slice(0, 10);
@@ -295,22 +373,34 @@ export function sitemap(products, brewMethods = []) {
   // which is exactly the signal that teaches a crawler to stop believing lastmod. Product pages
   // carry their own updated_at; the rest, which really do change with the build, carry today's.
   const day = (v) => (v ? String(v).slice(0, 10) : today);
+  // The legal pages are revised on a long cycle, not per build; a fixed stamp is more honest
+  // than today's date (which the previous implementation used and which taught the crawler that
+  // /privacy changes on every deploy).
+  const LEGAL_LASTMOD = '2026-01-15';
+  // Each entry: [url, lastmod, imageUrl?]
   const urls = [
-    [`${SITE}/`, today],
-    [`${SITE}/coffee/`, today],
-    ...products.map((p) => [`${SITE}/coffee/${p.slug}`, day(p.updated_at)]),
-    [`${SITE}/brew/`, today],
-    ...brewMethods.map((m) => [`${SITE}/brew/${m.method}`, today]),
-    [`${SITE}/faq`, today],
+    [`${SITE}/`, today, null],
+    [`${SITE}/coffee/`, today, null],
+    ...products.map((p) => [`${SITE}/coffee/${p.slug}`, day(p.updated_at), p.image_url || null]),
+    [`${SITE}/brew/`, today, null],
+    ...brewMethods.map((m) => [`${SITE}/brew/${m.method}`, today, null]),
+    [`${SITE}/faq`, today, null],
     // Extensionless: Cloudflare Pages serves these at /privacy and 308s /privacy.html to it,
     // so listing the .html form pointed the sitemap at a redirect.
-    [`${SITE}/shipping`, today],
-    [`${SITE}/privacy`, today],
-    [`${SITE}/terms`, today],
+    [`${SITE}/shipping`, LEGAL_LASTMOD, null],
+    [`${SITE}/privacy`, LEGAL_LASTMOD, null],
+    [`${SITE}/terms`, LEGAL_LASTMOD, null],
   ];
+  const renderUrl = ([u, mod, img]) => {
+    const image = img
+      ? `\n    <image:image>\n      <image:loc>${esc(img)}</image:loc>\n    </image:image>`
+      : '';
+    return `  <url>\n    <loc>${u}</loc>\n    <lastmod>${mod}</lastmod>${image}\n  </url>`;
+  };
   return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map(([u, mod]) => `  <url>\n    <loc>${u}</loc>\n    <lastmod>${mod}</lastmod>\n  </url>`).join('\n')}
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${urls.map(renderUrl).join('\n')}
 </urlset>
 `;
 }
@@ -359,6 +449,46 @@ prepaid and include 15-minute video consultations with a roaster, roastery tour 
 table seats and, at the top tier, a place on the annual estate visit in the Western Ghats.
 Bookable experiences are a 15-minute barista teleconsultation, a roastery tour, a cupping session
 and a three-day estate tour in Chikmagalur. See ${SITE}/#subscription-plans and ${SITE}/#experiences.
+`;
+}
+
+/**
+ * Image sitemap, written to dist/image-sitemap.xml by the orchestrator. Sits beside the regular
+ * sitemap as a dedicated feed for Google Images; same products, but every entry carries the
+ * product photo with title and caption so the image can be surfaced from the feed alone, with
+ * no further crawl. Products without an image_url are skipped — a URL with no image block is
+ * a malformed entry, and Google treats malformed entries as soft errors against the whole file.
+ *
+ * Owned by this module because it consumes the same product shape that the other page
+ * functions do; the regular `sitemap` function above is left alone.
+ *
+ * @param {Array} products — the same array passed to productPage / indexPage
+ * @returns {string} an XML document conforming to the image-sitemap extension
+ */
+export function imageSitemap(products) {
+  const entries = products
+    .filter((p) => p && p.slug && p.image_url)
+    .map((p) => {
+      const pageUrl = `${SITE}/coffee/${esc(p.slug)}`;
+      const imgUrl = esc(p.image_url);
+      // Title is the product name; caption repeats the tagline so the image gets context even
+      // if the surrounding page is never fetched. Falls back to description if no tagline.
+      const caption = p.tagline || p.description || p.name;
+      return `  <url>
+    <loc>${pageUrl}</loc>
+    <image:image>
+      <image:loc>${imgUrl}</image:loc>
+      <image:title>${esc(p.name)}</image:title>
+      <image:caption>${esc(caption)}</image:caption>
+    </image:image>
+  </url>`;
+    })
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${entries}
+</urlset>
 `;
 }
 
