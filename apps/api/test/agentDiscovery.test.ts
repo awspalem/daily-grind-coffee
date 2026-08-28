@@ -10,9 +10,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Hono } from 'hono';
-import { agentDiscoveryApp, mcpWellKnownApp } from './agentDiscovery';
-import { PUBLIC_AGENT_TOOLS } from '../services/agentToolSchema';
-import type { Env } from '../types/env';
+import { agentDiscoveryApp, mcpWellKnownApp } from '../src/routes/agentDiscovery';
+import { PUBLIC_AGENT_TOOLS } from '../src/services/agentToolSchema';
+import type { Env } from '../src/types/env';
 
 const envFor = (): Env => ({
   DB: {} as any,
