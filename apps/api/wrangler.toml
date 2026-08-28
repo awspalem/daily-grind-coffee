@@ -39,6 +39,15 @@ ACCESS_AUD = ""
 #
 # RESEND_FROM_EMAIL is set below as a plain var, not a secret — it's just a display address
 # (resend.com/domains confirmed dailyroast.in as a verified sending domain), not a credential.
+#
+# Web Push (services/webPush.ts). All three must be set for pushes to go out; missing any one
+# makes the push sender a logged no-op (same behaviour as RESEND_API_KEY being absent).
+#   VAPID_PUBLIC_KEY  — base64url P-256 public point. Plain var (it's public; also served by
+#                       GET /api/customer/push/vapid-key). Add to [env.production.vars].
+#   VAPID_PRIVATE_JWK — the matching private key as a JWK JSON string. Secret:
+#                       `wrangler secret put VAPID_PRIVATE_JWK` (and `--env production`).
+#   VAPID_SUBJECT     — "mailto:ops@dailyroast.in". Plain var.
+# Generate a keypair once — see the header comment in apps/api/src/services/webPush.ts.
 
 # Cloudflare D1 Database Binding
 [[d1_databases]]

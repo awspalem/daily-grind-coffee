@@ -166,6 +166,53 @@ export function generateAbandonedCartEmail(params: {
   };
 }
 
+export function generateBackInStockEmail(params: {
+  customerEmail: string;
+  productName: string;
+  variantLabel: string;
+  productUrl: string;
+}): EmailPayload {
+  const { customerEmail, productName, variantLabel, productUrl } = params;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8" /><title>${productName} is back</title></head>
+    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fcf9f5; margin: 0; padding: 24px;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #ede5dc; padding: 36px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+        <div style="text-align: center; border-bottom: 2px solid #d4883b; padding-bottom: 20px; margin-bottom: 24px;">
+          <h1 style="color: #1c1512; margin: 0; font-size: 24px; letter-spacing: 1px;">☕ THE DAILY ROAST</h1>
+          <p style="color: #8c7e72; font-size: 12px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 2px;">Small Batch Specialty Roastery</p>
+        </div>
+
+        <h2 style="color: #1c1512; font-size: 20px;">${productName} is back in stock</h2>
+        <p style="color: #554a41; line-height: 1.6; font-size: 15px;">
+          You asked us to let you know when <strong>${productName}</strong> (${variantLabel}) was available
+          again. It has just been restocked — small batches move quickly, so don't wait too long.
+        </p>
+
+        <div style="text-align: center; margin-top: 28px;">
+          <a href="${productUrl}" style="background: #1c1512; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">
+            View ${productName}
+          </a>
+        </div>
+
+        <p style="color: #8c7e72; font-size: 12px; margin-top: 24px;">
+          You're receiving this because you joined the back-in-stock list for this coffee. It's a
+          one-off — we won't email you about it again unless you ask.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return {
+    to: customerEmail,
+    subject: `☕ ${productName} is back in stock — The Daily Roast`,
+    html,
+  };
+}
+
 export function generateReviewRequestEmail(params: {
   customerEmail: string;
   orderNumber: string;

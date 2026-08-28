@@ -21,6 +21,7 @@ import {
   processPrepaidShipments,
   sendUpcomingRenewalNotices,
 } from './subscriptionPlans';
+import { notifyBackInStock } from './notifications';
 import { WorkersAIService } from './workersAI';
 
 const EMBEDDING_BATCH_SIZE = 25;
@@ -61,9 +62,15 @@ export async function runHourlyMaintenance(env: Env): Promise<MaintenanceReport>
     { confirmed: 0, released: 0 }
   );
 
-  // T-24h and T-1h both fall out of a 24-hour horizon scanned hourly; sendDueReminders keys each
-  // send so a booking is never reminded twice for the same milestone.
-  const remindersSent = await guard('BOOKING_REMINDERS', () => sendDueReminders(env, 24), 0);
+  // Two independent reminder milestones, each with its own stamp column so a booking made inside
+  // the 1h window still gets an hour-before ping even though its 24h slot has passed.
+  const reminders24 = await guard('BOOKING_REMINDERS_24H', () => sendDueReminders(env, { milestone: '24h' }), 0);
+  const reminders1 = await guard('BOOKING_REMINDERS_1H', () => sendDueReminders(env, { milestone: '1h' }), 0);
+  const remindersSent = reminders24 + reminders1;
+
+  // Back-in-stock: email everyone waiting on a variant that has crossed back above zero.
+  // Idempotent — each row is stamped once sent, so re-running the sweep is a cheap no-op.
+  await guard('BACK_IN_STOCK', () => notifyBackInStock(env), 0);
 
   // Grants expire on their own schedule rather than lazily, because a lapsed grant must stop
   // funding bookings the moment it lapses — not the next time its owner happens to log in.

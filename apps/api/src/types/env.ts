@@ -20,6 +20,13 @@ export interface Env {
   GROQ_MODEL?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
+  /**
+   * Web Push (VAPID). All three must be set for pushes to go out; missing any one makes the
+   * push sender a logged no-op. See services/webPush.ts for how to generate a keypair.
+   */
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_JWK?: string;
+  VAPID_SUBJECT?: string;
   ADMIN_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;
   SHIPROCKET_EMAIL?: string;

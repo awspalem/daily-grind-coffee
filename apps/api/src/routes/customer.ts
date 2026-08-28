@@ -9,6 +9,7 @@ import {
   SESSION_EXPIRED,
   UNAUTHENTICATED,
 } from '../middleware/customerAuth';
+import { getConsentMap, setConsent, OPTIONAL_CHANNELS } from '../services/notifications';
 
 const LOGIN_CODE_TTL_MS = 10 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -317,6 +318,102 @@ customerApp.post('/newsletter/subscribe', async (c) => {
     ON CONFLICT(email) DO UPDATE SET status = 'SUBSCRIBED', updated_at = CURRENT_TIMESTAMP
   `).bind(id, email).run();
 
+  return c.json({ success: true });
+});
+
+// ---------------------------------------------------------------------------
+// Notification preferences (optional channels only — transactional mail ignores these)
+// ---------------------------------------------------------------------------
+
+// GET /api/customer/notifications — the customer's per-channel opt-in map, defaults filled in.
+customerApp.get('/notifications', async (c) => {
+  const lookup = await lookupCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
+  if (lookup.kind === 'expired') return c.json(SESSION_EXPIRED, 401);
+  if (lookup.kind !== 'ok') return c.json(UNAUTHENTICATED, 401);
+
+  const preferences = await getConsentMap(c.env, lookup.session.customerId);
+  return c.json({ success: true, channels: OPTIONAL_CHANNELS, preferences });
+});
+
+// PUT /api/customer/notifications — update one or more channel preferences.
+// Body: { preferences: { marketing_email?: boolean, ... } }.
+customerApp.put('/notifications', async (c) => {
+  const lookup = await lookupCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
+  if (lookup.kind === 'expired') return c.json(SESSION_EXPIRED, 401);
+  if (lookup.kind !== 'ok') return c.json(UNAUTHENTICATED, 401);
+
+  const body = await c.req.json<{ preferences?: Record<string, unknown> }>().catch(() => ({} as any));
+  const prefs = body.preferences;
+  if (!prefs || typeof prefs !== 'object') {
+    return c.json({ success: false, error: 'preferences object is required' }, 400);
+  }
+
+  let applied = 0;
+  for (const [channel, value] of Object.entries(prefs)) {
+    if (typeof value !== 'boolean') continue;
+    if (await setConsent(c.env, lookup.session.customerId, channel, value)) applied++;
+  }
+
+  const preferences = await getConsentMap(c.env, lookup.session.customerId);
+  return c.json({ success: true, applied, preferences });
+});
+
+// ---------------------------------------------------------------------------
+// Web Push subscriptions
+// ---------------------------------------------------------------------------
+
+// GET /api/customer/push/vapid-key — the applicationServerKey the browser needs to subscribe.
+// Public: it's a public key, and the SW needs it before the customer is necessarily logged in.
+customerApp.get('/push/vapid-key', async (c) => {
+  const key = c.env.VAPID_PUBLIC_KEY;
+  if (!key) return c.json({ success: false, error: 'Push not configured' }, 503);
+  return c.json({ success: true, vapid_public_key: key });
+});
+
+// POST /api/customer/push/subscribe — register a PushSubscription for the logged-in customer.
+// Body: { subscription: { endpoint, keys: { p256dh, auth } } } (the shape PushSubscription.toJSON gives).
+customerApp.post('/push/subscribe', async (c) => {
+  const lookup = await lookupCustomerSession(c.env.DB, c.req.header('X-Customer-Session'));
+  if (lookup.kind === 'expired') return c.json(SESSION_EXPIRED, 401);
+  if (lookup.kind !== 'ok') return c.json(UNAUTHENTICATED, 401);
+
+  const body = await c.req.json<{ subscription?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } } }>().catch(() => ({} as any));
+  const sub = body.subscription;
+  if (!sub?.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
+    return c.json({ success: false, error: 'A subscription with endpoint and keys is required' }, 400);
+  }
+
+  const id = 'push_' + crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  // endpoint is UNIQUE: the same browser re-subscribing re-points the row at the current customer
+  // and resets the failure counter.
+  await c.env.DB.prepare(`
+    INSERT INTO push_subscriptions (id, customer_id, endpoint, p256dh, auth, user_agent)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(endpoint) DO UPDATE SET
+      customer_id = excluded.customer_id,
+      p256dh = excluded.p256dh,
+      auth = excluded.auth,
+      user_agent = excluded.user_agent,
+      failure_count = 0,
+      last_seen_at = CURRENT_TIMESTAMP
+  `).bind(
+    id,
+    lookup.session.customerId,
+    sub.endpoint,
+    sub.keys.p256dh,
+    sub.keys.auth,
+    c.req.header('User-Agent') || null
+  ).run();
+
+  return c.json({ success: true });
+});
+
+// POST /api/customer/push/unsubscribe — drop a subscription by endpoint. No auth required: the
+// endpoint is the secret, and a browser that has revoked permission may no longer have a session.
+customerApp.post('/push/unsubscribe', async (c) => {
+  const body = await c.req.json<{ endpoint?: string }>().catch(() => ({} as any));
+  if (!body.endpoint) return c.json({ success: false, error: 'endpoint is required' }, 400);
+  await c.env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(body.endpoint).run();
   return c.json({ success: true });
 });
 

@@ -69,7 +69,7 @@ All four requested experiences are the same object with different `mode` / `loca
 | 5.1 | **Experience catalog** — `experiences` (type, mode `VIDEO`/`ONSITE`, duration, capacity, price, deposit, cancellation policy). | Covers: 15-min barista teleconsultation, roastery tour, cupping session, estate tour & visit. |
 | 5.2 | **Slots & capacity** — `experience_slots` with start/end, seats total/booked, blackout dates, staff assignment; admin CRUD. | Prevents double-booking the same way `inventory_movements` prevents oversell. |
 | 5.3 | **Booking flow** — `bookings` with hold → confirm, paid **or** entitlement-funded (consumes a Phase 4.2 grant), waitlist when full. | The annual-subscription teleconsult is the entitlement-funded path. |
-| 5.4 | **Confirmations & reminders** — booking email, `.ics` calendar attachment, T-24h and T-1h reminders via the existing Queue, video-room link for `VIDEO` mode. | Reuses `Queues` + Resend. |
+| 5.4 | **Confirmations & reminders** — booking email, `.ics` calendar attachment, T-24h and T-1h reminders via the existing Queue, video-room link for `VIDEO` mode. | Done: confirmation/reschedule/cancel email, `.ics` via `calendar.ics` link, and **both** T-24h and T-1h reminders (own stamp columns, `reminder_1h_sent_at` in 0030) on the hourly cron. Video-room link renders when `meeting_url` is set. |
 | 5.5 | **Reschedule / cancel / no-show** — self-serve within policy, refund or entitlement restoration, no-show marking. | — |
 | 5.6 | **Multi-day estate visit specifics** — deposit, party size, dietary/accessibility notes, itinerary page. | Estate visit is not a 1-hour slot; needs date-range handling. |
 
@@ -78,7 +78,7 @@ All four requested experiences are the same object with different `mode` / `loca
 | # | Gap | Notes |
 | - | --- | --- |
 | 6.1 | **Batch traceability page** — QR on the bag → roast date, origin, altitude, cupping score, roaster's note. | `roast_batches` table already exists and is unused customer-side. |
-| 6.2 | **Back-in-stock & limited-edition drop alerts** — waitlist + notify. | `limited_editions` table exists. |
+| 6.2 | **Back-in-stock & limited-edition drop alerts** — waitlist + notify. | ~~Partial~~: back-in-stock done — `stock_notifications` (0030), `POST /api/products/notify-me`, hourly `notifyBackInStock` sweep (email + push). Limited-edition drop alerts still open. |
 | 6.3 | **Wishlist / saved items.** | — |
 | 6.4 | **Gifting** — gift a bag or a subscription, gift note, scheduled delivery, gift cards. | — |
 | 6.5 | **Replenishment & win-back automation** — "you're about 3 days from running out" based on 1.1 cadence. | `0008_marketing_automation.sql` is the hook. |
@@ -86,9 +86,9 @@ All four requested experiences are the same object with different `mode` / `loca
 | 6.7 | **Reviews upgrade** — photo uploads (R2), verified-purchase badge, points for reviewing. | `reviews` exists; no media, no incentive. |
 | 6.8 | **B2B / wholesale & corporate gifting** — tiered bulk pricing, PO/GST-billed accounts, café subscriptions. | — |
 | 6.9 | **Catalog search, filter & compare** — by origin, roast level, process, tasting note, price. | — |
-| 6.10 | **Notification & consent centre** — per-channel opt-in incl. WhatsApp (India-appropriate), unsubscribe compliance. | `communication_channels` exists, unused. |
+| 6.10 | **Notification & consent centre** — per-channel opt-in incl. WhatsApp (India-appropriate), unsubscribe compliance. | ~~Partial~~: per-channel consent done — `customer_channel_consent` (0030), `GET`/`PUT /api/customer/notifications`, enforced at optional-send call sites (never on transactional mail). Storefront settings UI and WhatsApp channel still open. |
 | 6.11 | **Brew-guide personalisation** — guides tuned to the customer's kit and the specific bag they bought. | `brewing_guides` exists, static. |
-| 6.12 | **Customer-facing subscription & booking notifications in the PWA** — push via the existing service worker. | `public/sw.js` present in both apps. |
+| 6.12 | **Customer-facing subscription & booking notifications in the PWA** — push via the existing service worker. | ~~Partial~~: Web Push plumbing done — VAPID sender (`services/webPush.ts`), `push_subscriptions` (0030), subscribe/unsubscribe + vapid-key routes, `sw.js` `push`/`notificationclick` handlers, storefront auto-subscribe when permission already granted. Remaining: RFC 8291 payload encryption (pushes are payload-free today), an explicit opt-in prompt/toggle, and wiring subscription/booking events to `pushToCustomer`. |
 
 ---
 

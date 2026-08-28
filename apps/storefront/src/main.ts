@@ -424,6 +424,8 @@ class StorefrontApp {
     this.handleOrderConfirmationDeepLink();
     this.handleResumeOrderDeepLink();
     this.handleReviewProductDeepLink();
+    this.handleProductDeepLink();
+    this.syncPushSubscription();
     void this.hydrateChatHistory();
     await this.loadCatalog();
   }
@@ -803,9 +805,13 @@ class StorefrontApp {
                 ${isSub ? `<span class="price-discount-tag">-10% CLUB</span>` : ''}
                 <small>/ ${defaultVariant.weight_grams}g</small>
               </div>
-              <button class="btn-add-cart" data-action="add-to-cart" data-prod-id="${prod.id}" ${isProductSoldOut ? 'disabled' : ''}>
-                <span>${isProductSoldOut ? 'Sold Out' : 'Add to Cart'}</span>
-              </button>
+              ${isProductSoldOut
+                ? `<button class="btn-add-cart" data-action="notify-restock" data-variant-id="${defaultVariant.id}" data-prod-name="${this.escapeHtml(prod.name)}">
+                     <span>Notify me when back</span>
+                   </button>`
+                : `<button class="btn-add-cart" data-action="add-to-cart" data-prod-id="${prod.id}">
+                     <span>Add to Cart</span>
+                   </button>`}
             </div>
           </div>
         </article>
@@ -946,6 +952,48 @@ class StorefrontApp {
           target.innerHTML = '<span>Add to Cart</span>';
           target.style.background = 'var(--accent-terracotta)';
         }, 1200);
+      });
+    });
+
+    // Back-in-stock waitlist — the sold-out card's CTA (POST /api/products/notify-me).
+    document.querySelectorAll('[data-action="notify-restock"]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const target = e.currentTarget as HTMLElement;
+        const variantId = target.getAttribute('data-variant-id');
+        const prodName = target.getAttribute('data-prod-name') || 'this coffee';
+        if (!variantId) return;
+
+        let email = this.customerEmail || '';
+        if (!email) {
+          email = (window.prompt(`Email us when ${prodName} is back in stock:`) || '').trim();
+          if (!email || !email.includes('@')) return;
+        }
+
+        target.setAttribute('disabled', 'true');
+        try {
+          const res = await fetch(`${API_BASE}/api/products/notify-me`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(this.customerSessionToken ? { 'X-Customer-Session': this.customerSessionToken } : {}),
+            },
+            body: JSON.stringify({ variant_id: variantId, email }),
+          });
+          const data = await res.json() as { success: boolean; in_stock?: boolean };
+          if (data.success && data.in_stock) {
+            target.innerHTML = '<span>Back in stock — refresh</span>';
+          } else if (data.success) {
+            target.innerHTML = '<span>✓ We\'ll email you</span>';
+            target.style.background = 'var(--accent-emerald)';
+            this.announce(`You'll be emailed when ${prodName} is back in stock.`);
+          } else {
+            target.innerHTML = '<span>Try again</span>';
+            target.removeAttribute('disabled');
+          }
+        } catch {
+          target.innerHTML = '<span>Try again</span>';
+          target.removeAttribute('disabled');
+        }
       });
     });
 
@@ -1972,6 +2020,7 @@ class StorefrontApp {
           localStorage.setItem('tdg_customer_email', resolvedEmail);
           codeInput.value = '';
           this.renderAccountModalState();
+          this.syncPushSubscription();
         } else if (statusEl) {
           statusEl.textContent = data.error || 'Invalid or expired code';
           statusEl.style.color = 'var(--accent-terracotta)';
@@ -2266,6 +2315,81 @@ class StorefrontApp {
     } catch {
       // Resume failed silently — shopper can still shop normally, nothing to recover from here
     }
+  }
+
+  // Scrolls to and highlights a specific product when a shopper follows a back-in-stock email's
+  // "View this coffee" link (?product=<id-or-slug>). The catalog renders asynchronously, so this
+  // resolves the id first, then polls briefly for the card to appear.
+  private async handleProductDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('product');
+    if (!ref) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/products/${encodeURIComponent(ref)}`);
+      const data = await res.json() as { success: boolean; product?: { id: string } };
+      if (!data.success || !data.product) return;
+      const id = data.product.id;
+
+      document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+      let tries = 0;
+      const timer = setInterval(() => {
+        const card = document.querySelector(`.product-card[data-product-id="${id}"]`) as HTMLElement | null;
+        if (card) {
+          clearInterval(timer);
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.classList.add('wheel-match');
+          setTimeout(() => card.classList.remove('wheel-match'), 4000);
+        } else if (++tries > 20) {
+          clearInterval(timer);
+        }
+      }, 250);
+    } catch {
+      // Unknown product ref — leave the shopper on the landing page.
+    }
+  }
+
+  /**
+   * Registers this browser for Web Push, but only when the customer has already granted
+   * notification permission — we never prompt unsolicited. Called after login and on startup for
+   * an already-logged-in visitor, so a fresh device that was granted permission elsewhere gets
+   * its subscription re-registered. Silently does nothing when unsupported, not permitted, or
+   * push is not configured server-side (the VAPID key endpoint returns 503).
+   */
+  async syncPushSubscription() {
+    try {
+      if (!this.customerSessionToken) return;
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      if (Notification.permission !== 'granted') return;
+
+      const keyRes = await fetch(`${API_BASE}/api/customer/push/vapid-key`);
+      if (!keyRes.ok) return;
+      const { vapid_public_key } = await keyRes.json() as { vapid_public_key: string };
+
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      const sub = existing || await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: this.urlBase64ToArrayBuffer(vapid_public_key),
+      });
+
+      await fetch(`${API_BASE}/api/customer/push/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Customer-Session': this.customerSessionToken },
+        body: JSON.stringify({ subscription: sub.toJSON() }),
+      });
+    } catch {
+      // Push is a progressive enhancement — a failure here never blocks anything.
+    }
+  }
+
+  private urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
+    const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+    const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'));
+    const buf = new ArrayBuffer(raw.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
+    return buf;
   }
 
   // Opens the reviews modal for a specific product when a shopper clicks a review-request

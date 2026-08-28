@@ -617,13 +617,13 @@ adminRoutes.delete('/blackouts/:id', async (c) => {
  * trigger hitting this URL, or an operator) until that wiring lands.
  */
 adminRoutes.post('/maintenance/run', async (c) => {
-  const horizon = Number(c.req.query('reminderHours')) || 24;
-
-  const [remindersSent, holdsExpired, payments] = await Promise.all([
-    sendDueReminders(c.env, horizon),
+  const [reminders24, reminders1, holdsExpired, payments] = await Promise.all([
+    sendDueReminders(c.env, { milestone: '24h' }),
+    sendDueReminders(c.env, { milestone: '1h' }),
     expireStaleHolds(c.env),
     reconcilePendingPayments(c.env),
   ]);
+  const remindersSent = reminders24 + reminders1;
 
   return c.json({
     success: true,

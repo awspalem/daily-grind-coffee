@@ -846,7 +846,7 @@ export async function rescheduleBooking(
   const moveBooking = db.prepare(`
     UPDATE bookings
     SET slot_id = ?, rescheduled_from_slot_id = ?, reschedule_count = reschedule_count + 1,
-        reminder_sent_at = NULL, updated_at = CURRENT_TIMESTAMP
+        reminder_sent_at = NULL, reminder_1h_sent_at = NULL, updated_at = CURRENT_TIMESTAMP
     WHERE id = ? AND slot_id = ?
       AND EXISTS (
         SELECT 1 FROM experience_slots s
@@ -1097,18 +1097,29 @@ export function generateBookingConfirmationEmail(
   };
 }
 
-export function generateBookingReminderEmail(booking: BookingDetailRow, apiBase: string): EmailPayload {
+export function generateBookingReminderEmail(
+  booking: BookingDetailRow,
+  apiBase: string,
+  milestone: '24h' | '1h' = '24h'
+): EmailPayload {
   const isVideo = booking.mode === 'VIDEO';
+  const soon = milestone === '1h';
+  const heading = soon
+    ? `Starting soon, ${escHtml(booking.customer_name || 'Coffee Lover')}`
+    : `See you tomorrow, ${escHtml(booking.customer_name || 'Coffee Lover')}`;
+  const line = soon
+    ? (isVideo
+        ? 'Your call starts in about an hour. Open the link below a few minutes early and check your camera and mic.'
+        : 'Your visit is in about an hour. Give yourself time to find us — we start on the hour.')
+    : (isVideo
+        ? 'A quick reminder about your call tomorrow. Test your camera and mic beforehand if you can, and have your kit set up.'
+        : 'A quick reminder about your visit tomorrow. Come a few minutes early — we start on time and the first pour waits for nobody.');
   return {
     to: booking.customer_email,
-    subject: `Tomorrow: ${booking.experience_name} · ${booking.booking_reference}`,
+    subject: `${soon ? 'Starting soon' : 'Tomorrow'}: ${booking.experience_name} · ${booking.booking_reference}`,
     html: shell(`
-      <h2 style="color: #1c1512; font-size: 20px; margin-top: 0;">See you tomorrow, ${escHtml(booking.customer_name || 'Coffee Lover')}</h2>
-      <p style="color: #554a41; line-height: 1.6; font-size: 15px;">
-        ${isVideo
-          ? 'A quick reminder about your call tomorrow. Test your camera and mic beforehand if you can, and have your kit set up.'
-          : 'A quick reminder about your visit tomorrow. Come a few minutes early — we start on time and the first pour waits for nobody.'}
-      </p>
+      <h2 style="color: #1c1512; font-size: 20px; margin-top: 0;">${heading}</h2>
+      <p style="color: #554a41; line-height: 1.6; font-size: 15px;">${line}</p>
       <h3 style="color: #1c1512; font-size: 17px; margin-bottom: 0;">${escHtml(booking.experience_name)}</h3>
       ${detailsTable(booking, apiBase)}
       <p style="color: #8c7e72; font-size: 12px; margin-top: 24px;">All times shown are India Standard Time (Asia/Kolkata).</p>
@@ -1214,15 +1225,30 @@ async function sendCancellationEmail(
 // ---------------------------------------------------------------------------
 
 /**
- * T-24h reminders. `horizonHours` is a parameter rather than a constant so the roadmap's second
- * reminder (T-1h) is a caller change and not a rewrite of this function.
+ * Booking reminders. Two independent milestones, each with its own stamp column so one firing
+ * never suppresses the other:
+ *
+ *   '24h' — the day-before nudge. Horizon 24h, stamped on `reminder_sent_at`.
+ *   '1h'  — the hour-before nudge (VIDEO calls especially). Horizon 1h, stamped on
+ *           `reminder_1h_sent_at`.
+ *
+ * The hourly cron calls this once per milestone. A booking inside the 1h window has usually
+ * already had its 24h reminder; if it was booked late it gets both in quick succession, which
+ * is the right behaviour — a booking made 40 minutes out still wants an hour-before-style ping.
  */
-export async function sendDueReminders(env: Env, horizonHours = 24): Promise<number> {
-  const cutoff = isoIn(horizonHours * 3600_000);
+export async function sendDueReminders(
+  env: Env,
+  opts: { milestone?: '24h' | '1h' } = {}
+): Promise<number> {
+  const milestone = opts.milestone ?? '24h';
+  const horizonMs = milestone === '1h' ? 3600_000 : 24 * 3600_000;
+  const stampColumn = milestone === '1h' ? 'reminder_1h_sent_at' : 'reminder_sent_at';
+  const cutoff = isoIn(horizonMs);
+
   const { results } = await env.DB.prepare(`
     ${BOOKING_DETAIL_SQL}
     WHERE b.status = 'CONFIRMED'
-      AND b.reminder_sent_at IS NULL
+      AND b.${stampColumn} IS NULL
       AND s.starts_at > ?
       AND s.starts_at <= ?
       AND s.status = 'OPEN'
@@ -1231,12 +1257,12 @@ export async function sendDueReminders(env: Env, horizonHours = 24): Promise<num
 
   let sent = 0;
   for (const booking of results || []) {
-    const payload = generateBookingReminderEmail(booking, apiBaseFor(env));
+    const payload = generateBookingReminderEmail(booking, apiBaseFor(env), milestone);
     const res = await mailer(env).send(payload.to, payload.subject, payload.html);
     if (!res.success) continue;
     // Stamped only on a successful send, so a Resend outage retries on the next pass rather than
     // silently swallowing the reminder.
-    await env.DB.prepare('UPDATE bookings SET reminder_sent_at = CURRENT_TIMESTAMP WHERE id = ?')
+    await env.DB.prepare(`UPDATE bookings SET ${stampColumn} = CURRENT_TIMESTAMP WHERE id = ?`)
       .bind(booking.id).run();
     sent++;
   }

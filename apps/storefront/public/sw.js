@@ -123,3 +123,42 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Web Push (register 6.12). The API sends VAPID-authenticated pushes; a payload is only shown
+// when one is present and readable (the current sender is payload-free — RFC 8291 payload
+// encryption is the remaining piece — so most pushes fall through to the default copy and the
+// site's own in-app list is the source of detail).
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    if (event.data) data = event.data.json();
+  } catch (_) {
+    data = { body: event.data && event.data.text ? event.data.text() : '' };
+  }
+
+  const title = data.title || 'The Daily Roast';
+  const options = {
+    body: data.body || 'You have a new update — tap to open the roastery.',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    data: { url: data.url || '/' },
+    tag: data.tag || 'daily-roast',
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ('focus' in client) {
+          client.navigate(target).catch(() => {});
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});
