@@ -9,6 +9,7 @@ import { ordersApp } from './routes/orders';
 import { webhooksApp } from './routes/webhooks';
 import { adminApp } from './routes/admin';
 import { agentApp } from './routes/agent';
+import { agentDiscoveryApp, mcpWellKnownApp } from './routes/agentDiscovery';
 import { adminAgentApp } from './routes/adminAgent';
 import { analyticsApp } from './routes/analytics';
 import { mcpApp } from './routes/mcp';
@@ -72,6 +73,10 @@ app.route('/api/webhooks', webhooksApp);
 app.route('/api/admin', adminApp);
 app.route('/api/admin/agent', adminAgentApp);
 app.route('/api/agent', agentApp);
+app.route('/api/agent', agentDiscoveryApp);
+// MCP server card is published under /.well-known so MCP clients probing the root get
+// it the way SEP-1649 / SEP-1960 specify (the spec path is the host root, not under /api).
+app.route('/', mcpWellKnownApp);
 app.route('/api/analytics', analyticsApp);
 app.route('/api/mcp', mcpApp);
 app.route('/api/media', mediaApp);
