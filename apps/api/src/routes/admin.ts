@@ -1174,7 +1174,7 @@ adminApp.delete('/reviews/:id', async (c) => {
 
   await recordAuditLog(
     c.env.DB,
-    actor || { id: 'admin', email: 'admin@dailyroast.in' },
+    actor,
     'DELETE_REVIEW',
     'reviews',
     reviewId,
@@ -1183,6 +1183,287 @@ adminApp.delete('/reviews/:id', async (c) => {
     c.req.header('CF-Connecting-IP')
   );
 
+  return c.json({ success: true });
+});
+
+// ==================== Sourcing Scanner & Harvest Calendar ====================
+//
+// Three endpoints back the admin Sourcing view:
+//   GET  /api/admin/sourcing/lots        — all green-bean lots + product link
+//   POST /api/admin/sourcing/lots        — create a new lot (PROBED by default)
+//   PATCH /api/admin/sourcing/lots/:id   — update status / dates / link
+//   DELETE /api/admin/sourcing/lots/:id  — remove a lot
+//   GET  /api/admin/sourcing/seasons     — harvest calendar entries
+//   POST /api/admin/sourcing/seasons     — add a season window (idempotent upsert)
+//   DELETE /api/admin/sourcing/seasons/:id
+//
+// Sourcing is a planning layer above the catalog, so the API deliberately does
+// not touch the inventory ledger. Linking a lot to a product is informational —
+// the operator records the roasts via the existing /api/admin/roast-batch flow.
+
+const SOURCING_LOT_STATUSES = ['PROBED', 'IN_TRANSIT', 'CLEARED', 'IN_SILO', 'ROASTED', 'CANCELLED'];
+
+const SOURCING_LOT_COLUMNS = `
+  id, lot_code, supplier_name, origin_country, region, process_method, variety,
+  altitude_meters, green_kg_ordered, green_kg_received,
+  contract_price_cents_per_kg, currency,
+  contract_date, expected_eta, landed_at, status, product_id, notes,
+  created_at, updated_at
+`;
+
+adminApp.get('/sourcing/lots', async (c) => {
+  const { results: lots } = await c.env.DB.prepare(`
+    SELECT ${SOURCING_LOT_COLUMNS},
+           p.name as product_name,
+           p.slug as product_slug
+    FROM sourcing_lots s
+    LEFT JOIN products p ON s.product_id = p.id
+    ORDER BY
+      CASE s.status
+        WHEN 'IN_TRANSIT' THEN 0
+        WHEN 'CLEARED'    THEN 1
+        WHEN 'IN_SILO'    THEN 2
+        WHEN 'PROBED'     THEN 3
+        WHEN 'ROASTED'    THEN 4
+        WHEN 'CANCELLED'  THEN 5
+      END,
+      COALESCE(s.expected_eta, s.contract_date, s.created_at) ASC
+  `).all();
+  return c.json({ success: true, lots: lots || [] });
+});
+
+adminApp.post('/sourcing/lots', async (c) => {
+  const actor = c.get('adminActor');
+  const body = await c.req.json<{
+    lot_code: string;
+    supplier_name: string;
+    origin_country: string;
+    region?: string;
+    process_method?: string;
+    variety?: string;
+    altitude_meters?: number;
+    green_kg_ordered?: number;
+    green_kg_received?: number;
+    contract_price_cents_per_kg?: number;
+    currency?: string;
+    contract_date?: string;
+    expected_eta?: string;
+    landed_at?: string;
+    status?: string;
+    product_id?: string;
+    notes?: string;
+  }>();
+
+  if (!body.lot_code || !body.supplier_name || !body.origin_country) {
+    return c.json({ success: false, error: 'lot_code, supplier_name and origin_country are required' }, 400);
+  }
+  if (body.status && !SOURCING_LOT_STATUSES.includes(body.status)) {
+    return c.json({ success: false, error: `status must be one of ${SOURCING_LOT_STATUSES.join(', ')}` }, 400);
+  }
+
+  const id = 'src_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+
+  await c.env.DB.prepare(`
+    INSERT INTO sourcing_lots (
+      id, lot_code, supplier_name, origin_country, region, process_method, variety, altitude_meters,
+      green_kg_ordered, green_kg_received, contract_price_cents_per_kg, currency,
+      contract_date, expected_eta, landed_at, status, product_id, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    id, body.lot_code.trim(), body.supplier_name.trim(), body.origin_country.trim(),
+    body.region || null, body.process_method || null, body.variety || null,
+    body.altitude_meters ?? null,
+    Number(body.green_kg_ordered) || 0, Number(body.green_kg_received) || 0,
+    body.contract_price_cents_per_kg ?? null, body.currency || 'usd',
+    body.contract_date || null, body.expected_eta || null, body.landed_at || null,
+    body.status || 'PROBED', body.product_id || null, body.notes || null
+  ).run();
+
+  await recordAuditLog(
+    c.env.DB,
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
+    'CREATE_SOURCING_LOT',
+    'sourcing_lots',
+    id,
+    null,
+    { lot_code: body.lot_code, supplier: body.supplier_name, origin: body.origin_country },
+    c.req.header('CF-Connecting-IP')
+  );
+
+  return c.json({ success: true, lot_id: id });
+});
+
+adminApp.patch('/sourcing/lots/:id', async (c) => {
+  const actor = c.get('adminActor');
+  const lotId = c.req.param('id');
+  const body = await c.req.json<Record<string, unknown>>();
+
+  const current = await c.env.DB.prepare('SELECT * FROM sourcing_lots WHERE id = ?').bind(lotId).first<any>();
+  if (!current) {
+    return c.json({ success: false, error: 'Sourcing lot not found' }, 404);
+  }
+  if (body.status && !SOURCING_LOT_STATUSES.includes(String(body.status))) {
+    return c.json({ success: false, error: `status must be one of ${SOURCING_LOT_STATUSES.join(', ')}` }, 400);
+  }
+
+  // Whitelist updatable columns — prevents callers from rewriting id/timestamps
+  // and keeps the audit log's old_value diff small.
+  const UPDATABLE: Record<string, string> = {
+    lot_code: 'lot_code',
+    supplier_name: 'supplier_name',
+    origin_country: 'origin_country',
+    region: 'region',
+    process_method: 'process_method',
+    variety: 'variety',
+    altitude_meters: 'altitude_meters',
+    green_kg_ordered: 'green_kg_ordered',
+    green_kg_received: 'green_kg_received',
+    contract_price_cents_per_kg: 'contract_price_cents_per_kg',
+    currency: 'currency',
+    contract_date: 'contract_date',
+    expected_eta: 'expected_eta',
+    landed_at: 'landed_at',
+    status: 'status',
+    product_id: 'product_id',
+    notes: 'notes',
+  };
+
+  const sets: string[] = [];
+  const binds: unknown[] = [];
+  const changed: Record<string, unknown> = {};
+  for (const [key, col] of Object.entries(UPDATABLE)) {
+    if (body[key] === undefined) continue;
+    sets.push(`${col} = ?`);
+    binds.push(body[key] === '' ? null : body[key]);
+    changed[key] = body[key];
+  }
+  if (sets.length === 0) {
+    return c.json({ success: true, changed: 0 });
+  }
+  sets.push('updated_at = CURRENT_TIMESTAMP');
+
+  await c.env.DB.prepare(`UPDATE sourcing_lots SET ${sets.join(', ')} WHERE id = ?`).bind(...binds, lotId).run();
+
+  await recordAuditLog(
+    c.env.DB,
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
+    'UPDATE_SOURCING_LOT',
+    'sourcing_lots',
+    lotId,
+    { status: current.status, eta: current.expected_eta },
+    changed,
+    c.req.header('CF-Connecting-IP')
+  );
+
+  return c.json({ success: true });
+});
+
+adminApp.delete('/sourcing/lots/:id', async (c) => {
+  const actor = c.get('adminActor');
+  const lotId = c.req.param('id');
+  const existing = await c.env.DB.prepare('SELECT id, lot_code FROM sourcing_lots WHERE id = ?').bind(lotId).first<any>();
+  if (!existing) {
+    return c.json({ success: false, error: 'Sourcing lot not found' }, 404);
+  }
+  await c.env.DB.prepare('DELETE FROM sourcing_lots WHERE id = ?').bind(lotId).run();
+  await recordAuditLog(
+    c.env.DB,
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
+    'DELETE_SOURCING_LOT',
+    'sourcing_lots',
+    lotId,
+    { lot_code: existing.lot_code },
+    null,
+    c.req.header('CF-Connecting-IP')
+  );
+  return c.json({ success: true });
+});
+
+adminApp.get('/sourcing/seasons', async (c) => {
+  const { results } = await c.env.DB.prepare(`
+    SELECT * FROM sourcing_seasons
+    ORDER BY harvest_start ASC, origin_country ASC
+  `).all();
+  return c.json({ success: true, seasons: results || [] });
+});
+
+adminApp.post('/sourcing/seasons', async (c) => {
+  const actor = c.get('adminActor');
+  const body = await c.req.json<{
+    origin_country: string;
+    region?: string;
+    season_label: string;
+    harvest_start: string;
+    harvest_end: string;
+    ship_start?: string;
+    ship_end?: string;
+    notes?: string;
+  }>();
+
+  if (!body.origin_country || !body.season_label || !body.harvest_start || !body.harvest_end) {
+    return c.json({ success: false, error: 'origin_country, season_label, harvest_start and harvest_end are required' }, 400);
+  }
+
+  const id = 'ssn_' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+
+  // Upsert on the (origin, region, season_label) triple so re-saving the same
+  // window doesn't duplicate — the calendar otherwise gets two stacked bars
+  // for the same picking period.
+  const region = body.region || '';
+  await c.env.DB.prepare(`
+    INSERT INTO sourcing_seasons (
+      id, origin_country, region, season_label, harvest_start, harvest_end,
+      ship_start, ship_end, notes, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT (origin_country, region, season_label) DO UPDATE SET
+      harvest_start = excluded.harvest_start,
+      harvest_end   = excluded.harvest_end,
+      ship_start    = excluded.ship_start,
+      ship_end      = excluded.ship_end,
+      notes         = excluded.notes,
+      updated_at    = CURRENT_TIMESTAMP
+  `).bind(
+    id, body.origin_country.trim(), region, body.season_label.trim(),
+    body.harvest_start, body.harvest_end,
+    body.ship_start || null, body.ship_end || null, body.notes || null
+  ).run();
+
+  const row = await c.env.DB.prepare(
+    'SELECT id FROM sourcing_seasons WHERE origin_country = ? AND region = ? AND season_label = ?'
+  ).bind(body.origin_country.trim(), region, body.season_label.trim()).first<{ id: string }>();
+
+  await recordAuditLog(
+    c.env.DB,
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
+    'UPSERT_SOURCING_SEASON',
+    'sourcing_seasons',
+    row?.id || id,
+    null,
+    { origin: body.origin_country, label: body.season_label },
+    c.req.header('CF-Connecting-IP')
+  );
+
+  return c.json({ success: true, season_id: row?.id || id });
+});
+
+adminApp.delete('/sourcing/seasons/:id', async (c) => {
+  const actor = c.get('adminActor');
+  const seasonId = c.req.param('id');
+  const existing = await c.env.DB.prepare('SELECT id, season_label FROM sourcing_seasons WHERE id = ?').bind(seasonId).first<any>();
+  if (!existing) {
+    return c.json({ success: false, error: 'Season not found' }, 404);
+  }
+  await c.env.DB.prepare('DELETE FROM sourcing_seasons WHERE id = ?').bind(seasonId).run();
+  await recordAuditLog(
+    c.env.DB,
+    actor || { id: 'admin', email: 'admin@dailyroast.in' },
+    'DELETE_SOURCING_SEASON',
+    'sourcing_seasons',
+    seasonId,
+    { season_label: existing.season_label },
+    null,
+    c.req.header('CF-Connecting-IP')
+  );
   return c.json({ success: true });
 });
 

@@ -37,6 +37,7 @@ export const NAV: NavEntry[] = [
   { kind: 'route', key: 'roasts',    label: 'Batch Roaster & Loss Log',  subtitle: 'Green kg in, roasted kg out, loss calibration', section: 'Operations',         icon: icons.flame,    load: () => import('./features/roasts').then((m) => m.default) },
   { kind: 'route', key: 'inventory', label: 'Inventory Management',      subtitle: 'Stock levels, restocks, damage & returns',       section: 'Operations',         icon: icons.box,      load: () => import('./features/inventory').then((m) => m.default) },
   { kind: 'route', key: 'labels',    label: 'Bag Labels & QR Studio',    subtitle: '3" × 4" thermal label designer & QR',            section: 'Operations',         icon: icons.tag,      load: () => import('./features/labels').then((m) => m.default) },
+  { kind: 'route', key: 'sourcing',  label: 'Sourcing Scanner & Season Calendar', subtitle: 'Green-bean lots, harvest windows & roast plan', section: 'Operations', icon: icons.folder, load: () => import('./features/sourcing').then((m) => m.default) },
 
   // Catalog & Pricing
   { kind: 'route', key: 'catalog',         label: 'Product Catalog',         subtitle: 'Manage products, variants & imagery',                section: 'Catalog & Pricing', icon: icons.leaf,     load: () => import('./features/catalog').then((m) => m.default) },
@@ -65,7 +66,7 @@ export const NAV: NavEntry[] = [
 // Sidebar grouping — drives both the visual section labels and the
 // command-palette grouping. Order here is the display order top-to-bottom.
 export const SECTIONS: Array<{ title: string; keys: string[] }> = [
-  { title: 'Operations',          keys: ['overview', 'orders', 'roasts', 'inventory', 'labels'] },
+  { title: 'Operations',          keys: ['overview', 'orders', 'roasts', 'inventory', 'labels', 'sourcing'] },
   { title: 'Catalog & Pricing',   keys: ['catalog', 'pricing', 'coupons', 'promotions', 'plans', 'subscriptions', 'limited-editions'] },
   { title: 'Economics',           keys: ['capacity', 'capex', 'economics'] },
   { title: 'Customer & Marketing', keys: ['reviews', 'experiences', 'channels', 'campaigns'] },
