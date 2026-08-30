@@ -367,7 +367,7 @@ ${jsonLd(productList)}
  * are stamped with a fixed lastmod rather than today, because they really do change on a slow
  * schedule and a stamp that flapped every build would teach the crawler to ignore it.
  */
-export function sitemap(products, brewMethods = []) {
+export function sitemap(products, brewMethods = [], posts = []) {
   const today = new Date().toISOString().slice(0, 10);
   // Stamping today on every URL every build claims all fifteen pages changed on every deploy,
   // which is exactly the signal that teaches a crawler to stop believing lastmod. Product pages
@@ -385,6 +385,10 @@ export function sitemap(products, brewMethods = []) {
     [`${SITE}/brew/`, today, null],
     ...brewMethods.map((m) => [`${SITE}/brew/${m.method}`, today, null]),
     [`${SITE}/faq`, today, null],
+    // The journal. Posts carry their own publication date as lastmod — they are not rewritten
+    // on every build the way the generated index pages are.
+    ...(posts.length ? [[`${SITE}/blog/`, day(posts[0].date), null]] : []),
+    ...posts.map((p) => [`${SITE}/blog/${p.slug}`, day(p.date), null]),
     // Extensionless: Cloudflare Pages serves these at /privacy and 308s /privacy.html to it,
     // so listing the .html form pointed the sitemap at a redirect.
     [`${SITE}/shipping`, LEGAL_LASTMOD, null],
@@ -411,7 +415,7 @@ ${urls.map(renderUrl).join('\n')}
  * so it is worth having — but the thing that makes this site answerable is the pages above,
  * not this file.
  */
-export function llmsTxt(products, brewMethods = []) {
+export function llmsTxt(products, brewMethods = [], posts = []) {
   return `# The Daily Roast
 
 > An independent specialty coffee roastery in Indiranagar, Bangalore, India. We roast Indian
@@ -433,11 +437,16 @@ ${products.map((p) => {
 
 ${brewMethods.map((m) => `- [How to brew ${m.title}](${SITE}/brew/${m.method}): 1:${m.ratio} ratio, ${String(m.grind).toLowerCase()} grind, water at ${m.temp}°C, ${m.time}.`).join('\n')}
 
-## The roastery
+${posts.length ? `## Journal
+
+${posts.map((p) => `- [${p.title}](${SITE}/blog/${p.slug}): ${p.description}`).join('\n')}
+
+` : ''}## The roastery
 
 - [Frequently asked questions](${SITE}/faq): roasting, delivery, grind, returns, subscriptions.
 - [Every coffee we roast](${SITE}/coffee/): the full catalog.
 - [Brewing guides](${SITE}/brew/): ratio, grind and temperature for every method.
+- [The journal](${SITE}/blog/): brewing guides, sourcing notes and how the shop works.
 - [Shipping and returns](${SITE}/shipping)
 - [Privacy policy](${SITE}/privacy)
 - [Terms of service](${SITE}/terms)
