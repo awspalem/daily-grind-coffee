@@ -2,7 +2,7 @@
 import type { Cart, CartItem, Order, Product, ProductVariant } from '@daily-grind/shared-types';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 import { cachedFetch } from './utils/fetchCache';
-import { getSessionToken, urlBase64ToArrayBuffer } from './features/shared';
+import { getSessionToken } from './features/shared';
 import { initProfile } from './features/profile';
 import { initNotifications } from './features/notifications';
 import { initLoyalty, redeemPointsForSubtotal } from './features/loyalty';
@@ -2368,11 +2368,11 @@ class StorefrontApp {
       const { vapid_public_key } = await keyRes.json() as { vapid_public_key: string };
 
       const reg = await navigator.serviceWorker.ready;
-      const existing = await reg.pushManager.getSubscription();
-      const sub = existing || await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToArrayBuffer(vapid_public_key),
-      });
+      // Only re-register a subscription this browser already holds. Creating a new one is the
+      // Notification Settings toggle's job — doing it here would silently resurrect a
+      // push_subscriptions row after the customer has explicitly turned push off.
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) return;
 
       await fetch(`${API_BASE}/api/customer/push/subscribe`, {
         method: 'POST',
@@ -2382,10 +2382,6 @@ class StorefrontApp {
     } catch {
       // Push is a progressive enhancement — a failure here never blocks anything.
     }
-  }
-
-  private urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
-    return urlBase64ToArrayBuffer(base64);
   }
 
   // Opens the reviews modal for a specific product when a shopper clicks a review-request
