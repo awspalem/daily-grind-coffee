@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Env } from '../types/env';
 import { InventoryLedgerService } from '../services/inventoryLedger';
 import { zeroTrustAdminGuard, recordAuditLog, type AdminActor } from '../middleware/zeroTrust';
@@ -15,6 +16,8 @@ import {
   skipNextDelivery,
   type SubscriptionRow,
 } from '../services/subscriptionPlans';
+
+type AdminContext = Context<{ Bindings: Env; Variables: { adminActor: AdminActor } }>;
 
 const adminApp = new Hono<{ Bindings: Env; Variables: { adminActor: AdminActor } }>();
 
@@ -1158,7 +1161,7 @@ adminApp.get('/subscriptions', async (c) => {
 // Operator actions on any subscription. The service functions already take an
 // `actor` discriminator and record a subscription_event; here we add the audit-log
 // entry and the status guards the customer routes apply, minus the ownership check.
-async function loadSubscription(c: any): Promise<SubscriptionRow | null> {
+async function loadSubscription(c: AdminContext): Promise<SubscriptionRow | null> {
   return (await c.env.DB
     .prepare('SELECT * FROM subscriptions WHERE id = ?')
     .bind(c.req.param('id'))
