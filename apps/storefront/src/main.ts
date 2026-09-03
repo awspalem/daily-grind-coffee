@@ -2,8 +2,9 @@
 import type { Cart, CartItem, Order, Product, ProductVariant } from '@daily-grind/shared-types';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 import { cachedFetch } from './utils/fetchCache';
-import { getSessionToken } from './features/shared';
+import { getSessionToken, urlBase64ToArrayBuffer } from './features/shared';
 import { initProfile } from './features/profile';
+import { initNotifications } from './features/notifications';
 import { initLoyalty, redeemPointsForSubtotal } from './features/loyalty';
 import { initReferral, clearStoredReferralCode, getStoredReferralCode } from './features/referral';
 import { initSubscriptions } from './features/subscriptions';
@@ -2384,12 +2385,7 @@ class StorefrontApp {
   }
 
   private urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
-    const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-    const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'));
-    const buf = new ArrayBuffer(raw.length);
-    const view = new Uint8Array(buf);
-    for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
-    return buf;
+    return urlBase64ToArrayBuffer(base64);
   }
 
   // Opens the reviews modal for a specific product when a shopper clicks a review-request
@@ -3485,6 +3481,7 @@ app.init();
 // Feature modules (see src/features/). Each owns its own DOM and nav entry, so features can be
 // built independently without ever editing this file again.
 initProfile(app);
+initNotifications(app);
 initLoyalty(app);
 initReferral(app);
 initSubscriptions(app);

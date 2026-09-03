@@ -122,6 +122,20 @@ export function esc(value: unknown): string {
   ));
 }
 
+/**
+ * Decodes a URL-safe base64 VAPID key into the ArrayBuffer `PushManager.subscribe` wants for
+ * `applicationServerKey`. Shared so the notification centre and main.ts's `syncPushSubscription`
+ * use one implementation rather than two hand-rolled copies of the padding/charset fix-ups.
+ */
+export function urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
+  const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+  const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'));
+  const buf = new ArrayBuffer(raw.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
+  return buf;
+}
+
 export function formatCents(cents: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format((cents || 0) / 100);
 }

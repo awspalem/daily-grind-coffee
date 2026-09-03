@@ -1,0 +1,112 @@
+/**
+ * Notification & consent centre (gap 6.10 / 6.12).
+ *
+ * The render function is pure (state in, HTML string out), so the channel copy and the push
+ * special-casing are pinned here without a DOM. Wiring to the consent API is checked against the
+ * module source the way voice.test.ts checks its feature module.
+ */
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { notificationCentreHtml } from '../src/features/notifications';
+
+function storefrontRoot(): string {
+  let dir = resolve(process.cwd());
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(join(dir, 'src', 'features', 'notifications.ts'))) return dir;
+    const candidate = join(dir, 'apps', 'storefront');
+    if (existsSync(join(candidate, 'src', 'features', 'notifications.ts'))) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error(`Could not locate apps/storefront from ${process.cwd()}`);
+}
+
+const SRC = readFileSync(join(storefrontRoot(), 'src', 'features', 'notifications.ts'), 'utf8');
+
+const CHANNELS = ['marketing_email', 'product_news', 'back_in_stock', 'push'];
+
+function baseState(overrides: Record<string, unknown> = {}): any {
+  return {
+    loaded: true,
+    signedIn: true,
+    prefs: { marketing_email: false, product_news: false, back_in_stock: true, push: true },
+    channels: CHANNELS,
+    pushSupported: true,
+    pushConfigured: true,
+    pushPermission: 'granted',
+    pushSubscribed: true,
+    vapidKey: 'BKEY',
+    ...overrides,
+  };
+}
+
+test('renders a human label and description for every optional channel', () => {
+  const html = notificationCentreHtml(baseState());
+  for (const label of [
+    'Promotions', // "&" is escaped in the rendered HTML
+    'New arrivals',
+    'Back-in-stock alerts',
+    'Browser push notifications',
+  ]) {
+    assert.ok(html.includes(label), `missing label: ${label}`);
+  }
+  // raw channel ids appear only as data attributes, never as visible text between tags
+  assert.doesNotMatch(html, /<span[^>]*>[^<]*marketing_email/);
+});
+
+test('signed-out state asks the visitor to sign in and renders no toggles', () => {
+  const html = notificationCentreHtml(baseState({ signedIn: false }));
+  assert.match(html, /[Ss]ign in/);
+  assert.ok(!html.includes('data-notif-channel'));
+});
+
+test('non-push checkboxes reflect the consent map', () => {
+  const html = notificationCentreHtml(baseState());
+  assert.match(html, /data-notif-channel="back_in_stock"[^>]*checked/);
+  assert.doesNotMatch(html, /data-notif-channel="marketing_email"[^>]*checked/);
+});
+
+test('push toggle is only checked when consent AND permission AND a live subscription agree', () => {
+  // consent true but nothing subscribed in this browser → off, not on
+  const noSub = notificationCentreHtml(baseState({ pushSubscribed: false }));
+  assert.doesNotMatch(noSub, /data-notif-channel="push"[^>]*checked/);
+
+  const denied = notificationCentreHtml(baseState({ pushPermission: 'denied', pushSubscribed: false }));
+  assert.doesNotMatch(denied, /data-notif-channel="push"[^>]*checked/);
+  assert.match(denied, /[Bb]locked in your browser settings/);
+
+  const on = notificationCentreHtml(baseState());
+  assert.match(on, /data-notif-channel="push"[^>]*checked/);
+});
+
+test('push toggle degrades when unsupported or unconfigured', () => {
+  const unsupported = notificationCentreHtml(baseState({ pushSupported: false }));
+  assert.match(unsupported, /data-notif-channel="push"[^>]*disabled/);
+  assert.match(unsupported, /[Nn]ot available/);
+
+  const unconfigured = notificationCentreHtml(baseState({ pushConfigured: false }));
+  assert.match(unconfigured, /data-notif-channel="push"[^>]*disabled/);
+});
+
+test('this consent centre is kept visibly distinct from the Phase-1 interests list', () => {
+  const html = notificationCentreHtml(baseState());
+  assert.match(html, /Keep in touch/);
+  assert.match(html, /transactional email are always sent/i);
+});
+
+test('the module wires channel changes to PUT /api/customer/notifications', () => {
+  assert.match(SRC, /'\/api\/customer\/notifications'/);
+  assert.match(SRC, /method:\s*'PUT'/);
+  assert.match(SRC, /preferences:\s*\{\s*\[channel\]:\s*value\s*\}/);
+});
+
+test('the push toggle requests permission and calls subscribe + unsubscribe routes', () => {
+  assert.match(SRC, /Notification\.requestPermission\(\)/);
+  assert.match(SRC, /'\/api\/customer\/push\/subscribe'/);
+  assert.match(SRC, /'\/api\/customer\/push\/unsubscribe'/);
+  assert.match(SRC, /sub\.unsubscribe\(\)/);
+});
