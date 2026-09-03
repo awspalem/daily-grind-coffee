@@ -125,3 +125,58 @@ export function esc(value: unknown): string {
 export function formatCents(cents: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format((cents || 0) / 100);
 }
+
+// ---------------------------------------------------------------------------
+// toast — non-blocking notification. Replaces alert() in the feature modules so
+// a failed save no longer freezes the page on an OS dialog. Self-contained: the
+// container and its styles are injected on first use, so no index.html changes.
+// ---------------------------------------------------------------------------
+export type ToastKind = 'success' | 'error' | 'info';
+
+let toastStack: HTMLElement | null = null;
+
+function ensureToastStack(): HTMLElement {
+  if (toastStack && toastStack.isConnected) return toastStack;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    #tdg-toast-stack { position: fixed; z-index: 9999; left: 50%; bottom: 1.25rem; transform: translateX(-50%);
+      display: flex; flex-direction: column; gap: 0.5rem; width: min(92vw, 420px); pointer-events: none; }
+    #tdg-toast-stack .tdg-toast { pointer-events: auto; display: flex; gap: 0.6rem; align-items: flex-start;
+      background: #1c1a17; color: #f5f1ea; border-radius: 10px; padding: 0.8rem 0.9rem; font-size: 0.9rem;
+      line-height: 1.4; box-shadow: 0 8px 28px rgba(0,0,0,0.28); border-left: 4px solid #8a8175;
+      animation: tdg-toast-in 0.18s ease-out; }
+    #tdg-toast-stack .tdg-toast--success { border-left-color: #4c9a68; }
+    #tdg-toast-stack .tdg-toast--error { border-left-color: #d1524f; }
+    #tdg-toast-stack .tdg-toast--leaving { opacity: 0; transform: translateY(6px); transition: opacity 0.2s, transform 0.2s; }
+    #tdg-toast-stack .tdg-toast-close { margin-left: auto; background: none; border: 0; color: inherit;
+      font-size: 1.1rem; line-height: 1; cursor: pointer; opacity: 0.7; }
+    @keyframes tdg-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { #tdg-toast-stack .tdg-toast { animation: none; } }
+  `;
+  document.head.appendChild(style);
+
+  const stack = document.createElement('div');
+  stack.id = 'tdg-toast-stack';
+  document.body.appendChild(stack);
+  toastStack = stack;
+  return stack;
+}
+
+export function toast(message: string, kind: ToastKind = 'info', durationMs = 4000): void {
+  const stack = ensureToastStack();
+  const el = document.createElement('div');
+  el.className = `tdg-toast tdg-toast--${kind}`;
+  el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  el.innerHTML = `<div>${esc(message)}</div><button class="tdg-toast-close" type="button" aria-label="Dismiss">&times;</button>`;
+  el.querySelector('.tdg-toast-close')?.addEventListener('click', dismiss);
+  stack.appendChild(el);
+  while (stack.children.length > 4) stack.firstElementChild?.remove();
+  const timer = setTimeout(dismiss, durationMs);
+  function dismiss() {
+    clearTimeout(timer);
+    if (!el.isConnected) return;
+    el.classList.add('tdg-toast--leaving');
+    setTimeout(() => el.remove(), 220);
+  }
+}

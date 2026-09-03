@@ -13,6 +13,7 @@ import {
   isSignedIn,
   mountFeatureSection,
   registerNavPill,
+  toast,
 } from './shared';
 
 const SECTION_ID = 'your-profile';
@@ -456,7 +457,7 @@ async function reorder(orderNumber: string, button: HTMLButtonElement): Promise<
   button.textContent = original;
 
   if (!res.success) {
-    alert(res.error || 'Could not rebuild that order.');
+    toast(res.error || 'Could not rebuild that order.', 'error');
     return;
   }
 
@@ -491,9 +492,11 @@ async function reorder(orderNumber: string, button: HTMLButtonElement): Promise<
   }
 
   if (added === 0) {
-    alert('None of the coffees from that order are available right now.');
+    toast('None of the coffees from that order are available right now.', 'error');
   } else if (skipped > 0) {
-    alert(`Added ${added} item${added === 1 ? '' : 's'} to your cart. ${skipped} item${skipped === 1 ? ' is' : 's are'} no longer available.`);
+    toast(`Added ${added} item${added === 1 ? '' : 's'} to your cart. ${skipped} item${skipped === 1 ? ' is' : 's are'} no longer available.`, 'info');
+  } else {
+    toast(`Added ${added} item${added === 1 ? '' : 's'} to your cart.`, 'success');
   }
 }
 
@@ -580,7 +583,7 @@ async function saveAddress(id: string): Promise<void> {
 
   const res = await apiFetch<any>(`/api/profile/addresses/${encodeURIComponent(id)}`, { method: 'PATCH', json: payload });
   if (!res.success) {
-    alert(res.error || 'Could not save that address.');
+    toast(res.error || 'Could not save that address.', 'error');
     return;
   }
 

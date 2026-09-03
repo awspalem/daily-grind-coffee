@@ -8,6 +8,13 @@ import { GroqService } from '../services/groq';
 import { ShiprocketService } from '../services/shiprocket';
 import type { InventoryMovementType, OrderStatus } from '@daily-grind/shared-types';
 import { featureHooks } from '../hooks';
+import {
+  cancelSubscription,
+  pauseSubscription,
+  resumeSubscription,
+  skipNextDelivery,
+  type SubscriptionRow,
+} from '../services/subscriptionPlans';
 
 const adminApp = new Hono<{ Bindings: Env; Variables: { adminActor: AdminActor } }>();
 
@@ -1146,6 +1153,65 @@ adminApp.get('/subscriptions', async (c) => {
     ORDER BY CASE status WHEN 'PAST_DUE' THEN 0 WHEN 'ACTIVE' THEN 1 ELSE 2 END, next_renewal_date ASC
   `).all();
   return c.json({ success: true, subscriptions: results || [] });
+});
+
+// Operator actions on any subscription. The service functions already take an
+// `actor` discriminator and record a subscription_event; here we add the audit-log
+// entry and the status guards the customer routes apply, minus the ownership check.
+async function loadSubscription(c: any): Promise<SubscriptionRow | null> {
+  return (await c.env.DB
+    .prepare('SELECT * FROM subscriptions WHERE id = ?')
+    .bind(c.req.param('id'))
+    .first()) as SubscriptionRow | null;
+}
+
+adminApp.post('/subscriptions/:id/pause', async (c) => {
+  const actor = c.get('adminActor');
+  const sub = await loadSubscription(c);
+  if (!sub) return c.json({ success: false, error: 'Subscription not found' }, 404);
+  if (sub.status === 'CANCELLED') return c.json({ success: false, error: 'This subscription is cancelled' }, 400);
+  if (sub.status === 'PAUSED') return c.json({ success: true, message: 'Already paused' });
+
+  await pauseSubscription(c.env.DB, sub, 'ADMIN');
+  await recordAuditLog(c.env.DB, actor, 'PAUSE_SUBSCRIPTION', 'subscriptions', sub.id, { status: sub.status }, { status: 'PAUSED' }, c.req.header('CF-Connecting-IP'));
+  return c.json({ success: true, message: 'Subscription paused.' });
+});
+
+adminApp.post('/subscriptions/:id/resume', async (c) => {
+  const actor = c.get('adminActor');
+  const sub = await loadSubscription(c);
+  if (!sub) return c.json({ success: false, error: 'Subscription not found' }, 404);
+  if (sub.status !== 'PAUSED') return c.json({ success: false, error: 'This subscription is not paused' }, 400);
+
+  const next = await resumeSubscription(c.env.DB, sub, 'ADMIN');
+  await recordAuditLog(c.env.DB, actor, 'RESUME_SUBSCRIPTION', 'subscriptions', sub.id, { status: 'PAUSED' }, { next_renewal_date: next }, c.req.header('CF-Connecting-IP'));
+  return c.json({ success: true, next_renewal_date: next, message: 'Subscription resumed.' });
+});
+
+adminApp.post('/subscriptions/:id/skip', async (c) => {
+  const actor = c.get('adminActor');
+  const sub = await loadSubscription(c);
+  if (!sub) return c.json({ success: false, error: 'Subscription not found' }, 404);
+  if (sub.status === 'CANCELLED') return c.json({ success: false, error: 'This subscription is cancelled' }, 400);
+
+  const next = await skipNextDelivery(c.env.DB, sub, 'ADMIN');
+  await recordAuditLog(c.env.DB, actor, 'SKIP_SUBSCRIPTION_DELIVERY', 'subscriptions', sub.id, { next_renewal_date: sub.next_renewal_date }, { next_renewal_date: next }, c.req.header('CF-Connecting-IP'));
+  return c.json({ success: true, next_renewal_date: next, message: 'Next delivery skipped.' });
+});
+
+adminApp.post('/subscriptions/:id/cancel', async (c) => {
+  const actor = c.get('adminActor');
+  const sub = await loadSubscription(c);
+  if (!sub) return c.json({ success: false, error: 'Subscription not found' }, 404);
+  if (sub.status === 'CANCELLED') return c.json({ success: true, message: 'Already cancelled' });
+
+  let reason = '';
+  try { reason = ((await c.req.json()) || {}).reason || ''; } catch { /* body optional */ }
+  reason = String(reason).slice(0, 500) || 'Cancelled by roastery staff';
+
+  await cancelSubscription(c.env.DB, sub, reason, 'ADMIN');
+  await recordAuditLog(c.env.DB, actor, 'CANCEL_SUBSCRIPTION', 'subscriptions', sub.id, { status: sub.status }, { status: 'CANCELLED', reason }, c.req.header('CF-Connecting-IP'));
+  return c.json({ success: true, message: 'Subscription cancelled.' });
 });
 
 // ==================== Reviews Moderation ====================

@@ -188,6 +188,8 @@ const route: RouteModule = {
         if (result.success) {
           toast(nextActive ? 'Product reactivated' : 'Product deactivated', 'success');
           await load();
+        } else {
+          toast(`Could not change product status: ${result.error || 'Unknown error'}`, 'error');
         }
         return;
       }
@@ -203,6 +205,8 @@ const route: RouteModule = {
         if (result.success) {
           toast(nextActive ? 'Variant reactivated' : 'Variant deactivated', 'success');
           await load();
+        } else {
+          toast(`Could not change variant status: ${result.error || 'Unknown error'}`, 'error');
         }
         return;
       }
@@ -237,6 +241,8 @@ const route: RouteModule = {
         if (result.success) {
           toast('Variant added', 'success');
           await load();
+        } else {
+          toast(`Could not add variant: ${result.error || 'Unknown error'}`, 'error');
         }
       }
     });
@@ -329,6 +335,8 @@ const route: RouteModule = {
         if (imageStatus) imageStatus.textContent = 'No image uploaded yet';
         if (imagePreview) imagePreview.style.display = 'none';
         await load();
+      } else {
+        toast(`Could not create product: ${result.error || 'Unknown error'}`, 'error');
       }
     });
   },
