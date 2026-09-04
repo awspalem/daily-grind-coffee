@@ -98,6 +98,27 @@ body {
   color: #fff;
 }
 
+/*
+ * On a phone the two spans sat side by side and wrapped into three ragged lines — about 100px
+ * of a 844px screen spent before the ticker, let alone the header. Stacking them gives each its
+ * own line and halves the height, with no wording lost: the roast note reads as the line it is,
+ * and the shipping threshold keeps its pill directly under it.
+ */
+@media (max-width: 600px) {
+  .announcement-bar {
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .announcement-bar .badge {
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+}
+
 /* Continuously-scrolling value-proposition strip. The track's content is duplicated
    in the markup so translateX(-50%) loops seamlessly. */
 .value-ticker {
@@ -1305,6 +1326,12 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.8rem;
+  /*
+   * Pins the spec box to the bottom of the card. The four descriptions are different lengths
+   * (and "Traditional South Indian Filter" wraps its title onto a second line), so without this
+   * the Water Temp / Time boxes sat at four different heights across a row of equal-height cards.
+   */
+  margin-top: auto;
   background: var(--bg-primary);
   padding: 0.9rem;
   border-radius: var(--radius-md);
@@ -3661,6 +3688,77 @@ body {
   flex-direction: column;
   align-items: center;
   width: fit-content;
+}
+
+/* ------------------------------------------------------------------------------------------
+   Homepage asides injected at build time by scripts/generate-seo.mjs (the AEO Q&A link and the
+   journal teaser). They used to carry their own inline styles and no link colour, so they landed
+   between two designed sections as a grey box of default-blue browser links. The markup is
+   homepage-only, so index.css is always present and these classes are all they need.
+   ------------------------------------------------------------------------------------------ */
+
+.aeo-aside,
+.journal-teaser {
+  max-width: var(--content-max);
+  margin: 0 auto 1rem;
+  padding: 1.1rem 1.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.92rem;
+  color: var(--text-muted);
+}
+
+.journal-teaser {
+  margin-bottom: 4rem;
+}
+
+.aeo-aside a,
+.journal-teaser a {
+  color: var(--accent-terracotta);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: var(--transition-smooth);
+}
+
+.aeo-aside a:hover,
+.journal-teaser a:hover {
+  border-bottom-color: var(--accent-terracotta);
+}
+
+.journal-teaser-title {
+  margin: 0 0 0.7rem;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* Link rows rather than a bulleted list — the bullets were the browser's, not the design's. */
+.journal-teaser ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  line-height: 1.5;
+}
+
+.journal-teaser-all {
+  margin: 0.9rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 768px) {
+  .aeo-aside,
+  .journal-teaser {
+    margin-left: 1.2rem;
+    margin-right: 1.2rem;
+  }
 }
 
 @media print {

@@ -379,12 +379,15 @@ export function blogIndexPage(posts, css) {
 export function blogAsideHtml(posts) {
   const latest = posts.slice(0, 3);
   if (!latest.length) return '';
-  return `<aside class="journal-teaser" aria-label="From the journal" style="max-width: 820px; margin: 2rem auto; padding: 1.1rem 1.3rem; background: var(--bg-secondary, #f6efe7); border: 1px solid var(--border-subtle, #e3d9cb); border-radius: 10px;">
-  <p style="margin: 0 0 0.6rem; font-weight: 600;">From the journal</p>
-  <ul style="margin: 0; padding-left: 1.1rem; font-size: 0.92rem; line-height: 1.7;">
+  // Styling lives in src/styles/index.css (.journal-teaser). This block is injected into the
+  // homepage only, which always loads that stylesheet — the inline styles this used to carry
+  // dressed the box but left the links at the browser default blue, on a cream page.
+  return `<aside class="journal-teaser" aria-label="From the journal">
+  <p class="journal-teaser-title">From the journal</p>
+  <ul>
     ${latest.map((p) => `<li><a href="/blog/${esc(p.slug)}">${esc(p.title)}</a></li>`).join('\n    ')}
   </ul>
-  <p style="margin: 0.7rem 0 0; font-size: 0.9rem;"><a href="/blog/">All ${posts.length} guides &amp; notes &rarr;</a></p>
+  <p class="journal-teaser-all"><a href="/blog/">All ${posts.length} guides &amp; notes &rarr;</a></p>
 </aside>`;
 }
 
