@@ -992,7 +992,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
-  margin-top: 0.6rem;
+  /*
+   * auto, not a fixed margin: taglines run one or two lines and tasting notes wrap onto a second
+   * row on some coffees, which left every card's BAG SIZE / GRIND / PURCHASE block at a different
+   * height while the card bottoms lined up — the slack pooled under the controls instead of above
+   * them. Collecting it above pins the buying controls to a common baseline across the row.
+   */
+  margin-top: auto;
   padding-top: 0.9rem;
   border-top: 1px solid var(--border-subtle);
 }
