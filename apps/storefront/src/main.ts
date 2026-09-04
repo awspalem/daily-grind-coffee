@@ -708,10 +708,14 @@ class StorefrontApp {
       return `
         <article class="product-card ${isWheelMatch ? 'wheel-match' : ''} ${isProductSoldOut ? 'is-sold-out' : ''}" data-product-id="${prod.id}">
           <div class="card-media">
-            <picture>
-              <source type="image/webp" srcset="${(prod.image_url || '/images/bag_ethiopia.jpg').replace(/\.(jpe?g|png)$/i, '.webp')}">
-              <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" width="600" height="448" loading="lazy" decoding="async">
-            </picture>
+            <!--
+              A plain <img>: no .webp of any of these exists. The remote catalog URLs end in a
+              query string, so the extension rewrite never matched them and the <source> was
+              serving a JPEG under type="image/webp" (it rendered only because browsers sniff);
+              the local fallback below *did* rewrite, to a 404, blanking the card for any
+              product without an image_url.
+            -->
+            <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" width="600" height="448" loading="lazy" decoding="async">
             <span class="origin-badge">${prod.origin_country}</span>
             <span class="roast-level-tag">${prod.roast_level.replace('_', ' ')} ROAST</span>
             ${stockBadgeHtml}
