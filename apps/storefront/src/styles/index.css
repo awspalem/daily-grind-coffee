@@ -18,7 +18,15 @@
   
   --text-main: #2b231f;
   --text-muted: #73645b;
-  --text-light: #a89a91;
+  /*
+   * Was #a89a91, which is 2.6:1 on the cream background — well under the 4.5:1 WCAG AA asks for
+   * normal text, and every use of it is real copy set small: the Light/Dark ends of the roast
+   * meter, struck-through original prices, the uppercase tile labels in loyalty/referral/plans,
+   * and the cart's Remove button. #79695f clears 4.5:1 on all three surfaces it lands on
+   * (primary 5.0, card 5.25, secondary 4.55). It sits closer to --text-muted than the old value
+   * did; that is the cost of legibility at 0.66–0.78rem.
+   */
+  --text-light: #79695f;
   --text-inverse: #fdfaf6;
   
   --accent-terracotta: #c85a32;
@@ -104,7 +112,7 @@ body {
  * own line and halves the height, with no wording lost: the roast note reads as the line it is,
  * and the shipping threshold keeps its pill directly under it.
  */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .announcement-bar {
     flex-direction: column;
     gap: 0.3rem;
