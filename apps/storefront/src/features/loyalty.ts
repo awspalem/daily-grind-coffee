@@ -8,7 +8,7 @@
  * taken off. A number rendered in this file is never allowed to be the number that is charged.
  */
 
-import { apiFetch, esc, isSignedIn, mountFeatureSection, registerNavPill } from './shared';
+import { apiFetch, esc, isSignedIn, mountFeatureSection, registerNavPill, signInPrompt } from './shared';
 
 const SECTION = 'loyalty-programme';
 const REDEEM_INTENT_KEY = 'tdg_loyalty_redeem_intent';
@@ -190,7 +190,9 @@ function renderSignedOut(host: HTMLElement, config: Record<string, any> | null):
         <span class="tile-note">Bronze · Silver · Gold, by your last 12 months</span>
       </div>
     </div>
-    <p class="loyalty-empty" style="text-align:center;">Sign in to see your balance and statement.</p>
+    <div style="margin-top: 1.6rem;">
+      ${signInPrompt('Sign in to see your points balance, your tier and every earn and redeem on your statement.')}
+    </div>
   `;
 }
 

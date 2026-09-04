@@ -28,3 +28,5 @@ Thumbs.db
 
 # Stray tsc output committed alongside .ts sources (tsconfig now sets noEmit)
 apps/admin/src/**/*.js
+apps/api/src/**/*.js
+apps/storefront/src/**/*.js

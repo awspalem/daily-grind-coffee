@@ -13,6 +13,8 @@ import {
   isSignedIn,
   mountFeatureSection,
   registerNavPill,
+  signInPrompt,
+  toast,
 } from './shared';
 
 const SECTION_ID = 'your-profile';
@@ -104,11 +106,8 @@ function renderSignedOut(): string {
       <h2 class="section-title">Your Coffee Profile</h2>
       <p class="section-subtitle">Sign in and we'll remember your roast, your grind and your usual bag.</p>
     </div>
-    ${panel(
-      `<p style="color:var(--text-muted); text-align:center; margin:0;">
-        Use the account button in the header to sign in with a one-time code. Your taste profile,
-        order history and saved addresses will appear here.
-      </p>`
+    ${signInPrompt(
+      'Sign in with a one-time code and your taste profile, order history and saved addresses appear here.'
     )}
   `;
 }
@@ -456,7 +455,7 @@ async function reorder(orderNumber: string, button: HTMLButtonElement): Promise<
   button.textContent = original;
 
   if (!res.success) {
-    alert(res.error || 'Could not rebuild that order.');
+    toast(res.error || 'Could not rebuild that order.', 'error');
     return;
   }
 
@@ -491,9 +490,11 @@ async function reorder(orderNumber: string, button: HTMLButtonElement): Promise<
   }
 
   if (added === 0) {
-    alert('None of the coffees from that order are available right now.');
+    toast('None of the coffees from that order are available right now.', 'error');
   } else if (skipped > 0) {
-    alert(`Added ${added} item${added === 1 ? '' : 's'} to your cart. ${skipped} item${skipped === 1 ? ' is' : 's are'} no longer available.`);
+    toast(`Added ${added} item${added === 1 ? '' : 's'} to your cart. ${skipped} item${skipped === 1 ? ' is' : 's are'} no longer available.`, 'info');
+  } else {
+    toast(`Added ${added} item${added === 1 ? '' : 's'} to your cart.`, 'success');
   }
 }
 
@@ -580,7 +581,7 @@ async function saveAddress(id: string): Promise<void> {
 
   const res = await apiFetch<any>(`/api/profile/addresses/${encodeURIComponent(id)}`, { method: 'PATCH', json: payload });
   if (!res.success) {
-    alert(res.error || 'Could not save that address.');
+    toast(res.error || 'Could not save that address.', 'error');
     return;
   }
 

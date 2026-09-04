@@ -325,6 +325,57 @@ test('push unsubscribe: removes the row by endpoint, no auth needed', async () =
   assert.equal(db.select('SELECT * FROM push_subscriptions').length, 0);
 });
 
+test('consent: switching push off clears every device this customer registered', async () => {
+  const db = new TestD1();
+  const env = testEnv(db);
+  const { id } = seedCustomer(db);
+  const other = seedCustomer(db, 'cust_other', 'someone.else@example.com');
+  const token = seedSession(db, id);
+
+  // Two devices for this customer, plus an unrelated customer's device that must survive.
+  db.run(
+    `INSERT INTO push_subscriptions (id, customer_id, endpoint, p256dh, auth) VALUES ('push_a', ?, 'https://push.example/a', 'p', 'a')`,
+    id
+  );
+  db.run(
+    `INSERT INTO push_subscriptions (id, customer_id, endpoint, p256dh, auth) VALUES ('push_b', ?, 'https://push.example/b', 'p', 'a')`,
+    id
+  );
+  db.run(
+    `INSERT INTO push_subscriptions (id, customer_id, endpoint, p256dh, auth) VALUES ('push_c', ?, 'https://push.example/c', 'p', 'a')`,
+    other.id
+  );
+
+  // Opting out from device A alone — the storefront can only unsubscribe the browser it runs in.
+  const res = await customerApp.request('/notifications', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Customer-Session': token },
+    body: JSON.stringify({ preferences: { push: false } }),
+  }, env);
+  assert.equal(res.status, 200);
+
+  assert.equal(db.select('SELECT * FROM push_subscriptions WHERE customer_id = ?', id).length, 0);
+  assert.equal(db.select('SELECT * FROM push_subscriptions WHERE customer_id = ?', other.id).length, 1);
+  assert.equal(await hasConsent(env, id, 'push'), false);
+});
+
+test('consent: switching push back on leaves subscriptions to the browser to re-register', async () => {
+  const db = new TestD1();
+  const env = testEnv(db);
+  const { id } = seedCustomer(db);
+  db.run(
+    `INSERT INTO push_subscriptions (id, customer_id, endpoint, p256dh, auth) VALUES ('push_a', ?, 'https://push.example/a', 'p', 'a')`,
+    id
+  );
+
+  await setConsent(env, id, 'push', true);
+  assert.equal(db.select('SELECT * FROM push_subscriptions WHERE customer_id = ?', id).length, 1);
+
+  // ...and an opt-out on a *different* channel never touches them.
+  await setConsent(env, id, 'marketing_email', false);
+  assert.equal(db.select('SELECT * FROM push_subscriptions WHERE customer_id = ?', id).length, 1);
+});
+
 test('push vapid-key: 503 without config, the key with it', async () => {
   const db = new TestD1();
   const without = await customerApp.request('/push/vapid-key', {}, testEnv(db));

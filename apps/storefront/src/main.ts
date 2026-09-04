@@ -2,8 +2,9 @@
 import type { Cart, CartItem, Order, Product, ProductVariant } from '@daily-grind/shared-types';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 import { cachedFetch } from './utils/fetchCache';
-import { getSessionToken } from './features/shared';
+import { getSessionToken, initSignInPrompts } from './features/shared';
 import { initProfile } from './features/profile';
+import { initNotifications, pushConsentGranted } from './features/notifications';
 import { initLoyalty, redeemPointsForSubtotal } from './features/loyalty';
 import { initReferral, clearStoredReferralCode, getStoredReferralCode } from './features/referral';
 import { initSubscriptions } from './features/subscriptions';
@@ -707,10 +708,14 @@ class StorefrontApp {
       return `
         <article class="product-card ${isWheelMatch ? 'wheel-match' : ''} ${isProductSoldOut ? 'is-sold-out' : ''}" data-product-id="${prod.id}">
           <div class="card-media">
-            <picture>
-              <source type="image/webp" srcset="${(prod.image_url || '/images/bag_ethiopia.jpg').replace(/\.(jpe?g|png)$/i, '.webp')}">
-              <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" width="600" height="448" loading="lazy" decoding="async">
-            </picture>
+            <!--
+              A plain <img>: no .webp of any of these exists. The remote catalog URLs end in a
+              query string, so the extension rewrite never matched them and the <source> was
+              serving a JPEG under type="image/webp" (it rendered only because browsers sniff);
+              the local fallback below *did* rewrite, to a 404, blanking the card for any
+              product without an image_url.
+            -->
+            <img src="${prod.image_url || '/images/bag_ethiopia.jpg'}" alt="${prod.name}" width="600" height="448" loading="lazy" decoding="async">
             <span class="origin-badge">${prod.origin_country}</span>
             <span class="roast-level-tag">${prod.roast_level.replace('_', ' ')} ROAST</span>
             ${stockBadgeHtml}
@@ -2353,8 +2358,8 @@ class StorefrontApp {
    * Registers this browser for Web Push, but only when the customer has already granted
    * notification permission — we never prompt unsolicited. Called after login and on startup for
    * an already-logged-in visitor, so a fresh device that was granted permission elsewhere gets
-   * its subscription re-registered. Silently does nothing when unsupported, not permitted, or
-   * push is not configured server-side (the VAPID key endpoint returns 503).
+   * its subscription re-registered. Silently does nothing when unsupported, not permitted, when
+   * this browser holds no subscription, or when the customer has push switched off.
    */
   async syncPushSubscription() {
     try {
@@ -2362,16 +2367,18 @@ class StorefrontApp {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       if (Notification.permission !== 'granted') return;
 
-      const keyRes = await fetch(`${API_BASE}/api/customer/push/vapid-key`);
-      if (!keyRes.ok) return;
-      const { vapid_public_key } = await keyRes.json() as { vapid_public_key: string };
-
       const reg = await navigator.serviceWorker.ready;
-      const existing = await reg.pushManager.getSubscription();
-      const sub = existing || await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToArrayBuffer(vapid_public_key),
-      });
+      // Only re-register a subscription this browser already holds. Creating a new one is the
+      // Notification Settings toggle's job — doing it here would silently resurrect a
+      // push_subscriptions row after the customer has explicitly turned push off. Checked before
+      // any network call, so the common "no subscription here" case costs nothing.
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) return;
+
+      // A live browser subscription still isn't consent: turning push off in Notification
+      // Settings on another device unsubscribes only that browser and leaves this one's
+      // registration in place. Ask the server before re-registering it.
+      if (!(await pushConsentGranted())) return;
 
       await fetch(`${API_BASE}/api/customer/push/subscribe`, {
         method: 'POST',
@@ -2381,15 +2388,6 @@ class StorefrontApp {
     } catch {
       // Push is a progressive enhancement — a failure here never blocks anything.
     }
-  }
-
-  private urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
-    const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-    const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'));
-    const buf = new ArrayBuffer(raw.length);
-    const view = new Uint8Array(buf);
-    for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
-    return buf;
   }
 
   // Opens the reviews modal for a specific product when a shopper clicks a review-request
@@ -3484,7 +3482,9 @@ app.init();
 
 // Feature modules (see src/features/). Each owns its own DOM and nav entry, so features can be
 // built independently without ever editing this file again.
+initSignInPrompts(); // one delegated listener behind every feature's signed-out Sign in button
 initProfile(app);
+initNotifications(app);
 initLoyalty(app);
 initReferral(app);
 initSubscriptions(app);

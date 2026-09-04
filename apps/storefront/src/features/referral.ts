@@ -7,7 +7,7 @@
  * module only records the visit and parks the code for checkout to send.
  */
 
-import { apiFetch, esc, isSignedIn, mountFeatureSection, registerNavPill } from './shared';
+import { apiFetch, esc, isSignedIn, mountFeatureSection, registerNavPill, signInPrompt } from './shared';
 
 const SECTION = 'referral-programme';
 const REF_CODE_KEY = 'tdg_referral_code';
@@ -130,7 +130,7 @@ function renderSignedOut(host: HTMLElement, terms: Record<string, any> | null): 
         and you earn ${terms ? esc(Number(terms.referrer_points).toLocaleString('en-IN')) : ''} points once it's delivered.
       </p>
     </div>
-    <p class="ref-empty" style="text-align:center;">Sign in to get your link.</p>
+    ${signInPrompt('Sign in to get your referral link and track who has ordered with it.')}
   `;
 }
 

@@ -18,7 +18,15 @@
   
   --text-main: #2b231f;
   --text-muted: #73645b;
-  --text-light: #a89a91;
+  /*
+   * Was #a89a91, which is 2.6:1 on the cream background — well under the 4.5:1 WCAG AA asks for
+   * normal text, and every use of it is real copy set small: the Light/Dark ends of the roast
+   * meter, struck-through original prices, the uppercase tile labels in loyalty/referral/plans,
+   * and the cart's Remove button. #79695f clears 4.5:1 on all three surfaces it lands on
+   * (primary 5.0, card 5.25, secondary 4.55). It sits closer to --text-muted than the old value
+   * did; that is the cost of legibility at 0.66–0.78rem.
+   */
+  --text-light: #79695f;
   --text-inverse: #fdfaf6;
   
   --accent-terracotta: #c85a32;
@@ -59,6 +67,32 @@ button, a, input, select, textarea, [role="button"] {
   touch-action: manipulation;
 }
 
+/*
+ * Keyboard focus. --border-focus was declared in the palette and then never used by anything, so
+ * focus was whatever each control happened to leave behind: the UA ring in most places, a faint
+ * border tint on .grind-dropdown and .agent-input, and on .agent-send-btn nothing at all — it
+ * sets `outline: none` with no :focus rule to replace it, so a keyboard user had no way to tell
+ * where they were.
+ *
+ * :focus-visible rather than :focus, so a mouse click on a button does not paint a ring. The
+ * offset matters as much as the colour: terracotta is 3.7–4.2:1 against every page surface but
+ * 1:1 against .btn-primary, which is terracotta itself. Pushing the ring 2px clear of the
+ * control lands it on the surface behind instead, where it always clears the 3:1 that WCAG 1.4.11
+ * asks of a non-text indicator. Specificity beats the three `outline: none` declarations, so
+ * those keep suppressing the ring for pointer users and no longer suppress it for keyboard ones.
+ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-primary);
@@ -96,6 +130,27 @@ body {
   border-radius: var(--radius-pill);
   font-size: 0.75rem;
   color: #fff;
+}
+
+/*
+ * On a phone the two spans sat side by side and wrapped into three ragged lines — about 100px
+ * of a 844px screen spent before the ticker, let alone the header. Stacking them gives each its
+ * own line and halves the height, with no wording lost: the roast note reads as the line it is,
+ * and the shipping threshold keeps its pill directly under it.
+ */
+@media (max-width: 768px) {
+  .announcement-bar {
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  .announcement-bar .badge {
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
 }
 
 /* Continuously-scrolling value-proposition strip. The track's content is duplicated
@@ -438,7 +493,8 @@ body {
   font-size: 1rem;
   cursor: pointer;
   opacity: 0.55;
-  padding: 0.2rem 0.35rem;
+  /* 0.2rem left this a 31x22 target. */
+  padding: 0.35rem 0.5rem;
   border-radius: var(--radius-sm);
   line-height: 1;
 }
@@ -454,7 +510,9 @@ body {
 
 .card-detail-link {
   display: inline-block;
-  margin: 0.15rem 0 0.6rem;
+  /* 21px tall; the 0.15rem of top margin becomes padding on both edges instead. */
+  padding: 0.15rem 0;
+  margin: 0 0 0.45rem;
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--accent-terracotta);
@@ -971,7 +1029,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
-  margin-top: 0.6rem;
+  /*
+   * auto, not a fixed margin: taglines run one or two lines and tasting notes wrap onto a second
+   * row on some coffees, which left every card's BAG SIZE / GRIND / PURCHASE block at a different
+   * height while the card bottoms lined up — the slack pooled under the controls instead of above
+   * them. Collecting it above pins the buying controls to a common baseline across the row.
+   */
+  margin-top: auto;
   padding-top: 0.9rem;
   border-top: 1px solid var(--border-subtle);
 }
@@ -1305,6 +1369,12 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.8rem;
+  /*
+   * Pins the spec box to the bottom of the card. The four descriptions are different lengths
+   * (and "Traditional South Indian Filter" wraps its title onto a second line), so without this
+   * the Water Temp / Time boxes sat at four different heights across a row of equal-height cards.
+   */
+  margin-top: auto;
   background: var(--bg-primary);
   padding: 0.9rem;
   border-radius: var(--radius-md);
@@ -1936,7 +2006,8 @@ body {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  /* 0.7rem, less the 3px of padding each link now carries, so the rhythm is unchanged. */
+  gap: 0.32rem;
 }
 
 .footer-col a {
@@ -1944,6 +2015,10 @@ body {
   text-decoration: none;
   font-size: 0.9rem;
   transition: var(--transition-smooth);
+  /* A bare inline link here is an 18px-tall target. inline-block + padding makes the tappable
+     box 24px without moving the text; the gap above absorbs the difference. */
+  display: inline-block;
+  padding: 3px 0;
 }
 
 .footer-col a:hover {
@@ -2142,7 +2217,9 @@ body {
   }
 
   .currency-btn {
-    padding: 0.22rem 0.42rem !important;
+    /* Was 0.22rem, which made a 19px-tall button sitting beside two 44px circles. The header
+       row is already that tall, so the extra vertical padding costs no layout at all. */
+    padding: 0.42rem 0.42rem !important;
     font-size: 0.66rem !important;
   }
 }
@@ -3422,8 +3499,9 @@ body {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 0;
-  margin-top: 0.3rem;
+  /* 15px tall with no padding. The 0.3rem margin pays for the padding, so the card is unchanged. */
+  padding: 0.3rem 0;
+  margin-top: 0;
 }
 
 .product-rating-badge .stars {
@@ -3661,6 +3739,122 @@ body {
   flex-direction: column;
   align-items: center;
   width: fit-content;
+}
+
+/* ------------------------------------------------------------------------------------------
+   The signed-out prompt every account feature shows (features/shared.ts signInPrompt). One card
+   with one button, in place of the five different bare sentences these sections used to end on.
+   ------------------------------------------------------------------------------------------ */
+
+.signin-prompt {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 1.6rem 1.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.signin-prompt-text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 42ch;
+}
+
+.signin-prompt-btn {
+  padding: 0.7rem 2rem;
+  font-size: 0.92rem;
+}
+
+/* ------------------------------------------------------------------------------------------
+   Homepage asides injected at build time by scripts/generate-seo.mjs (the AEO Q&A link and the
+   journal teaser). They used to carry their own inline styles and no link colour, so they landed
+   between two designed sections as a grey box of default-blue browser links. The markup is
+   homepage-only, so index.css is always present and these classes are all they need.
+   ------------------------------------------------------------------------------------------ */
+
+.aeo-aside,
+.journal-teaser {
+  max-width: var(--content-max);
+  margin: 0 auto 1rem;
+  padding: 1.1rem 1.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.92rem;
+  color: var(--text-muted);
+}
+
+.journal-teaser {
+  margin-bottom: 4rem;
+}
+
+.aeo-aside a,
+.journal-teaser a {
+  color: var(--accent-terracotta);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: var(--transition-smooth);
+}
+
+.aeo-aside a:hover,
+.journal-teaser a:hover {
+  border-bottom-color: var(--accent-terracotta);
+}
+
+.journal-teaser-title {
+  margin: 0 0 0.7rem;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* Link rows rather than a bulleted list — the bullets were the browser's, not the design's. */
+.journal-teaser ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  /* The row padding below replaces the gap; together they hold the same rhythm. */
+  gap: 0;
+  line-height: 1.5;
+}
+
+/*
+ * Each teaser row is a target of its own, so it gets a target's height. The aeo aside's link
+ * sits inside a sentence and is left alone — WCAG 2.5.8 exempts an inline link, and padding
+ * one would push it into the line above.
+ */
+.journal-teaser ul a,
+.journal-teaser-all a {
+  display: inline-block;
+  padding: 4px 0;
+}
+
+.journal-teaser-all {
+  margin: 0.7rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 768px) {
+  .aeo-aside,
+  .journal-teaser {
+    margin-left: 1.2rem;
+    margin-right: 1.2rem;
+  }
 }
 
 @media print {
