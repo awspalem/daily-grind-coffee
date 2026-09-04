@@ -493,7 +493,8 @@ body {
   font-size: 1rem;
   cursor: pointer;
   opacity: 0.55;
-  padding: 0.2rem 0.35rem;
+  /* 0.2rem left this a 31x22 target. */
+  padding: 0.35rem 0.5rem;
   border-radius: var(--radius-sm);
   line-height: 1;
 }
@@ -509,7 +510,9 @@ body {
 
 .card-detail-link {
   display: inline-block;
-  margin: 0.15rem 0 0.6rem;
+  /* 21px tall; the 0.15rem of top margin becomes padding on both edges instead. */
+  padding: 0.15rem 0;
+  margin: 0 0 0.45rem;
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--accent-terracotta);
@@ -2003,7 +2006,8 @@ body {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  /* 0.7rem, less the 3px of padding each link now carries, so the rhythm is unchanged. */
+  gap: 0.32rem;
 }
 
 .footer-col a {
@@ -2011,6 +2015,10 @@ body {
   text-decoration: none;
   font-size: 0.9rem;
   transition: var(--transition-smooth);
+  /* A bare inline link here is an 18px-tall target. inline-block + padding makes the tappable
+     box 24px without moving the text; the gap above absorbs the difference. */
+  display: inline-block;
+  padding: 3px 0;
 }
 
 .footer-col a:hover {
@@ -2209,7 +2217,9 @@ body {
   }
 
   .currency-btn {
-    padding: 0.22rem 0.42rem !important;
+    /* Was 0.22rem, which made a 19px-tall button sitting beside two 44px circles. The header
+       row is already that tall, so the extra vertical padding costs no layout at all. */
+    padding: 0.42rem 0.42rem !important;
     font-size: 0.66rem !important;
   }
 }
@@ -3489,8 +3499,9 @@ body {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 0;
-  margin-top: 0.3rem;
+  /* 15px tall with no padding. The 0.3rem margin pays for the padding, so the card is unchanged. */
+  padding: 0.3rem 0;
+  margin-top: 0;
 }
 
 .product-rating-badge .stars {
@@ -3816,12 +3827,24 @@ body {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  /* The row padding below replaces the gap; together they hold the same rhythm. */
+  gap: 0;
   line-height: 1.5;
 }
 
+/*
+ * Each teaser row is a target of its own, so it gets a target's height. The aeo aside's link
+ * sits inside a sentence and is left alone — WCAG 2.5.8 exempts an inline link, and padding
+ * one would push it into the line above.
+ */
+.journal-teaser ul a,
+.journal-teaser-all a {
+  display: inline-block;
+  padding: 4px 0;
+}
+
 .journal-teaser-all {
-  margin: 0.9rem 0 0;
+  margin: 0.7rem 0 0;
   padding-top: 0.8rem;
   border-top: 1px solid var(--border-subtle);
 }
