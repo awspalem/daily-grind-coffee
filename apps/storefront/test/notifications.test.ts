@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { notificationCentreHtml } from '../src/features/notifications';
+import { notificationCentreHtml, pushConsentGranted } from '../src/features/notifications';
 
 function storefrontRoot(): string {
   let dir = resolve(process.cwd());
@@ -109,4 +109,68 @@ test('the push toggle requests permission and calls subscribe + unsubscribe rout
   assert.match(SRC, /'\/api\/customer\/push\/subscribe'/);
   assert.match(SRC, /'\/api\/customer\/push\/unsubscribe'/);
   assert.match(SRC, /sub\.unsubscribe\(\)/);
+});
+
+// ---------------------------------------------------------------------------------------
+// Push consent gate — the cross-device half of "don't resurrect a subscription after opt-out"
+// ---------------------------------------------------------------------------------------
+
+/** Runs `fn` with localStorage/fetch stubbed, then restores whatever was there before. */
+async function withApi(
+  respond: (path: string) => unknown,
+  fn: () => Promise<void>
+): Promise<void> {
+  const g = globalThis as any;
+  const priorStorage = g.localStorage;
+  const priorFetch = g.fetch;
+  g.localStorage = { getItem: () => 'sess_test', removeItem: () => {}, setItem: () => {} };
+  g.fetch = async (url: string) => {
+    const body = respond(String(url));
+    if (body === undefined) throw new Error('network down');
+    return { status: 200, json: async () => body, clone: () => ({ json: async () => body }) };
+  };
+  try {
+    await fn();
+  } finally {
+    g.localStorage = priorStorage;
+    g.fetch = priorFetch;
+  }
+}
+
+test('pushConsentGranted is true only when the server says push is explicitly on', async () => {
+  await withApi(
+    () => ({ success: true, channels: CHANNELS, preferences: { ...baseState().prefs, push: true } }),
+    async () => assert.equal(await pushConsentGranted(), true)
+  );
+});
+
+test('pushConsentGranted is false after an opt-out, and on anything it cannot read as consent', async () => {
+  const cases: unknown[] = [
+    { success: true, preferences: { push: false } }, // opted out — the case this exists for
+    { success: true, preferences: {} },              // channel missing from the map
+    { success: true },                               // no map at all
+    { success: false, error: 'SESSION_EXPIRED' },    // signed out elsewhere
+    undefined,                                       // network failure
+  ];
+  for (const body of cases) {
+    await withApi(
+      () => body,
+      async () => assert.equal(await pushConsentGranted(), false, `should not be consent: ${JSON.stringify(body)}`)
+    );
+  }
+});
+
+test('the startup push sync re-registers but never creates a subscription, and honours consent', () => {
+  const main = readFileSync(join(storefrontRoot(), 'src', 'main.ts'), 'utf8');
+  const sync = main.slice(main.indexOf('async syncPushSubscription()'));
+  const body = sync.slice(0, sync.indexOf('\n  }\n'));
+
+  assert.ok(body.includes('pushManager.getSubscription()'), 'should read the existing subscription');
+  assert.doesNotMatch(body, /pushManager\.subscribe\(/, 'startup must never create a subscription');
+  assert.ok(body.includes('pushConsentGranted()'), 'startup must check consent before re-registering');
+  // The consent check has to come before the row is written, or it gates nothing.
+  assert.ok(
+    body.indexOf('pushConsentGranted()') < body.indexOf('/api/customer/push/subscribe'),
+    'consent must be checked before POSTing the subscription'
+  );
 });

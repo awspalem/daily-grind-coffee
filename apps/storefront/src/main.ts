@@ -4,7 +4,7 @@ import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoi
 import { cachedFetch } from './utils/fetchCache';
 import { getSessionToken } from './features/shared';
 import { initProfile } from './features/profile';
-import { initNotifications } from './features/notifications';
+import { initNotifications, pushConsentGranted } from './features/notifications';
 import { initLoyalty, redeemPointsForSubtotal } from './features/loyalty';
 import { initReferral, clearStoredReferralCode, getStoredReferralCode } from './features/referral';
 import { initSubscriptions } from './features/subscriptions';
@@ -2354,8 +2354,8 @@ class StorefrontApp {
    * Registers this browser for Web Push, but only when the customer has already granted
    * notification permission — we never prompt unsolicited. Called after login and on startup for
    * an already-logged-in visitor, so a fresh device that was granted permission elsewhere gets
-   * its subscription re-registered. Silently does nothing when unsupported, not permitted, or
-   * push is not configured server-side (the VAPID key endpoint returns 503).
+   * its subscription re-registered. Silently does nothing when unsupported, not permitted, when
+   * this browser holds no subscription, or when the customer has push switched off.
    */
   async syncPushSubscription() {
     try {
@@ -2363,16 +2363,18 @@ class StorefrontApp {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       if (Notification.permission !== 'granted') return;
 
-      const keyRes = await fetch(`${API_BASE}/api/customer/push/vapid-key`);
-      if (!keyRes.ok) return;
-      const { vapid_public_key } = await keyRes.json() as { vapid_public_key: string };
-
       const reg = await navigator.serviceWorker.ready;
       // Only re-register a subscription this browser already holds. Creating a new one is the
       // Notification Settings toggle's job — doing it here would silently resurrect a
-      // push_subscriptions row after the customer has explicitly turned push off.
+      // push_subscriptions row after the customer has explicitly turned push off. Checked before
+      // any network call, so the common "no subscription here" case costs nothing.
       const sub = await reg.pushManager.getSubscription();
       if (!sub) return;
+
+      // A live browser subscription still isn't consent: turning push off in Notification
+      // Settings on another device unsubscribes only that browser and leaves this one's
+      // registration in place. Ask the server before re-registering it.
+      if (!(await pushConsentGranted())) return;
 
       await fetch(`${API_BASE}/api/customer/push/subscribe`, {
         method: 'POST',

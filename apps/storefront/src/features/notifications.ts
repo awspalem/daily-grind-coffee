@@ -251,6 +251,23 @@ async function putConsent(channel: string, value: boolean): Promise<boolean> {
   return false;
 }
 
+/**
+ * Has this customer opted in to Web Push?
+ *
+ * Reads the server's consent map rather than this module's `state`, so it is safe to call from
+ * outside the notification centre (main.ts's startup push sync does) before the section has ever
+ * been rendered. A live browser subscription is *not* consent on its own: turning push off on one
+ * device unsubscribes only that browser, so every other device still holds a registration that
+ * would otherwise be re-registered on its next load.
+ *
+ * Anything other than an explicit `push: true` — a network failure, an expired session, a missing
+ * key — reads as "no". A failed lookup must never be mistaken for consent.
+ */
+export async function pushConsentGranted(): Promise<boolean> {
+  const res = await apiFetch<{ preferences: Record<string, boolean> }>('/api/customer/notifications');
+  return res.success && res.preferences?.push === true;
+}
+
 async function onNonPushChange(channel: string, checkbox: HTMLInputElement): Promise<void> {
   const desired = checkbox.checked;
   checkbox.disabled = true;
