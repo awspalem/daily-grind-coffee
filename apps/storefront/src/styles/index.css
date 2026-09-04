@@ -67,6 +67,32 @@ button, a, input, select, textarea, [role="button"] {
   touch-action: manipulation;
 }
 
+/*
+ * Keyboard focus. --border-focus was declared in the palette and then never used by anything, so
+ * focus was whatever each control happened to leave behind: the UA ring in most places, a faint
+ * border tint on .grind-dropdown and .agent-input, and on .agent-send-btn nothing at all — it
+ * sets `outline: none` with no :focus rule to replace it, so a keyboard user had no way to tell
+ * where they were.
+ *
+ * :focus-visible rather than :focus, so a mouse click on a button does not paint a ring. The
+ * offset matters as much as the colour: terracotta is 3.7–4.2:1 against every page surface but
+ * 1:1 against .btn-primary, which is terracotta itself. Pushing the ring 2px clear of the
+ * control lands it on the surface behind instead, where it always clears the 3:1 that WCAG 1.4.11
+ * asks of a non-text indicator. Specificity beats the three `outline: none` declarations, so
+ * those keep suppressing the ring for pointer users and no longer suppress it for keyboard ones.
+ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-primary);
