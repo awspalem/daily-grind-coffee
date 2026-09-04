@@ -115,6 +115,42 @@ export function registerNavPill(targetId: string, label: string): void {
   list.appendChild(item);
 }
 
+/**
+ * The block every feature shows a signed-out visitor.
+ *
+ * There were five of these, each written separately: three bare grey sentences, one panel with no
+ * heading above it at all, and copy that told people to "use the account button in the header" —
+ * an instruction to go hunting rather than something to click. This renders one consistent card
+ * with a real button, wired below to the header's account control.
+ *
+ * `initSignInPrompts()` installs one delegated listener for all of them; features only need to
+ * drop this markup into their section.
+ */
+export function signInPrompt(message: string, cta = 'Sign in'): string {
+  return `<div class="signin-prompt">
+      <p class="signin-prompt-text">${esc(message)}</p>
+      <button type="button" class="btn-primary signin-prompt-btn" data-signin-cta>${esc(cta)}</button>
+    </div>`;
+}
+
+let signInPromptsWired = false;
+
+/**
+ * Opens the account modal from any `signInPrompt` button. Delegated from the document, so it
+ * covers prompts that are re-rendered after the fact (every feature re-renders on sign-out).
+ */
+export function initSignInPrompts(): void {
+  if (signInPromptsWired) return;
+  signInPromptsWired = true;
+
+  document.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('[data-signin-cta]')) return;
+    // The header control owns the modal's open/close state; clicking it keeps that in one place.
+    document.getElementById('btn-open-account')?.click();
+  });
+}
+
 /** Escapes text destined for innerHTML. Every feature renders customer-supplied strings. */
 export function esc(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => (

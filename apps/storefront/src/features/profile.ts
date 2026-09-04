@@ -13,6 +13,7 @@ import {
   isSignedIn,
   mountFeatureSection,
   registerNavPill,
+  signInPrompt,
   toast,
 } from './shared';
 
@@ -105,11 +106,8 @@ function renderSignedOut(): string {
       <h2 class="section-title">Your Coffee Profile</h2>
       <p class="section-subtitle">Sign in and we'll remember your roast, your grind and your usual bag.</p>
     </div>
-    ${panel(
-      `<p style="color:var(--text-muted); text-align:center; margin:0;">
-        Use the account button in the header to sign in with a one-time code. Your taste profile,
-        order history and saved addresses will appear here.
-      </p>`
+    ${signInPrompt(
+      'Sign in with a one-time code and your taste profile, order history and saved addresses appear here.'
     )}
   `;
 }

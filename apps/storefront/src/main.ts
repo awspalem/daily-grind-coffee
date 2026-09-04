@@ -2,7 +2,7 @@
 import type { Cart, CartItem, Order, Product, ProductVariant } from '@daily-grind/shared-types';
 import { buildGSTInvoiceFromOrder, renderGSTInvoiceHTML } from './utils/gstInvoice';
 import { cachedFetch } from './utils/fetchCache';
-import { getSessionToken } from './features/shared';
+import { getSessionToken, initSignInPrompts } from './features/shared';
 import { initProfile } from './features/profile';
 import { initNotifications, pushConsentGranted } from './features/notifications';
 import { initLoyalty, redeemPointsForSubtotal } from './features/loyalty';
@@ -3482,6 +3482,7 @@ app.init();
 
 // Feature modules (see src/features/). Each owns its own DOM and nav entry, so features can be
 // built independently without ever editing this file again.
+initSignInPrompts(); // one delegated listener behind every feature's signed-out Sign in button
 initProfile(app);
 initNotifications(app);
 initLoyalty(app);

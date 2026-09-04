@@ -20,6 +20,7 @@ import {
   isSignedIn,
   mountFeatureSection,
   registerNavPill,
+  signInPrompt,
   toast,
   urlBase64ToArrayBuffer,
 } from './shared';
@@ -101,12 +102,28 @@ function channelRow(channel: string, meta: ChannelMeta, checked: boolean, disabl
     </label>`;
 }
 
+/**
+ * The section heading. Rendered in every state — it used to live inside the signed-in panel, so a
+ * logged-out visitor got an unlabelled box floating between two titled sections with no clue what
+ * it was for.
+ */
+function sectionHeader(): string {
+  return `<div class="section-header" style="text-align:center; margin-bottom:1.4rem;">
+      <span class="section-label">Your Account</span>
+      <h2 class="section-title">Notification Settings</h2>
+      <p class="section-subtitle">
+        Delivery consent for optional messages. Order confirmations and other transactional email are always sent.
+        (Your browsing interests live under <em>Keep in touch</em> in Your Coffee Profile.)
+      </p>
+    </div>`;
+}
+
 export function notificationCentreHtml(s: NotificationState): string {
   if (!s.signedIn) {
-    return panel('<p style="color:var(--text-muted, #7a7266); margin:0;">Sign in to manage which notifications we send you.</p>');
+    return sectionHeader() + signInPrompt('Sign in to choose which emails and push notifications we send you.');
   }
   if (!s.loaded) {
-    return panel('<p style="color:var(--text-muted, #7a7266); margin:0;">Loading your notification settings…</p>');
+    return sectionHeader() + panel('<p style="color:var(--text-muted, #7a7266); margin:0;">Loading your notification settings…</p>');
   }
 
   const rows = NON_PUSH_ORDER
@@ -131,15 +148,7 @@ export function notificationCentreHtml(s: NotificationState): string {
     ? channelRow('push', CHANNEL_META.push, pushChecked, pushDisabled, pushNote)
     : '';
 
-  return panel(`
-    <div style="margin-bottom:0.4rem;">
-      <span class="section-label" style="letter-spacing:0.12em; text-transform:uppercase; font-size:0.72rem; color:var(--accent-terracotta, #b5623f); font-weight:700;">Your Account</span>
-      <h2 style="font-family:var(--font-serif, Georgia, serif); font-size:1.5rem; margin:0.3rem 0 0.4rem;">Notification Settings</h2>
-      <p style="color:var(--text-muted, #7a7266); font-size:0.9rem; margin:0;">
-        Delivery consent for optional messages. Order confirmations and other transactional email are always sent.
-        (Your browsing interests live under <em>Keep in touch</em> in Your Coffee Profile.)
-      </p>
-    </div>
+  return sectionHeader() + panel(`
     ${rows}
     ${pushRow}
   `);

@@ -174,3 +174,46 @@ test('the startup push sync re-registers but never creates a subscription, and h
     'consent must be checked before POSTing the subscription'
   );
 });
+
+// ---------------------------------------------------------------------------------------
+// The shared signed-out prompt (features/shared.ts)
+// ---------------------------------------------------------------------------------------
+
+test('the notification centre is titled in every state, signed out included', () => {
+  const out = notificationCentreHtml(baseState({ signedIn: false }));
+  assert.match(out, /Notification Settings/, 'signed-out state must still say what the section is');
+  assert.match(out, /data-signin-cta/, 'and offer a button, not an instruction to go find one');
+
+  // The heading is not duplicated once the panel renders.
+  const inHtml = notificationCentreHtml(baseState());
+  assert.equal(inHtml.match(/Notification Settings/g)?.length, 1);
+});
+
+test('the sign-in prompt opens the account modal through the header control', async () => {
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!doctype html><body><button id="btn-open-account"></button><div id="host"></div></body>');
+  const g = globalThis as any;
+  const priorDoc = g.document;
+  const priorWin = g.window;
+  g.document = dom.window.document;
+  g.window = dom.window;
+  try {
+    const { signInPrompt, initSignInPrompts } = await import('../src/features/shared');
+    const host = dom.window.document.getElementById('host')!;
+    host.innerHTML = signInPrompt('Sign in to see your points.', 'Sign in');
+
+    let opened = 0;
+    dom.window.document.getElementById('btn-open-account')!.addEventListener('click', () => { opened++; });
+
+    initSignInPrompts();
+    host.querySelector<HTMLButtonElement>('[data-signin-cta]')!.click();
+    assert.equal(opened, 1, 'clicking the prompt should click the header account control');
+
+    // The message is escaped, not injected raw.
+    host.innerHTML = signInPrompt('<img src=x onerror=alert(1)>');
+    assert.equal(host.querySelector('img'), null);
+  } finally {
+    g.document = priorDoc;
+    g.window = priorWin;
+  }
+});

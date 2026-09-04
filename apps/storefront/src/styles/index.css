@@ -3705,6 +3705,39 @@ body {
 }
 
 /* ------------------------------------------------------------------------------------------
+   The signed-out prompt every account feature shows (features/shared.ts signInPrompt). One card
+   with one button, in place of the five different bare sentences these sections used to end on.
+   ------------------------------------------------------------------------------------------ */
+
+.signin-prompt {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 1.6rem 1.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.signin-prompt-text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 42ch;
+}
+
+.signin-prompt-btn {
+  padding: 0.7rem 2rem;
+  font-size: 0.92rem;
+}
+
+/* ------------------------------------------------------------------------------------------
    Homepage asides injected at build time by scripts/generate-seo.mjs (the AEO Q&A link and the
    journal teaser). They used to carry their own inline styles and no link colour, so they landed
    between two designed sections as a grey box of default-blue browser links. The markup is
