@@ -1,5 +1,5 @@
 // The Daily Roast — Storefront Service Worker (PWA Offline & Asset Cache)
-const CACHE_NAME = 'tdg-storefront-v1.2.0';
+const CACHE_NAME = 'tdg-storefront-v1.2.1';
 
 const PRECACHE_ASSETS = [
   '/',

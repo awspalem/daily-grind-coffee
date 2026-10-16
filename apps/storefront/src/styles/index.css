@@ -67,6 +67,12 @@ button, a, input, select, textarea, [role="button"] {
   touch-action: manipulation;
 }
 
+/* Form controls don't inherit the page font by default, so every button, chip and field was
+   rendering in the system sans instead of the brand face. */
+button, input, select, textarea {
+  font-family: inherit;
+}
+
 /*
  * Keyboard focus. --border-focus was declared in the palette and then never used by anything, so
  * focus was whatever each control happened to leave behind: the UA ring in most places, a faint
@@ -626,6 +632,9 @@ body {
 }
 
 .btn-primary {
+  /* Also used on <a>; inline, its pill padding broke across lines on the coffee pages. */
+  display: inline-block;
+  text-align: center;
   background: var(--accent-terracotta);
   color: #fff;
   padding: 0.85rem 1.8rem;
@@ -1231,7 +1240,9 @@ body {
   color: var(--text-inverse);
   padding: 5rem 1.5rem;
   border-radius: var(--radius-lg);
-  max-width: var(--content-max);
+  /* Inset to the same 1.5rem edge the other sections' content sits on, not the bare max-width. */
+  width: calc(100% - 3rem);
+  max-width: calc(var(--content-max) - 3rem);
   margin: 0 auto 6rem;
   position: relative;
   overflow: hidden;
@@ -1492,7 +1503,10 @@ body {
   background: #fff;
   z-index: 1001;
   transform: translateX(100%);
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Hidden once off-screen: otherwise its shadow bleeds a grey strip down the right edge of
+     every page, and its controls stay in the tab order. The delay lets the slide-out finish. */
+  visibility: hidden;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.35s;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-lg);
@@ -1500,6 +1514,8 @@ body {
 
 .cart-drawer.open, .agent-drawer.open {
   transform: translateX(0);
+  visibility: visible;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s;
 }
 
 .drawer-header {
@@ -2363,6 +2379,7 @@ body {
 
   .quiz-section {
     padding: 3rem 1.2rem;
+    width: auto;
     /* A -0.5rem bleed on each side is 8px wider than the viewport; the page scrolled sideways. */
     margin: 0 0 4rem;
     border-radius: var(--radius-md);
@@ -3783,7 +3800,9 @@ body {
 
 .aeo-aside,
 .journal-teaser {
-  max-width: var(--content-max);
+  /* Bordered boxes, so the border itself has to sit on the 1.5rem content edge. */
+  width: calc(100% - 3rem);
+  max-width: calc(var(--content-max) - 3rem);
   margin: 0 auto 1rem;
   padding: 1.1rem 1.4rem;
   background: var(--bg-card);
@@ -3852,8 +3871,7 @@ body {
 @media (max-width: 768px) {
   .aeo-aside,
   .journal-teaser {
-    margin-left: 1.2rem;
-    margin-right: 1.2rem;
+    width: calc(100% - 2.4rem);
   }
 }
 
