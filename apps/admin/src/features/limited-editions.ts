@@ -1,4 +1,5 @@
 import { adminFetch, esc, triggerHaptic, toast, openInlineModal } from './shared';
+import { tableErrorHtml } from '../components/ui';
 import type { RouteModule } from '../router';
 
 const PANEL_HTML = `
@@ -47,6 +48,12 @@ const route: RouteModule = {
 
     const load = async () => {
       const data = await adminFetch<{ limited_editions: any[] }>('/api/admin/limited-editions');
+      // A failed request is not an empty list; rendering [] here showed "No limited editions yet".
+      if (!data.success) {
+        tbody.innerHTML = tableErrorHtml(data.error || 'The API did not respond.', 'limited-editions-retry');
+        document.getElementById('limited-editions-retry')?.addEventListener('click', () => { void load(); });
+        return;
+      }
       render(data.limited_editions || []);
     };
     void load();

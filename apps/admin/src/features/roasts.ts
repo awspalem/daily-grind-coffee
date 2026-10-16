@@ -1,4 +1,5 @@
 import { adminFetch, esc, triggerHaptic, toast } from './shared';
+import { emptyStateHtml, tableErrorHtml } from '../components/ui';
 import type { RouteModule } from '../router';
 
 const PANEL_HTML = `
@@ -55,6 +56,10 @@ const route: RouteModule = {
     const tbody = document.getElementById('batch-table-body')!;
 
     const render = (batches: any[]) => {
+      if (batches.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7">${emptyStateHtml({ title: 'No batches logged yet', body: 'Log a roast above with its green kg in and roasted kg out to start calibrating loss.' })}</td></tr>`;
+        return;
+      }
       tbody.innerHTML = batches.map((b) => {
         const lossPct = Number(b.roast_loss_percent);
         const greenCostPerBag = ((0.25 / (1 - lossPct / 100)) * 610).toFixed(2);
@@ -74,6 +79,12 @@ const route: RouteModule = {
 
     const load = async () => {
       const data = await adminFetch<{ batches: any[] }>('/api/admin/roast-batches');
+      // A failed request is not an empty list; rendering [] here showed "No roast batches yet".
+      if (!data.success) {
+        tbody.innerHTML = tableErrorHtml(data.error || 'The API did not respond.', 'roasts-retry');
+        document.getElementById('roasts-retry')?.addEventListener('click', () => { void load(); });
+        return;
+      }
       render(data.batches || []);
     };
     load();

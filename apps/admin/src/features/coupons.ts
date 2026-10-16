@@ -1,4 +1,5 @@
 import { adminFetch, esc, triggerHaptic, toast, openInlineModal } from './shared';
+import { tableErrorHtml } from '../components/ui';
 import type { RouteModule } from '../router';
 
 const PANEL_HTML = `
@@ -44,6 +45,12 @@ const route: RouteModule = {
 
     const load = async () => {
       const data = await adminFetch<{ coupons: any[] }>('/api/admin/coupons');
+      // A failed request is not an empty list; rendering [] here showed "No coupons yet".
+      if (!data.success) {
+        tbody.innerHTML = tableErrorHtml(data.error || 'The API did not respond.', 'coupons-retry');
+        document.getElementById('coupons-retry')?.addEventListener('click', () => { void load(); });
+        return;
+      }
       render(data.coupons || []);
     };
     void load();
