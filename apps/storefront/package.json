@@ -11,9 +11,9 @@
     "@daily-grind/shared-types": "*"
   },
   "devDependencies": {
-    "jsdom": "^25.0.1",
+    "jsdom": "^30.1.2",
     "sharp": "^0.35.4",
-    "typescript": "^5.7.2",
-    "vite": "^6.1.0"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
   }
 }
