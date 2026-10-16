@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "vite --port 5173",
-    "build": "tsc && vite build && node scripts/generate-seo.mjs",
+    "build": "tsc && vite build && node scripts/generate-seo.mjs && node scripts/generate-webp.mjs",
     "preview": "vite preview",
     "test": "tsx --test test/*.test.ts"
   },
@@ -11,8 +11,9 @@
     "@daily-grind/shared-types": "*"
   },
   "devDependencies": {
+    "jsdom": "^25.0.1",
+    "sharp": "^0.35.4",
     "typescript": "^5.7.2",
-    "vite": "^6.1.0",
-    "jsdom": "^25.0.1"
+    "vite": "^6.1.0"
   }
 }

@@ -8,7 +8,7 @@
  * Every timestamp arrives from the API as UTC ISO and is rendered in Asia/Kolkata, labelled IST,
  * so the customer and the roastery never read a slot as two different instants.
  */
-import { apiFetch, esc, isSignedIn, mountFeatureSection, registerNavPill } from './shared';
+import { apiFetch, esc, isSignedIn, mountFeatureSection, registerNavPill, signInPrompt } from './shared';
 
 const SECTION_ID = 'experiences';
 const ROASTERY_TZ = 'Asia/Kolkata';
@@ -326,9 +326,9 @@ function render(): void {
         </div>
       </div>
     ` : `
-      <p style="text-align:center; color: var(--text-muted); margin-top: 2.4rem;">
-        Sign in to book an experience and to see the credits included with your subscription.
-      </p>
+      <div style="margin-top: 2.4rem;">
+        ${signInPrompt('Sign in to book an experience and to see the credits included with your subscription.')}
+      </div>
     `}
   `;
 

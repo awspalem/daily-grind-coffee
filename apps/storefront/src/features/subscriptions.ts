@@ -6,7 +6,7 @@
  * where pause / skip / swap / cancel live. Both are appended to <main> by mountFeatureSection.
  */
 
-import { apiFetch, esc, isSignedIn, mountFeatureSection, registerNavPill } from './shared';
+import { apiFetch, esc, isSignedIn, mountFeatureSection, registerNavPill, toast } from './shared';
 
 const PLANS_SECTION = 'subscription-plans';
 const MANAGER_SECTION = 'subscription-manager';
@@ -172,14 +172,14 @@ async function renderPlans(): Promise<void> {
  */
 async function startPlanCheckout(slug: string, btn: HTMLButtonElement): Promise<void> {
   if (!isSignedIn()) {
-    alert('Please sign in to your account first — your plan and its perks are tied to it.');
+    toast('Please sign in to your account first — your plan and its perks are tied to it.', 'info');
     document.getElementById('account-section')?.scrollIntoView({ behavior: 'smooth' });
     return;
   }
 
   const variantId = await pickStartingVariant();
   if (!variantId) {
-    alert('We could not load the coffee list just now. Please try again in a moment.');
+    toast('We could not load the coffee list just now. Please try again in a moment.', 'error');
     return;
   }
 

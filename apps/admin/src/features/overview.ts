@@ -1,5 +1,6 @@
 import { adminFetch, esc, toast } from './shared';
 import { icons } from '../icons';
+import { emptyStateHtml } from '../components/ui';
 import type { RouteModule } from '../router';
 
 interface DashboardStats {
@@ -156,6 +157,18 @@ async function loadDashboardData(): Promise<void> {
     setText('kpi-stock', '—');
     setText('kpi-stock-sub', 'Could not load');
     setClass('kpi-stock-sub', 'negative');
+    // The deltas are empty pills until filled; left in place they read as a stuck skeleton.
+    for (const id of ['kpi-revenue-delta', 'kpi-orders-delta', 'kpi-stock-delta']) document.getElementById(id)?.remove();
+    // Every other panel on the page is filled from this same response, so without this they
+    // all sat as shimmering skeletons (and the briefing said "Loading…") indefinitely.
+    const briefEl = document.getElementById('ai-briefing-text');
+    if (briefEl) briefEl.textContent = "Couldn't reach the roastery API, so today's briefing isn't available yet.";
+    showPanelError('roast-queue-list', 'Could not load the roast queue', data.error, 'overview-queue-retry');
+    const tbody = document.getElementById('recent-orders-body');
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="4">${emptyStateHtml({ title: 'Could not load recent orders', body: data.error || 'The API did not respond.', action: { label: 'Retry', id: 'overview-orders-retry' } })}</td></tr>`;
+      document.getElementById('overview-orders-retry')?.addEventListener('click', () => { void loadDashboardData(); });
+    }
     toast('Could not load dashboard data', 'error');
     return;
   }
@@ -229,6 +242,11 @@ async function loadRoastQueue(): Promise<void> {
     adminFetch<{ orders?: any[] }>('/api/admin/orders?status=PAID'),
     adminFetch<{ orders?: any[] }>('/api/admin/orders?status=ROASTING'),
   ]);
+  // Both failing must not fall through to "Roast queue is clear" — that is a false all-clear.
+  if (!paid.success && !roasting.success) {
+    showPanelError('roast-queue-list', 'Could not load the roast queue', paid.error, 'overview-queue-retry', loadRoastQueue);
+    return;
+  }
   const all = [...(roasting.orders || []), ...(paid.orders || [])]
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .slice(0, 8);
@@ -257,6 +275,13 @@ async function loadRoastQueue(): Promise<void> {
         <div class="roast-queue-card-items">${itemSummary}${more}</div>
       </a>`;
   }).join('');
+}
+
+function showPanelError(listId: string, title: string, error: string | undefined, retryId: string, retry: () => Promise<void> = loadDashboardData): void {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  list.innerHTML = `<div style="grid-column: 1 / -1;">${emptyStateHtml({ title, body: error || 'The API did not respond.', action: { label: 'Retry', id: retryId } })}</div>`;
+  document.getElementById(retryId)?.addEventListener('click', () => { void retry(); });
 }
 
 function renderRecentOrders(orders: DashboardStats['recent_orders']): void {

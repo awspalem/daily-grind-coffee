@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
 import { productPage, indexPage, sitemap, llmsTxt } from './seo-render.mjs';
 import { readBrewMethods, brewPage, brewIndexPage, hasRecipe } from './seo-brew.mjs';
+import { readPosts, postPage, blogIndexPage, relatedPosts, coffeeCtaSlugs, blogAsideHtml } from './seo-blog.mjs';
 import { faqPage } from './seo-faq.mjs';
 import { aeoPage, aeoFeed, aeoSnippetsForPage, aeoAsideHtml } from './seo-aeo.mjs';
 import { agentCapabilityTxt, agentLandingHtml } from './seo-agent.mjs';
@@ -103,6 +104,27 @@ if (withoutRecipe.length) {
     `get no page while the card keeps promising a guide.`);
 }
 
+/**
+ * The journal. Read from apps/storefront/content/blog/*.md — plain Markdown so a post can be
+ * added or edited without touching code. A malformed post throws (house style); a future-dated
+ * one is held back until its date.
+ */
+const posts = readPosts(join(ROOT, 'content', 'blog'));
+
+/*
+ * A post CTA that points at /coffee/<slug> is only a real link if that product page gets
+ * generated, and the product list is a live fetch — so slug correctness is a runtime property.
+ * Fail the build on a miss rather than ship a 404 as a post's primary call to action, exactly
+ * as the brew-recipe check above refuses a card that promises a guide with no recipe.
+ */
+const productSlugs = new Set(products.map((p) => p.slug));
+const deadCtas = coffeeCtaSlugs(posts).filter((c) => !productSlugs.has(c.coffee));
+if (deadCtas.length) {
+  throw new Error(`Blog CTAs point at coffee pages that will not be generated: ` +
+    `${deadCtas.map((c) => `${c.post} -> /coffee/${c.coffee}`).join(', ')}. ` +
+    `Retarget the cta_href to /coffee/ (always generated) or fix the slug.`);
+}
+
 mkdirSync(join(DIST, 'coffee'), { recursive: true });
 mkdirSync(join(DIST, 'brew'), { recursive: true });
 for (const p of products) {
@@ -114,8 +136,14 @@ for (const m of brewMethods) writeFileSync(join(DIST, 'brew', `${m.method}.html`
 writeFileSync(join(DIST, 'brew', 'index.html'), brewIndexPage(brewMethods, css));
 writeFileSync(join(DIST, 'faq.html'), faqPage(css));
 
-writeFileSync(join(DIST, 'sitemap.xml'), sitemap(products, brewMethods));
-writeFileSync(join(DIST, 'llms.txt'), llmsTxt(products, brewMethods));
+mkdirSync(join(DIST, 'blog'), { recursive: true });
+for (const p of posts) {
+  writeFileSync(join(DIST, 'blog', `${p.slug}.html`), postPage(p, css, relatedPosts(posts, p.slug)));
+}
+writeFileSync(join(DIST, 'blog', 'index.html'), blogIndexPage(posts, css));
+
+writeFileSync(join(DIST, 'sitemap.xml'), sitemap(products, brewMethods, posts));
+writeFileSync(join(DIST, 'llms.txt'), llmsTxt(products, brewMethods, posts));
 
 // Agent-facing discovery surface. agent.txt is the plain-text capability card (the
 // llms.txt equivalent for agent-shaped consumers); agent.html is a minimal HTML page
@@ -145,11 +173,15 @@ writeFileSync(join(DIST, 'aeo.html'), aeoPage(css));
 writeFileSync(join(DIST, 'aeo-feed.json'), JSON.stringify(aeoFeed(), null, 2));
 const distIndex = join(DIST, 'index.html');
 const indexHtml = readFileSync(distIndex, 'utf8');
-const withAeoAside = indexHtml.replace('</main>', `${aeoAsideHtml()}\n</main>`);
-if (withAeoAside !== indexHtml) writeFileSync(distIndex, withAeoAside);
+// Both homepage asides are injected just before </main>: the AEO Q&A link and a teaser that
+// links the three newest journal posts, so the blog gets real internal links from / and not
+// just a footer entry.
+const withAsides = indexHtml
+  .replace('</main>', `${aeoAsideHtml()}\n${blogAsideHtml(posts)}\n</main>`);
+if (withAsides !== indexHtml) writeFileSync(distIndex, withAsides);
 
-const urlCount = (sitemap(products, brewMethods).match(/<loc>/g) || []).length;
-console.log(`seo: ${products.length} coffee + ${brewMethods.length} brew + faq, ${urlCount} sitemap urls, llms.txt, llms-full.txt, agent.txt, aeo.html, .well-known/, image-sitemap.xml`);
+const urlCount = (sitemap(products, brewMethods, posts).match(/<loc>/g) || []).length;
+console.log(`seo: ${products.length} coffee + ${brewMethods.length} brew + ${posts.length} journal + faq, ${urlCount} sitemap urls, llms.txt, llms-full.txt, agent.txt, aeo.html, .well-known/, image-sitemap.xml`);
 
 // ------------------------------------------------------------------------------------------
 // Experiences — Course JSON-LD, individual /experiences/<slug>.html pages, and an index.

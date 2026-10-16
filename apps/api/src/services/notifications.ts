@@ -64,7 +64,14 @@ export async function getConsentMap(env: Env, customerId: string): Promise<Recor
   return map;
 }
 
-/** Upsert one channel preference. Ignores unknown channel names. */
+/**
+ * Upsert one channel preference. Ignores unknown channel names.
+ *
+ * Switching `push` off also drops every push subscription this customer has registered. The
+ * storefront toggle can only unsubscribe the browser it runs in, so without this an opt-out made
+ * on one device would leave the customer's other registrations sitting in the table — suppressed
+ * at send time by `hasConsent`, but still stored. Consent off means the registrations go.
+ */
 export async function setConsent(
   env: Env,
   customerId: string,
@@ -79,6 +86,11 @@ export async function setConsent(
       opted_in = excluded.opted_in,
       updated_at = CURRENT_TIMESTAMP
   `).bind(customerId, channel, optedIn ? 1 : 0).run();
+
+  if (channel === 'push' && !optedIn) {
+    await env.DB.prepare('DELETE FROM push_subscriptions WHERE customer_id = ?').bind(customerId).run();
+  }
+
   return true;
 }
 

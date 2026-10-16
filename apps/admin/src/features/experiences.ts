@@ -8,6 +8,7 @@
  */
 
 import { adminFetch, esc, toast, confirmModal } from './shared';
+import { tableErrorHtml } from '../components/ui';
 import type { RouteModule } from '../router';
 
 const PANEL = 'panel-experiences';
@@ -76,25 +77,33 @@ function mount(container: HTMLElement): void {
           </table>
         </div>
 
-        <h3>Add a slot</h3>
-        <form id="slot-form" style="display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-          <label>Experience<select name="experienceId" id="slot-experience"></select></label>
-          <label>Starts<input name="startsAt" type="datetime-local" required /></label>
-          <label>Ends <span style="color:var(--text-muted); font-size:0.78rem;">(blank = use duration)</span>
-            <input name="endsAt" type="datetime-local" /></label>
-          <label>Seats<input name="seatsTotal" type="number" min="1" placeholder="default capacity" /></label>
-          <label>Host<input name="staffName" /></label>
-          <label>Host email<input name="staffEmail" type="email" /></label>
-          <label>Video room URL <span style="color:var(--text-muted); font-size:0.78rem;">(VIDEO only)</span>
-            <input name="meetingUrl" type="url" /></label>
-          <label style="grid-column: 1 / -1;">Notes<input name="notes" /></label>
-          <div style="grid-column: 1 / -1; display: flex; gap: 0.6rem; align-items: center;">
-            <button type="submit" class="btn-table-action">Create slot</button>
-            <span id="slot-form-error" style="color: var(--rose); font-size: 0.85rem;"></span>
+        <h3 class="panel-title" style="font-size: 1.1rem;">Add a slot</h3>
+        <form id="slot-form" class="form-grid">
+          <label class="form-field"><span class="form-field-label">Experience</span>
+            <select class="admin-input-styled" name="experienceId" id="slot-experience"></select></label>
+          <label class="form-field"><span class="form-field-label">Starts</span>
+            <input class="admin-input-styled" name="startsAt" type="datetime-local" required /></label>
+          <label class="form-field"><span class="form-field-label">Ends</span>
+            <input class="admin-input-styled" name="endsAt" type="datetime-local" />
+            <span class="form-field-help">Blank uses the experience's duration</span></label>
+          <label class="form-field"><span class="form-field-label">Seats</span>
+            <input class="admin-input-styled" name="seatsTotal" type="number" min="1" placeholder="Default capacity" /></label>
+          <label class="form-field"><span class="form-field-label">Host</span>
+            <input class="admin-input-styled" name="staffName" /></label>
+          <label class="form-field"><span class="form-field-label">Host email</span>
+            <input class="admin-input-styled" name="staffEmail" type="email" /></label>
+          <label class="form-field"><span class="form-field-label">Video room URL</span>
+            <input class="admin-input-styled" name="meetingUrl" type="url" />
+            <span class="form-field-help">Video sessions only</span></label>
+          <label class="form-field form-field--wide"><span class="form-field-label">Notes</span>
+            <input class="admin-input-styled" name="notes" /></label>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Create slot</button>
+            <span id="slot-form-error" class="form-error"></span>
           </div>
         </form>
 
-        <h3>Upcoming slots</h3>
+        <h3 class="panel-title" style="font-size: 1.1rem;">Upcoming slots</h3>
         <div style="overflow-x: auto;">
           <table class="data-table">
             <thead><tr>
@@ -106,16 +115,20 @@ function mount(container: HTMLElement): void {
 
         <div id="roster-host"></div>
 
-        <h3>Blackout dates</h3>
-        <form id="blackout-form" style="display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-          <label>Experience <span style="color:var(--text-muted); font-size:0.78rem;">(blank = all)</span>
-            <select name="experienceId" id="blackout-experience"></select></label>
-          <label>From<input name="startsAt" type="datetime-local" required /></label>
-          <label>To<input name="endsAt" type="datetime-local" required /></label>
-          <label>Reason<input name="reason" /></label>
-          <div style="grid-column: 1 / -1; display: flex; gap: 0.6rem; align-items: center;">
-            <button type="submit" class="btn-table-action">Add blackout</button>
-            <span id="blackout-error" style="color: var(--rose); font-size: 0.85rem;"></span>
+        <h3 class="panel-title" style="font-size: 1.1rem;">Blackout dates</h3>
+        <form id="blackout-form" class="form-grid">
+          <label class="form-field"><span class="form-field-label">Experience</span>
+            <select class="admin-input-styled" name="experienceId" id="blackout-experience"></select>
+            <span class="form-field-help">Blank blocks every experience</span></label>
+          <label class="form-field"><span class="form-field-label">From</span>
+            <input class="admin-input-styled" name="startsAt" type="datetime-local" required /></label>
+          <label class="form-field"><span class="form-field-label">To</span>
+            <input class="admin-input-styled" name="endsAt" type="datetime-local" required /></label>
+          <label class="form-field"><span class="form-field-label">Reason</span>
+            <input class="admin-input-styled" name="reason" /></label>
+          <div class="form-actions">
+            <button type="submit" class="btn-secondary">Add blackout</button>
+            <span id="blackout-error" class="form-error"></span>
           </div>
         </form>
         <div style="overflow-x: auto;">
@@ -138,6 +151,12 @@ function mount(container: HTMLElement): void {
   async function loadExperiences(): Promise<void> {
     const res = await adminFetch<{ experiences?: Experience[] }>('/api/experiences/admin/experiences');
     experiences = res.success ? res.experiences || [] : [];
+    // A failed request is not an empty catalogue — say so, with a way to try again.
+    if (!res.success) {
+      expBody.innerHTML = tableErrorHtml(res.error || 'The API did not respond.', 'exp-retry');
+      body.querySelector('#exp-retry')?.addEventListener('click', () => { void loadExperiences(); });
+      return;
+    }
 
     expBody.innerHTML = experiences.length
       ? experiences.map((e) => `
@@ -182,7 +201,12 @@ function mount(container: HTMLElement): void {
 
   async function loadSlots(): Promise<void> {
     const res = await adminFetch<{ slots?: Slot[] }>('/api/experiences/admin/slots?upcoming=1');
-    const slots = res.success ? res.slots || [] : [];
+    if (!res.success) {
+      slotBody.innerHTML = tableErrorHtml(res.error || 'The API did not respond.', 'slot-retry');
+      body.querySelector('#slot-retry')?.addEventListener('click', () => { void loadSlots(); });
+      return;
+    }
+    const slots = res.slots || [];
 
     slotBody.innerHTML = slots.length
       ? slots.map((s) => `
@@ -286,7 +310,12 @@ function mount(container: HTMLElement): void {
 
   async function loadBlackouts(): Promise<void> {
     const res = await adminFetch<{ blackouts?: any[] }>('/api/experiences/admin/blackouts');
-    const rows = res.success ? res.blackouts || [] : [];
+    if (!res.success) {
+      blackoutBody.innerHTML = tableErrorHtml(res.error || 'The API did not respond.', 'blackout-retry');
+      body.querySelector('#blackout-retry')?.addEventListener('click', () => { void loadBlackouts(); });
+      return;
+    }
+    const rows = res.blackouts || [];
     blackoutBody.innerHTML = rows.length
       ? rows.map((b) => `
           <tr>

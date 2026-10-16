@@ -115,6 +115,42 @@ export function registerNavPill(targetId: string, label: string): void {
   list.appendChild(item);
 }
 
+/**
+ * The block every feature shows a signed-out visitor.
+ *
+ * There were five of these, each written separately: three bare grey sentences, one panel with no
+ * heading above it at all, and copy that told people to "use the account button in the header" —
+ * an instruction to go hunting rather than something to click. This renders one consistent card
+ * with a real button, wired below to the header's account control.
+ *
+ * `initSignInPrompts()` installs one delegated listener for all of them; features only need to
+ * drop this markup into their section.
+ */
+export function signInPrompt(message: string, cta = 'Sign in'): string {
+  return `<div class="signin-prompt">
+      <p class="signin-prompt-text">${esc(message)}</p>
+      <button type="button" class="btn-primary signin-prompt-btn" data-signin-cta>${esc(cta)}</button>
+    </div>`;
+}
+
+let signInPromptsWired = false;
+
+/**
+ * Opens the account modal from any `signInPrompt` button. Delegated from the document, so it
+ * covers prompts that are re-rendered after the fact (every feature re-renders on sign-out).
+ */
+export function initSignInPrompts(): void {
+  if (signInPromptsWired) return;
+  signInPromptsWired = true;
+
+  document.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('[data-signin-cta]')) return;
+    // The header control owns the modal's open/close state; clicking it keeps that in one place.
+    document.getElementById('btn-open-account')?.click();
+  });
+}
+
 /** Escapes text destined for innerHTML. Every feature renders customer-supplied strings. */
 export function esc(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => (
@@ -122,6 +158,75 @@ export function esc(value: unknown): string {
   ));
 }
 
+/**
+ * Decodes a URL-safe base64 VAPID key into the ArrayBuffer `PushManager.subscribe` wants for
+ * `applicationServerKey`. Shared so the notification centre and main.ts's `syncPushSubscription`
+ * use one implementation rather than two hand-rolled copies of the padding/charset fix-ups.
+ */
+export function urlBase64ToArrayBuffer(base64: string): ArrayBuffer {
+  const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+  const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'));
+  const buf = new ArrayBuffer(raw.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
+  return buf;
+}
+
 export function formatCents(cents: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format((cents || 0) / 100);
+}
+
+// ---------------------------------------------------------------------------
+// toast — non-blocking notification. Replaces alert() in the feature modules so
+// a failed save no longer freezes the page on an OS dialog. Self-contained: the
+// container and its styles are injected on first use, so no index.html changes.
+// ---------------------------------------------------------------------------
+export type ToastKind = 'success' | 'error' | 'info';
+
+let toastStack: HTMLElement | null = null;
+
+function ensureToastStack(): HTMLElement {
+  if (toastStack && toastStack.isConnected) return toastStack;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    #tdg-toast-stack { position: fixed; z-index: 9999; left: 50%; bottom: 1.25rem; transform: translateX(-50%);
+      display: flex; flex-direction: column; gap: 0.5rem; width: min(92vw, 420px); pointer-events: none; }
+    #tdg-toast-stack .tdg-toast { pointer-events: auto; display: flex; gap: 0.6rem; align-items: flex-start;
+      background: #1c1a17; color: #f5f1ea; border-radius: 10px; padding: 0.8rem 0.9rem; font-size: 0.9rem;
+      line-height: 1.4; box-shadow: 0 8px 28px rgba(0,0,0,0.28); border-left: 4px solid #8a8175;
+      animation: tdg-toast-in 0.18s ease-out; }
+    #tdg-toast-stack .tdg-toast--success { border-left-color: #4c9a68; }
+    #tdg-toast-stack .tdg-toast--error { border-left-color: #d1524f; }
+    #tdg-toast-stack .tdg-toast--leaving { opacity: 0; transform: translateY(6px); transition: opacity 0.2s, transform 0.2s; }
+    #tdg-toast-stack .tdg-toast-close { margin-left: auto; background: none; border: 0; color: inherit;
+      font-size: 1.1rem; line-height: 1; cursor: pointer; opacity: 0.7; }
+    @keyframes tdg-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { #tdg-toast-stack .tdg-toast { animation: none; } }
+  `;
+  document.head.appendChild(style);
+
+  const stack = document.createElement('div');
+  stack.id = 'tdg-toast-stack';
+  document.body.appendChild(stack);
+  toastStack = stack;
+  return stack;
+}
+
+export function toast(message: string, kind: ToastKind = 'info', durationMs = 4000): void {
+  const stack = ensureToastStack();
+  const el = document.createElement('div');
+  el.className = `tdg-toast tdg-toast--${kind}`;
+  el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  el.innerHTML = `<div>${esc(message)}</div><button class="tdg-toast-close" type="button" aria-label="Dismiss">&times;</button>`;
+  el.querySelector('.tdg-toast-close')?.addEventListener('click', dismiss);
+  stack.appendChild(el);
+  while (stack.children.length > 4) stack.firstElementChild?.remove();
+  const timer = setTimeout(dismiss, durationMs);
+  function dismiss() {
+    clearTimeout(timer);
+    if (!el.isConnected) return;
+    el.classList.add('tdg-toast--leaving');
+    setTimeout(() => el.remove(), 220);
+  }
 }

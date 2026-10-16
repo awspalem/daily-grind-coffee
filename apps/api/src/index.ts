@@ -150,7 +150,15 @@ export default {
     // Time-sensitive upkeep for bookings, entitlements and plans — booking holds, waitlist
     // promotion, T-24h/T-1h reminders and grant expiry. Runs on every tick, including the
     // nightly one.
-    await runHourlyMaintenance(env);
+    //
+    // Every step of this handler is individually guarded: an error in one job must not skip the
+    // jobs after it. A nightly tick that loses the backup because a stock query failed is how a
+    // small fault becomes a missing snapshot.
+    try {
+      await runHourlyMaintenance(env);
+    } catch (maintErr) {
+      console.error('[CRON HOURLY MAINTENANCE ERROR]', maintErr);
+    }
 
     // The hourly trigger stops here. Everything below is the nightly block (backups, abandoned
     // carts, renewals, review requests) and must not run twelve times a day.
@@ -159,14 +167,18 @@ export default {
     const emailService = new ResendEmailService(env.RESEND_API_KEY, env.RESEND_FROM_EMAIL);
 
     // 1. Audit low-stock items
-    const { results: lowStock } = await env.DB.prepare(`
-      SELECT sku, available_stock, low_stock_threshold 
-      FROM inventory 
-      WHERE available_stock <= low_stock_threshold
-    `).all();
+    try {
+      const { results: lowStock } = await env.DB.prepare(`
+        SELECT sku, available_stock, low_stock_threshold 
+        FROM inventory 
+        WHERE available_stock <= low_stock_threshold
+      `).all();
 
-    if (lowStock && lowStock.length > 0) {
-      console.warn(`[CRON ALERT] ${lowStock.length} items are currently below low-stock thresholds:`, lowStock);
+      if (lowStock && lowStock.length > 0) {
+        console.warn(`[CRON ALERT] ${lowStock.length} items are currently below low-stock thresholds:`, lowStock);
+      }
+    } catch (lowStockErr) {
+      console.error('[CRON LOW STOCK AUDIT ERROR]', lowStockErr);
     }
 
     // 2. Perform automated D1 snapshot backup to R2
@@ -178,9 +190,13 @@ export default {
     }
 
     // 3. Clean up expired guest carts older than 30 days
-    await env.DB.prepare(`
-      DELETE FROM carts WHERE expires_at < CURRENT_TIMESTAMP
-    `).run();
+    try {
+      await env.DB.prepare(`
+        DELETE FROM carts WHERE expires_at < CURRENT_TIMESTAMP
+      `).run();
+    } catch (cartErr) {
+      console.error('[CRON CART CLEANUP ERROR]', cartErr);
+    }
 
     // 4. Release inventory reserved by abandoned checkouts. checkout.ts reserves stock
     // (PURCHASE_RESERVE) the moment a Stripe session is created, but nothing ever released it if

@@ -85,6 +85,8 @@ const route: RouteModule = {
       if (result.success) {
         toast('Review deleted — audit log updated', 'success');
         await load();
+      } else {
+        toast(`Could not delete review: ${result.error || 'Unknown error'}`, 'error');
       }
     });
   },

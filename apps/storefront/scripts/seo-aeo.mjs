@@ -477,7 +477,9 @@ function aeoBrewSnippetHtml(pagePath) {
  * Designed to be injected just before `</main>`.
  */
 export function aeoAsideHtml() {
-  return `<aside class="aeo-aside" aria-label="See all common questions" style="max-width: 820px; margin: 2rem auto; padding: 0.9rem 1.2rem; background: var(--bg-secondary, #f6efe7); border: 1px solid var(--border-subtle, #e3d9cb); border-radius: 10px; font-size: 0.92rem;">
+  // Homepage-only, so .aeo-aside in src/styles/index.css carries the styling; see the note on
+  // blogAsideHtml for why the inline styles went.
+  return `<aside class="aeo-aside" aria-label="See all common questions">
   Common questions about our coffee, brewing and shipping: <a href="/aeo.html">see all ${AEO_QUESTIONS.length} answers</a>.
 </aside>`;
 }

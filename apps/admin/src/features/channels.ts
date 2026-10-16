@@ -1,4 +1,5 @@
 import { adminFetch, esc, triggerHaptic, toast, openInlineModal } from './shared';
+import { tableErrorHtml } from '../components/ui';
 import type { RouteModule } from '../router';
 
 const PANEL_HTML = `
@@ -46,6 +47,12 @@ const route: RouteModule = {
 
     const load = async () => {
       const data = await adminFetch<{ channels: any[] }>('/api/admin/channels');
+      // A failed request is not an empty list; rendering [] here showed "No channels yet".
+      if (!data.success) {
+        tbody.innerHTML = tableErrorHtml(data.error || 'The API did not respond.', 'channels-retry');
+        document.getElementById('channels-retry')?.addEventListener('click', () => { void load(); });
+        return;
+      }
       render(data.channels || []);
     };
     void load();
